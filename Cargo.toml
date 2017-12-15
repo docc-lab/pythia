@@ -10,5 +10,4 @@ rand = "0.3.17"
 git = "https://github.com/frankmcsherry/abomonation"
 
 [dependencies.timely]
-#branch = "monotonic_notification"
 git = "https://github.com/frankmcsherry/timely-dataflow"
