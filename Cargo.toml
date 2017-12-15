@@ -1,0 +1,14 @@
+[package]
+name = "sessionize"
+version = "0.1.0"
+authors = ["Zaheer Chothia <zchothia@inf.ethz.ch>"]
+
+[dependencies]
+rand = "0.3.17"
+
+[dependencies.abomonation]
+git = "https://github.com/frankmcsherry/abomonation"
+
+[dependencies.timely]
+#branch = "monotonic_notification"
+git = "https://github.com/frankmcsherry/timely-dataflow"
