@@ -4,6 +4,8 @@ extern crate timely;
 
 pub mod operators;
 
+use std::cmp::Ordering;
+
 use timely::ExchangeData;
 
 pub type Timestamp = u64;
@@ -76,9 +78,31 @@ pub fn canonical_shape<M: TracedMessage>(messages: &Vec<M>) -> Vec<Degree> {
     return degrees;
 }
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Abomonation)]
+pub struct SpanId(pub Vec<TraceId>);
+
+impl PartialOrd for SpanId {
+    fn partial_cmp(&self, other: &SpanId) -> Option<Ordering> {
+        let mut it1 = self.0.iter();
+        let mut it2 = other.0.iter();
+        loop {
+            match (it1.next(), it2.next()) {
+                (Some(p1), Some(p2)) => {
+                    if p1 != p2 { return None } else { continue }
+                }
+                (None, Some(_)) => return Some(Ordering::Less),
+                (Some(_), None) => return Some(Ordering::Greater),
+                (None, None) => return Some(Ordering::Equal),
+            }
+        }
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
-    use super::{canonical_shape, TraceId, TracedMessage};
+    use super::{canonical_shape, SpanId, TraceId, TracedMessage};
+    use std::cmp::Ordering;
 
     #[derive(Debug, Clone)]
     struct Addr(Vec<TraceId>);
@@ -97,5 +121,19 @@ mod tests {
                    vec![1,2,0,0]);
         assert_eq!(canonical_shape(&vec![Addr(vec![2, 1, 3]), Addr(vec![3])]),
                    vec![4,0,0,2,0,0,4,0,0,0,0]);
+    }
+
+    #[test]
+    fn test_span_id_ordering() {
+        let id = SpanId(vec![1, 0, 1]);
+        assert_eq!(SpanId(vec![0]).partial_cmp(&id), None);
+        assert_eq!(SpanId(vec![1]).partial_cmp(&id), Some(Ordering::Less));
+        assert_eq!(SpanId(vec![1, 0]).partial_cmp(&id), Some(Ordering::Less));
+        assert_eq!(SpanId(vec![1, 0, 0]).partial_cmp(&id), None);
+        assert_eq!(SpanId(vec![1, 0, 1]).partial_cmp(&id), Some(Ordering::Equal));
+        assert_eq!(SpanId(vec![1, 0, 2]).partial_cmp(&id), None);
+        assert_eq!(SpanId(vec![1, 0, 1, 0]).partial_cmp(&id), Some(Ordering::Greater));
+        assert_eq!(SpanId(vec![1, 0, 1, 0, 0]).partial_cmp(&id), Some(Ordering::Greater));
+        assert_eq!(SpanId(vec![1, 0, 1, 0, 1]).partial_cmp(&id), Some(Ordering::Greater));
     }
 }
