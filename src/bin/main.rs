@@ -2,7 +2,7 @@
 
 #[macro_use] extern crate abomonation;
 extern crate timely;
-extern crate sessionize;
+extern crate reconstruction;
 
 use std::collections::HashSet;
 
@@ -10,9 +10,9 @@ use abomonation::Abomonation;
 use timely::dataflow::channels::pact::Pipeline;
 use timely::dataflow::operators::{Input, Inspect, Map, Unary};
 
-use sessionize::SessionizableMessage;
-use sessionize::operators::Sessionize;
-use sessionize::operators::stats::SumPerEpoch;
+use reconstruction::SessionizableMessage;
+use reconstruction::operators::Sessionize;
+use reconstruction::operators::stats::SumPerEpoch;
 
 /// For this example, we assign integer timestamps to events and the time axis is specified in
 /// terms of **milliseconds**.   For simplicity, we ignore time zones, leap seconds and other

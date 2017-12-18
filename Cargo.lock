@@ -58,18 +58,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "redox_syscall"
-version = "0.1.32"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "sessionize"
+name = "reconstruction"
 version = "0.1.0"
 dependencies = [
  "abomonation 0.5.0 (git+https://github.com/frankmcsherry/abomonation)",
  "rand 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "timely 0.3.0 (git+https://github.com/frankmcsherry/timely-dataflow)",
 ]
+
+[[package]]
+name = "redox_syscall"
+version = "0.1.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "time"

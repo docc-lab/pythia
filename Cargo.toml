@@ -1,5 +1,5 @@
 [package]
-name = "sessionize"
+name = "reconstruction"
 version = "0.1.0"
 authors = ["Zaheer Chothia <zchothia@inf.ethz.ch>"]
 
