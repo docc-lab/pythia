@@ -26,7 +26,7 @@ pub trait SessionizableMessage: ExchangeData {
 }
 
 pub trait TracedMessage {
-    fn call_trace(&self) -> &Vec<TraceId>;
+    fn get_span_id(&self) -> &SpanId;
 }
 
 #[derive(Debug, Clone, Abomonation)]
@@ -39,23 +39,22 @@ pub struct MessagesForSession<M: SessionizableMessage> {
 // representation of the tree
 //
 // the result is a sequence of degrees of a BFS traversal of the graph.
-pub fn canonical_shape<M: TracedMessage>(messages: &Vec<M>) -> Vec<Degree> {
-    let paths: Vec<&Vec<TraceId>> = messages.into_iter().map(|m| m.call_trace()).collect();
+pub fn canonical_shape<S: AsRef<Vec<TraceId>>>(paths: &Vec<S>) -> Vec<Degree> {
     let mut position = vec![0; paths.len()];
     let mut degrees = vec![0];
     let mut offsets = vec![1]; // where do children start?
 
-    if let Some(max_depth) = paths.iter().map(|p| p.len()).max() {
+    if let Some(max_depth) = paths.iter().map(|p| p.as_ref().len()).max() {
         for depth in 0 .. max_depth {
             // advance each position based on its offset
             // ensure that the max degree of the associated node is at least as high as it should be.
             for index in 0..paths.len() {
-                if paths[index].len() > depth {
+                if paths[index].as_ref().len() > depth {
                     if depth > 0 {
-                        position[index] = (offsets[position[index]] + paths[index][depth-1]) as usize;
+                        position[index] = (offsets[position[index]] + paths[index].as_ref()[depth-1]) as usize;
                     }
 
-                    degrees[position[index]] = ::std::cmp::max(degrees[position[index]], paths[index][depth] + 1);
+                    degrees[position[index]] = ::std::cmp::max(degrees[position[index]], paths[index].as_ref()[depth] + 1);
                 }
             }
 
@@ -81,6 +80,12 @@ pub fn canonical_shape<M: TracedMessage>(messages: &Vec<M>) -> Vec<Degree> {
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Abomonation)]
 pub struct SpanId(pub Vec<TraceId>);
 
+impl AsRef<Vec<TraceId>> for SpanId {
+    fn as_ref(&self) -> &Vec<TraceId> {
+        &self.0
+    }
+}
+
 impl PartialOrd for SpanId {
     fn partial_cmp(&self, other: &SpanId) -> Option<Ordering> {
         let mut it1 = self.0.iter();
@@ -101,25 +106,18 @@ impl PartialOrd for SpanId {
 
 #[cfg(test)]
 mod tests {
-    use super::{canonical_shape, SpanId, TraceId, TracedMessage};
+    use super::{canonical_shape, SpanId};
     use std::cmp::Ordering;
-
-    #[derive(Debug, Clone)]
-    struct Addr(Vec<TraceId>);
-
-    impl TracedMessage for Addr {
-        fn call_trace(&self) -> &Vec<TraceId> { &self.0 }
-    }
 
     #[test]
     fn test_tree_shape() {
-        assert_eq!(canonical_shape(&vec![Addr(vec![0])]),
+        assert_eq!(canonical_shape(&vec![SpanId(vec![0])]),
                    vec![1,0]);
-        assert_eq!(canonical_shape(&vec![Addr(vec![1])]),
+        assert_eq!(canonical_shape(&vec![SpanId(vec![1])]),
                    vec![2,0,0]);
-        assert_eq!(canonical_shape(&vec![Addr(vec![0, 1])]),
+        assert_eq!(canonical_shape(&vec![SpanId(vec![0, 1])]),
                    vec![1,2,0,0]);
-        assert_eq!(canonical_shape(&vec![Addr(vec![2, 1, 3]), Addr(vec![3])]),
+        assert_eq!(canonical_shape(&vec![SpanId(vec![2, 1, 3]), SpanId(vec![3])]),
                    vec![4,0,0,2,0,0,4,0,0,0,0]);
     }
 

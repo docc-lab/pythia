@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use timely::dataflow::channels::pact::Pipeline;
 use timely::dataflow::operators::{Input, Inspect, Map, Unary};
 
-use reconstruction::{canonical_shape, SessionizableMessage, TraceId, TracedMessage};
+use reconstruction::{canonical_shape, SessionizableMessage, SpanId, TracedMessage};
 use reconstruction::operators::Sessionize;
 use reconstruction::operators::stats::SumPerEpoch;
 
@@ -35,7 +35,7 @@ const EXPIRY_DELAY: u64 = 5000;
 struct Message {
     session_id: String,
     time: u64,
-    addr: Vec<TraceId>,
+    addr: SpanId,
 }
 
 impl SessionizableMessage for Message {
@@ -49,13 +49,13 @@ impl SessionizableMessage for Message {
 }
 
 impl TracedMessage for Message {
-    fn call_trace(&self) -> &Vec<TraceId> {
+    fn get_span_id(&self) -> &SpanId {
         &self.addr
     }
 }
 
 impl Message {
-    fn new(session_id: String, time: u64, addr: Vec<TraceId>) -> Message {
+    fn new(session_id: String, time: u64, addr: SpanId) -> Message {
         Message {
             session_id: session_id,
             time: time,
@@ -68,13 +68,13 @@ fn main() {
     timely::execute_from_args(std::env::args(), move |computation| {
         let index = computation.index();
         let log_data = vec![
-            Message::new("A".into(), 1000, vec![0]),
-            Message::new("A".into(), 2100, vec![0, 1]),
-            Message::new("B".into(), 2500, vec![0]),
-            Message::new("A".into(), 6100, vec![0, 2]),
-            Message::new("A".into(), 6890, vec![0, 1, 1]),
-            Message::new("B".into(), 12100, vec![1]),
-            Message::new("B".into(), 13500, vec![2]),
+            Message::new("A".into(), 1000, SpanId(vec![0])),
+            Message::new("A".into(), 2100, SpanId(vec![0, 1])),
+            Message::new("B".into(), 2500, SpanId(vec![0])),
+            Message::new("A".into(), 6100, SpanId(vec![0, 2])),
+            Message::new("A".into(), 6890, SpanId(vec![0, 1, 1])),
+            Message::new("B".into(), 12100, SpanId(vec![1])),
+            Message::new("B".into(), 13500, SpanId(vec![2])),
         ];
 
         let mut input = computation.dataflow(move |scope| {
@@ -114,7 +114,7 @@ fn main() {
             sessions.map(|session| {
                 session.messages.iter()
                     .map(|message| &message.addr)
-                    .filter(|addr| addr.len() == 1)
+                    .filter(|addr| addr.0.len() == 1)
                     .collect::<HashSet<_>>()
                     .len()
             })
@@ -147,7 +147,7 @@ fn main() {
             // 5. Measure height of each trace tree -- i.e. maximum number of levels traversed from
             //    root during a depth-first traversal.
             sessions.map(|session| {
-                (session.session, session.messages.iter().map(|m| m.addr.len()).max())
+                (session.session, session.messages.iter().map(|m| m.addr.0.len()).max())
             })
             .inspect_batch(
                 move |t, items| {
@@ -160,7 +160,8 @@ fn main() {
             // 6. Top-k shapes: emits degree of each node (span) encountered during a breadth-first scan.
             sessions.map(|session| {
                 // TODO: avoid unneeded string clone (need to understand: `session` object is partially moved)
-                (session.session.clone(), canonical_shape(&session.messages))
+                let paths: Vec<&SpanId> = session.messages.iter().map(|m| m.get_span_id()).collect();
+                (session.session.clone(), canonical_shape(&paths))
             })
             .inspect_batch(
                 move |t, items| {
