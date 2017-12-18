@@ -25,30 +25,61 @@ use super::MessagesForSession;
 /// This operator takes a custom `discretizer` function, i.e. a function which extracts
 /// a nominal variable (bin) `V` from a given input `K`. The frequency within each bin is
 /// reported per epoch.
+///
+/// # Examples
+///
+/// ```
+/// extern crate timely;
+/// extern crate reconstruction;
+///
+/// use timely::dataflow::operators::{ToStream, Map, Capture};
+/// use timely::dataflow::operators::capture::Extract;
+/// use timely::progress::timestamp::RootTimestamp;
+///
+/// use reconstruction::operators::stats::Histogram;
+///
+/// fn main() {
+///     let captured = timely::example(|scope| {
+///         (0..10).to_stream(scope)
+///            .histogram(|n| n % 2) // bins for `odd` and `even`
+///            .map_in_place(|x| x.1.sort()) // the created bins are not sorted
+///            .capture()
+///     });
+///
+///     let extracted = captured.extract();
+///     // half of the elements should be `even` (0), the other half should be `odd` (1)
+///     assert_eq!(extracted, vec![(RootTimestamp::new(0), vec![(0, vec![(0, 5), (1, 5)])])]);
+/// }
+/// ```
 pub trait Histogram<S: Scope, K, V> {
     type Epoch: Timestamp;
 
     /// Returns a stream of `(timestamp, (bin, frequency))`
     fn histogram<F>(&self, discretizer: F) -> Stream<S, (Self::Epoch, Vec<(V, u64)>)>
-        where F: Fn(&K) -> V + 'static;
+    where
+        F: Fn(&K) -> V + 'static;
 }
 
 impl<S, K, V, T> Histogram<S, K, V> for Stream<S, K>
-    where S: Scope<Timestamp = Product<RootTimestamp, T>>,
-          K: Data,
-          V: ExchangeData + Hash + Eq + Sync,
-          T: Timestamp,
+where
+    S: Scope<Timestamp = Product<RootTimestamp, T>>,
+    K: Data,
+    V: ExchangeData + Hash + Eq + Sync,
+    T: Timestamp,
 {
     type Epoch = T;
 
     fn histogram<F>(&self, discretizer: F) -> Stream<S, (Self::Epoch, Vec<(V, u64)>)>
-        where F: Fn(&K) -> V + 'static
+    where
+        F: Fn(&K) -> V + 'static,
     {
         let exchange = Exchange::new(move |_| 0);
         let mut value_counter: HashMap<T, HashMap<V, u64>> = HashMap::new();
 
         self.map(move |k: K| discretizer(&k)).unary_notify(
-            exchange, "histogram", vec![],
+            exchange,
+            "histogram",
+            vec![],
             move |input, output, notificator| {
                 // map: epoch -> category -> number of occurrences in epoch
                 input.for_each(|epoch, values| {
@@ -80,24 +111,52 @@ impl<S, K, V, T> Histogram<S, K, V> for Stream<S, K>
 /// This operator takes a custom `discretizer` function, i.e. a function which extracts
 /// a nominal variable (bin) `V` from a given input `K`.
 /// It reports the `top_k` bins of with the highest frequency per epoch.
+/// # Examples
+///
+/// ```
+/// extern crate timely;
+/// extern crate reconstruction;
+///
+/// use timely::dataflow::operators::{ToStream, Capture};
+/// use timely::dataflow::operators::capture::Extract;
+/// use timely::progress::timestamp::RootTimestamp;
+///
+/// use reconstruction::operators::stats::TopK;
+///
+/// fn main() {
+///     let captured = timely::example(|scope| {
+///         vec![('a', 5), ('b', 1), ('c', 2), ('d', 1)]
+///            .to_stream(scope)
+///            .topk(|&(_node, w)| w, 1)
+///            .capture()
+///     });
+///
+///     let extracted = captured.extract();
+///     // the most common weight is `1` with a frequency of 2
+///     assert_eq!(extracted, vec![(RootTimestamp::new(0), vec![(0, vec![(1, 2)])])]);
+/// }
+/// ```
 pub trait TopK<S: Scope, K, V> {
     type Epoch: Timestamp;
 
     /// Returns a stream of `(timestamp, (bin, frequency))`
-    fn topk<F>(&self,discretizer: F, top_k: u64,) -> Stream<S, (Self::Epoch, Vec<(V, u64)>)>
-        where F: Fn(&K) -> V + 'static;
+    fn topk<F>(&self, discretizer: F, top_k: u64) -> Stream<S, (Self::Epoch, Vec<(V, u64)>)>
+    where
+        F: Fn(&K) -> V + 'static;
 }
 
 impl<S, K, V, T> TopK<S, K, V> for Stream<S, K>
-    where S: Scope<Timestamp = Product<RootTimestamp, T>>,
-        K: Data,
-        V: ExchangeData + Hash + Eq + Sync,
-        T: Timestamp,
+where
+    S: Scope<Timestamp = Product<RootTimestamp, T>>,
+    K: Data,
+    V: ExchangeData + Hash + Eq + Sync,
+    T: Timestamp,
 {
     type Epoch = T;
 
     fn topk<F>(&self, discretizer: F, topk: u64) -> Stream<S, (Self::Epoch, Vec<(V, u64)>)>
-        where F: Fn(&K) -> V + 'static
+    where
+        F: Fn(&K) -> V + 'static,
     {
         // Workers compute partial counts per epoch (stage1), which are then aggregated
         // by worker 0 to produce the global counts (stage2) for each epoch
@@ -109,7 +168,9 @@ impl<S, K, V, T> TopK<S, K, V> for Stream<S, K>
 
         // count number of occurrences for each entry per epoch
         let stage1 = self.map(move |k: K| discretizer(&k)).unary_notify(
-            exchange, "histogram1", vec![],
+            exchange,
+            "histogram1",
+            vec![],
             move |input, output, notificator| {
                 // map: epoch -> signature -> number of occurrences in epoch
                 input.for_each(|epoch, values| {
@@ -137,7 +198,9 @@ impl<S, K, V, T> TopK<S, K, V> for Stream<S, K>
         let mut aggregated_per_epoch: HashMap<T, HashMap<V, u64>> = HashMap::new();
         // send partial counts to worker 0 and aggregate them per epoch
         let stage2 = stage1.unary_notify(
-            Exchange::new(move |_| 0), "histogram2", vec![],
+            Exchange::new(move |_| 0),
+            "histogram2",
+            vec![],
             move |input, output, notificator| {
                 input.for_each(|epoch, values| {
                     notificator.notify_at(epoch.clone());
@@ -155,13 +218,14 @@ impl<S, K, V, T> TopK<S, K, V> for Stream<S, K>
                 notificator.for_each(|ts, _count, _notify| {
                     let oepoch_data = aggregated_per_epoch.remove(&ts.time().inner);
                     if let Some(epoch_data) = oepoch_data {
-                        let mut values : Vec<(V, u64)> = epoch_data.into_iter().collect();
+                        let mut values: Vec<(V, u64)> = epoch_data.into_iter().collect();
                         values.sort_by(|a, b| b.1.cmp(&a.1));
                         values.truncate(topk as usize);
                         output.session(&ts).give((ts.inner.clone(), values));
                     }
                 });
-            });
+            },
+        );
 
         stage2
     }
@@ -183,32 +247,38 @@ pub trait CountNumFragmentsPerSessionPerEpoch<S: Scope> {
 }
 
 impl<S: Scope, M: SessionizableMessage> CountNumFragmentsPerSessionPerEpoch<S>
-    for Stream<S, MessagesForSession<M>>
-{
+    for Stream<S, MessagesForSession<M>> {
     fn count_num_fragments_per_session(&self) -> Stream<S, Vec<(u64, u64)>> {
         let exchange = Exchange::new(|messages: &MessagesForSession<M>| {
             hash_code(&messages.session)
         });
         let mut fragment_counter: HashMap<String, u64> = HashMap::new();
-        self.unary_notify(exchange, "count_num_fragments_per_session", vec![], move |input, output, notificator| {
-            input.for_each(|epoch, data| {
-                notificator.notify_at(epoch);
-                for messages_for_session in data.drain(..) {
-                    let count = fragment_counter.entry(messages_for_session.session.clone()).or_insert(0);
-                    *count += 1;
-                }
-            });
+        self.unary_notify(
+            exchange,
+            "count_num_fragments_per_session",
+            vec![],
+            move |input, output, notificator| {
+                input.for_each(|epoch, data| {
+                    notificator.notify_at(epoch);
+                    for messages_for_session in data.drain(..) {
+                        let count = fragment_counter
+                            .entry(messages_for_session.session.clone())
+                            .or_insert(0);
+                        *count += 1;
+                    }
+                });
 
-            notificator.for_each(|ts, _count, _notify| {
-               let mut count_occurences : HashMap<u64, u64> = HashMap::new();
-               for count in fragment_counter.values() {
-                   let count_to_increment = count_occurences.entry(*count).or_insert(0);
-                   *count_to_increment += 1;
-               }
-               let count_occurences : Vec<(u64, u64)> = count_occurences.into_iter().collect();
-               output.session(&ts).give(count_occurences);
-            });
-        })
+                notificator.for_each(|ts, _count, _notify| {
+                    let mut count_occurences: HashMap<u64, u64> = HashMap::new();
+                    for count in fragment_counter.values() {
+                        let count_to_increment = count_occurences.entry(*count).or_insert(0);
+                        *count_to_increment += 1;
+                    }
+                    let count_occurences: Vec<(u64, u64)> = count_occurences.into_iter().collect();
+                    output.session(&ts).give(count_occurences);
+                });
+            },
+        )
     }
 }
 
@@ -229,15 +299,20 @@ pub trait SumPerEpoch<S: Scope> {
 impl<S: Scope> SumPerEpoch<S> for Stream<S, usize> {
     fn sum_per_epoch(&self) -> Stream<S, (S::Timestamp, usize)> {
         self.unary_stream(Pipeline, "TagWithTime", move |input, output| {
-                input.for_each(|time, data| {
-                    let t = &*time.time();
-                    output.session(&time).give_iterator(data.drain(..).map(|x| ((*t).clone(), x)));
-                });
-            })
-            .map(|x| ((), x))
-            .aggregate::<_,(S::Timestamp, usize),_,_,_>(
-                |_key, (t, x), agg| { agg.0 = t; agg.1 += x; },
+            input.for_each(|time, data| {
+                let t = &*time.time();
+                output.session(&time).give_iterator(data.drain(..).map(
+                    |x| ((*t).clone(), x),
+                ));
+            });
+        }).map(|x| ((), x))
+            .aggregate::<_, (S::Timestamp, usize), _, _, _>(
+                |_key, (t, x), agg| {
+                    agg.0 = t;
+                    agg.1 += x;
+                },
                 |_key, agg| agg,
-                |_key| 0)
+                |_key| 0,
+            )
     }
 }
