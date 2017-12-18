@@ -2,14 +2,13 @@ use std::collections::{HashSet, HashMap};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-use abomonation::Abomonation;
 use timely::dataflow::{Stream, Scope};
 use timely::dataflow::channels::pact::Exchange;
 use timely::dataflow::operators::Unary;
 use timely::progress::nested::product::Product;
 use timely::progress::timestamp::RootTimestamp;
 
-use super::SessionizableMessage;
+use super::{MessagesForSession, SessionizableMessage};
 
 pub mod stats;
 
@@ -21,36 +20,6 @@ fn hash_code<T: Hash>(value: &T) -> u64 {
     let mut hasher = DefaultHasher::new();
     value.hash(&mut hasher);
     hasher.finish()
-}
-
-#[derive(Debug, Clone)]
-pub struct MessagesForSession<Message: SessionizableMessage> {
-    pub session: String,
-    pub messages: Vec<Message>,
-}
-
-impl<Message: SessionizableMessage> Abomonation for MessagesForSession<Message> {
-    unsafe fn entomb<W: ::std::io::Write>(&self, writer: &mut W) -> ::std::io::Result<()> {
-        self.session.entomb(writer)?;
-        self.messages.entomb(writer)?;
-        Ok(())
-    }
-
-    unsafe fn exhume<'a, 'b>(&'a mut self, mut bytes: &'b mut [u8]) -> Option<&'b mut [u8]> {
-        let temp = bytes;
-        bytes = if let Some(bytes) = self.session.exhume(temp) {
-            bytes
-        } else {
-            return None;
-        };
-        let temp = bytes;
-        bytes = if let Some(bytes) = self.messages.exhume(temp) {
-            bytes
-        } else {
-            return None;
-        };
-        Some(bytes)
-    }
 }
 
 pub trait Sessionize<S: Scope, Message: SessionizableMessage> {
