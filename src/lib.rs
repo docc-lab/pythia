@@ -25,7 +25,7 @@ pub trait SessionizableMessage: ExchangeData {
     fn session(&self) -> &str;
 }
 
-pub trait TracedMessage {
+pub trait SpanPosition {
     fn get_span_id(&self) -> &SpanId;
 }
 
@@ -77,6 +77,15 @@ pub fn canonical_shape<S: AsRef<Vec<TraceId>>>(paths: &Vec<S>) -> Vec<Degree> {
     return degrees;
 }
 
+/// Describes where a span is located within the trace tree.
+///
+/// A hierarchical identifier is returned (e.g. `1-2-0`) which reflects the level of nesting for a
+/// given span and specifies a path from the root span to the given span node.  Concretely, the
+/// span ID is a vector of non-negative integers where each index corresponds to the positions
+/// encountered while traversing down the tree.  In this example, the spans are nested in three
+/// levels and the index `1` indicates that there were two _root_ spans with three nodes below it
+/// (hence `2` as the next index) and the particular span being referred to is the first of these
+/// children.
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Abomonation)]
 pub struct SpanId(pub Vec<TraceId>);
 

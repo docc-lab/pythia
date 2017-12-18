@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use timely::dataflow::channels::pact::Pipeline;
 use timely::dataflow::operators::{Input, Inspect, Map, Unary};
 
-use reconstruction::{canonical_shape, SessionizableMessage, SpanId, TracedMessage};
+use reconstruction::{canonical_shape, SessionizableMessage, SpanId, SpanPosition};
 use reconstruction::operators::Sessionize;
 use reconstruction::operators::stats::SumPerEpoch;
 
@@ -48,7 +48,7 @@ impl SessionizableMessage for Message {
     }
 }
 
-impl TracedMessage for Message {
+impl SpanPosition for Message {
     fn get_span_id(&self) -> &SpanId {
         &self.addr
     }
