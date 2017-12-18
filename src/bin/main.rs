@@ -10,7 +10,7 @@ use abomonation::Abomonation;
 use timely::dataflow::channels::pact::Pipeline;
 use timely::dataflow::operators::{Input, Inspect, Map, Unary};
 
-use reconstruction::{SessionizableMessage, TraceId, TracedMessage};
+use reconstruction::{canonical_shape, SessionizableMessage, TraceId, TracedMessage};
 use reconstruction::operators::Sessionize;
 use reconstruction::operators::stats::SumPerEpoch;
 
@@ -35,7 +35,7 @@ const EXPIRY_DELAY: u64 = 5000;
 struct Message {
     session_id: String,
     time: u64,
-    addr: Vec<u32>,
+    addr: Vec<TraceId>,
 }
 
 unsafe_abomonate!(Message: session_id, time, addr);
@@ -51,14 +51,13 @@ impl SessionizableMessage for Message {
 }
 
 impl TracedMessage for Message {
-    fn call_trace(&self) -> Vec<TraceId> {
-        // TODO: modify trait signature to avoid the copy here
-        self.addr.clone()
+    fn call_trace(&self) -> &Vec<TraceId> {
+        &self.addr
     }
 }
 
 impl Message {
-    fn new(session_id: String, time: u64, addr: Vec<u32>) -> Message {
+    fn new(session_id: String, time: u64, addr: Vec<TraceId>) -> Message {
         Message {
             session_id: session_id,
             time: time,
@@ -163,7 +162,7 @@ fn main() {
             // 6. Top-k shapes: emits degree of each node (span) encountered during a breadth-first scan.
             sessions.map(|session| {
                 // TODO: avoid unneeded string clone (need to understand: `session` object is partially moved)
-                (session.session.clone(), session.reconstruct_trace_tree())
+                (session.session.clone(), canonical_shape(&session.messages))
             })
             .inspect_batch(
                 move |t, items| {
