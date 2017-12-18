@@ -140,6 +140,19 @@ fn main() {
                 },
             );
 
+            // 5. Measure height of each trace tree -- i.e. maximum number of levels traversed from
+            //    root during a depth-first traversal.
+            sessions.map(|session| {
+                (session.session, session.messages.iter().map(|m| m.addr.len()).max())
+            })
+            .inspect_batch(
+                move |t, items| {
+                    for &(ref session_id, duration) in items {
+                        println!("max_depth,{},{},{:?}", t.inner, session_id, duration)
+                    }
+                },
+            );
+
             input
         });
 
