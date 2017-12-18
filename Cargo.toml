@@ -9,5 +9,8 @@ rand = "0.3.17"
 [dependencies.abomonation]
 git = "https://github.com/frankmcsherry/abomonation"
 
+[dependencies.abomonation_derive]
+git = "https://github.com/mystor/abomonation_derive"
+
 [dependencies.timely]
 git = "https://github.com/frankmcsherry/timely-dataflow"

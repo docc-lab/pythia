@@ -1,9 +1,9 @@
 extern crate abomonation;
+#[macro_use] extern crate abomonation_derive;
 extern crate timely;
 
 pub mod operators;
 
-use abomonation::Abomonation;
 use timely::ExchangeData;
 
 pub type Timestamp = u64;
@@ -27,34 +27,10 @@ pub trait TracedMessage {
     fn call_trace(&self) -> &Vec<TraceId>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Abomonation)]
 pub struct MessagesForSession<M: SessionizableMessage> {
     pub session: String,
     pub messages: Vec<M>,
-}
-
-impl<Message: SessionizableMessage> Abomonation for MessagesForSession<Message> {
-    unsafe fn entomb<W: ::std::io::Write>(&self, writer: &mut W) -> ::std::io::Result<()> {
-        self.session.entomb(writer)?;
-        self.messages.entomb(writer)?;
-        Ok(())
-    }
-
-    unsafe fn exhume<'a, 'b>(&'a mut self, mut bytes: &'b mut [u8]) -> Option<&'b mut [u8]> {
-        let temp = bytes;
-        bytes = if let Some(bytes) = self.session.exhume(temp) {
-            bytes
-        } else {
-            return None;
-        };
-        let temp = bytes;
-        bytes = if let Some(bytes) = self.messages.exhume(temp) {
-            bytes
-        } else {
-            return None;
-        };
-        Some(bytes)
-    }
 }
 
 // Method to convert a Vec<Vec<u32>> indicating paths through a tree to a canonical

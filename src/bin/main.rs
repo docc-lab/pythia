@@ -1,12 +1,12 @@
 /// Driver program for an small example that reconstructs sessions and computes basic statistics.
 
-#[macro_use] extern crate abomonation;
+extern crate abomonation;
+#[macro_use] extern crate abomonation_derive;
 extern crate timely;
 extern crate reconstruction;
 
 use std::collections::HashSet;
 
-use abomonation::Abomonation;
 use timely::dataflow::channels::pact::Pipeline;
 use timely::dataflow::operators::{Input, Inspect, Map, Unary};
 
@@ -31,14 +31,12 @@ const EXPIRY_DELAY: u64 = 5000;
 /// communicating endpoints, payload sizes and formats, IP addresses of communicating endpoints).
 /// The idea is to give a small set of attributes that still demonstrate what the reconstruction
 /// pipeline is capable of.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Abomonation)]
 struct Message {
     session_id: String,
     time: u64,
     addr: Vec<TraceId>,
 }
-
-unsafe_abomonate!(Message: session_id, time, addr);
 
 impl SessionizableMessage for Message {
     fn time(&self) -> u64 {
