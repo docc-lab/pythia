@@ -7,13 +7,13 @@ extern crate sessionize;
 use std::collections::HashSet;
 
 use abomonation::Abomonation;
-use timely::dataflow::{Stream, Scope};
+use timely::dataflow::Scope;
 use timely::dataflow::channels::pact::Pipeline;
 use timely::dataflow::operators::{Input, Inspect, Map, Unary};
-use timely::dataflow::operators::aggregation::Aggregate;
 
 use sessionize::SessionizableMessage;
 use sessionize::operators::Sessionize;
+use sessionize::operators::stats::SumPerEpoch;
 
 /// For this example, we assign integer timestamps to events and the time axis is specified in
 /// terms of **milliseconds**.   For simplicity, we ignore time zones, leap seconds and other
@@ -61,36 +61,6 @@ impl Message {
     }
 }
 
-/// Emits total value (cumulative sum) of a numerical stream once per epoch.
-///
-/// Equivalent to an invocation of the following, only that is uses operators built into Timely.
-/// ```
-/// stream.accumulate_by_epoch(0, |sum, data| {
-///     for &x in data.iter() {
-///         *sum += x;
-///     }
-/// })
-/// ```
-trait SumPerEpoch<S: Scope> {
-    fn sum_per_epoch(&self) -> Stream<S, (S::Timestamp, usize)>;
-}
-
-impl<S: Scope> SumPerEpoch<S> for Stream<S, usize> {
-    fn sum_per_epoch(&self) -> Stream<S, (S::Timestamp, usize)> {
-        self.unary_stream(Pipeline, "TagWithTime", move |input, output| {
-                input.for_each(|time, data| {
-                    let t = &*time.time();
-                    output.session(&time).give_iterator(data.drain(..).map(|x| ((*t).clone(), x)));
-                });
-            })
-            .map(|x| ((), x))
-            .aggregate::<_,(S::Timestamp, usize),_,_,_>(
-                |_key, (t, x), agg| { agg.0 = t; agg.1 += x; },
-                |_key, agg| agg,
-                |_key| 0)
-    }
-}
-
 fn main() {
     timely::execute_from_args(std::env::args(), move |computation| {
         let index = computation.index();
@@ -130,7 +100,7 @@ fn main() {
             // 2. Count the number of spans (transactions) in the session tree.
             sessions.map(|session| {
                 session.messages.iter()
-                    .map(|message: &Message| &message.addr)
+                    .map(|message| &message.addr)
                     .collect::<HashSet<_>>()
                     .len()
             })
@@ -140,7 +110,7 @@ fn main() {
             // 3. Count the number of root spans (i.e. at the top-most level)
             sessions.map(|session| {
                 session.messages.iter()
-                    .map(|message: &Message| &message.addr)
+                    .map(|message| &message.addr)
                     .filter(|addr| addr.len() == 1)
                     .collect::<HashSet<_>>()
                     .len()
