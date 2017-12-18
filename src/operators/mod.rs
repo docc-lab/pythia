@@ -1,14 +1,11 @@
 use std::collections::{HashSet, HashMap};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use std::marker::Sync;
-use std::fmt;
 
 use abomonation::Abomonation;
-use timely::ExchangeData;
 use timely::dataflow::{Stream, Scope};
 use timely::dataflow::channels::pact::Exchange;
-use timely::dataflow::operators::{Map, Unary};
+use timely::dataflow::operators::Unary;
 use timely::progress::nested::product::Product;
 use timely::progress::timestamp::RootTimestamp;
 
@@ -145,7 +142,7 @@ impl<
                     let msg_time = msg.time();
                     assert!(last_time_seen <= msg_time);
                     last_time_seen = msg_time;
-                    let mut session_state = active_sessions
+                    let session_state = active_sessions
                         .entry(msg.session().to_owned())
                         .or_insert_with(SessionState::new);
                     if !session_state.in_same_session(session_time, msg_time) &&

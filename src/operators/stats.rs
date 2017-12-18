@@ -1,10 +1,8 @@
-use std::collections::{HashSet, HashMap};
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::marker::Sync;
 use std::fmt;
 
-use abomonation::Abomonation;
 use timely::ExchangeData;
 use timely::dataflow::{Stream, Scope};
 use timely::dataflow::channels::pact::{Exchange, Pipeline};

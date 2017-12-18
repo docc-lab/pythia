@@ -7,7 +7,6 @@ extern crate sessionize;
 use std::collections::HashSet;
 
 use abomonation::Abomonation;
-use timely::dataflow::Scope;
 use timely::dataflow::channels::pact::Pipeline;
 use timely::dataflow::operators::{Input, Inspect, Map, Unary};
 
