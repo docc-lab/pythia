@@ -3,10 +3,12 @@ title: Introduction
 nav-index: 0
 ---
 
-The basis for understanding the dynamics of a datacenter is logging,
-and so many datacenters instrument their applications (and middleware) with
-functionality to emit log records when messages are sent and/or received by
-each service or application process.
+Well-run datacenter application architectures are heavily instrumented to provide
+detailed traces of messages and remote invocations. Reconstructing user sessions,
+call graphs, transaction trees, and other structural information from these
+messages, a process known as sessionization, is the foundation for a variety
+of diagnostic, profiling, and monitoring tasks essential to the operation of the
+datacenter.
 
 Part of Strymon is a library called **"reconstruction"** which is able to
 process these logging streams to reconstruct structural information about
