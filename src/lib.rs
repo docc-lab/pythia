@@ -3,6 +3,7 @@ extern crate abomonation;
 extern crate timely;
 
 pub mod operators;
+pub mod transaction_trees;
 
 use std::cmp::Ordering;
 
@@ -112,6 +113,25 @@ impl PartialOrd for SpanId {
     }
 }
 
+/*
+// extracts pairs of the form "service_1 calls service_2" from all trees in a session
+pub fn service_calls(messages: &mut Vec<(Vec<TraceId>,String,String)>) -> Vec<(String,String)> {
+    messages.sort_by(|a,b| a.0.cmp(&b.0));
+    let mut pairs = Vec::new();
+    for snd in 0..messages.len() {
+        let ref a = messages[snd];
+        for rcv in snd+1..messages.len(){
+            let ref b = messages[rcv];
+            if !is_parent(&a.0,&b.0) {break;}
+            if a.2==b.2 {// should be a call
+                pairs.push((a.1.clone(),b.1.clone()));
+            }
+        }
+    }
+    //println!("Pairs: {:?}",pairs);
+    pairs
+}
+*/
 
 #[cfg(test)]
 mod tests {
