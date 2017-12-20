@@ -159,9 +159,8 @@ fn main() {
 
             // 6. Top-k shapes: emits degree of each node (span) encountered during a breadth-first scan.
             sessions.map(|session| {
-                // TODO: avoid unneeded string clone (need to understand: `session` object is partially moved)
                 let paths: Vec<&SpanId> = session.messages.iter().map(|m| m.get_span_id()).collect();
-                (session.session.clone(), canonical_shape(&paths))
+                (session.session, canonical_shape(&paths))
             })
             .inspect_batch(
                 move |t, items| {
