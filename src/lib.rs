@@ -3,7 +3,7 @@ extern crate abomonation;
 extern crate timely;
 
 pub mod operators;
-pub mod transaction_trees;
+pub mod tree_repr;
 
 use std::cmp::Ordering;
 
