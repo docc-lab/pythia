@@ -30,6 +30,14 @@ pub trait SpanPosition {
     fn get_span_id(&self) -> &SpanId;
 }
 
+/// An accessor trait for retrieving the service of a message.
+pub trait Service {
+    type Service: ExchangeData;
+
+    /// Returns the service which sent or received this message.
+    fn get_service(&self) -> &Self::Service;
+}
+
 #[derive(Debug, Clone, Abomonation)]
 pub struct MessagesForSession<M: SessionizableMessage> {
     pub session: String,
@@ -90,6 +98,13 @@ pub fn canonical_shape<S: AsRef<Vec<TraceId>>>(paths: &Vec<S>) -> Vec<Degree> {
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Abomonation)]
 pub struct SpanId(pub Vec<TraceId>);
 
+impl SpanId {
+    /// Returns `true` if `self` is a parent of the `child` in the tree hierarchy
+    pub fn is_parent_of(&self, child: &SpanId) -> bool {
+        self < child
+    }
+}
+
 impl AsRef<Vec<TraceId>> for SpanId {
     fn as_ref(&self) -> &Vec<TraceId> {
         &self.0
@@ -113,29 +128,58 @@ impl PartialOrd for SpanId {
     }
 }
 
-/*
-// extracts pairs of the form "service_1 calls service_2" from all trees in a session
-pub fn service_calls(messages: &mut Vec<(Vec<TraceId>,String,String)>) -> Vec<(String,String)> {
-    messages.sort_by(|a,b| a.0.cmp(&b.0));
+/// Extracts `(source, destination)` service pairs from a trace tree.
+///
+/// This function returns a list of (transitively) communicating services pair.
+/// Any service of a message in the parent span is considered the `source`
+/// service, eventually resulting in invocations at any of the `destination`
+/// services. For example, for three nested servic calls `A -> B -> C`, the
+/// resulting list is `[(A, B), (A, C), (B, C)]`.
+///
+/// Takes a list of messages which implement `SpanPosition`, meaning the
+/// messages must form a hierarchical trace tree encoded in their `SpanId`.
+///
+/// ### Note:
+///
+/// This function can mutate the ordering of the `messages` vector. The current
+/// implementation sorts the messages in lexicographical order of the span ids.
+pub fn service_calls<M>(messages: &mut Vec<M>) -> Vec<(M::Service, M::Service)>
+    where M: SpanPosition + Service
+{
     let mut pairs = Vec::new();
-    for snd in 0..messages.len() {
-        let ref a = messages[snd];
-        for rcv in snd+1..messages.len(){
-            let ref b = messages[rcv];
-            if !is_parent(&a.0,&b.0) {break;}
-            if a.2==b.2 {// should be a call
-                pairs.push((a.1.clone(),b.1.clone()));
+
+    // we sort the messages by lexicographical order of the span ids,
+    // this ensures that children always immediately follow their parents
+    messages.sort_by(|a, b| {
+        let a = a.get_span_id();
+        let b = b.get_span_id();
+        a.as_ref().cmp(b.as_ref())
+    });
+
+    for send in 0..messages.len() {
+        let send_msg = &messages[send];
+        let send_span = send_msg.get_span_id();
+        for recv in send+1..messages.len() {
+            let recv_msg = &messages[recv];
+            let recv_span = recv_msg.get_span_id();
+
+            if !send_span.is_parent_of(recv_span) {
+                // due to the lexicographical order of messages, once we see
+                // the first non-child, we know we will never see another again
+                break;
+            } else {
+                let send_service = send_msg.get_service().clone();
+                let recv_service = recv_msg.get_service().clone();
+                pairs.push((send_service, recv_service));
             }
         }
     }
-    //println!("Pairs: {:?}",pairs);
     pairs
 }
-*/
 
 #[cfg(test)]
 mod tests {
-    use super::{canonical_shape, SpanId};
+    use super::{canonical_shape, service_calls, SpanId, Service, SpanPosition};
     use std::cmp::Ordering;
 
     #[test]
@@ -162,5 +206,53 @@ mod tests {
         assert_eq!(SpanId(vec![1, 0, 1, 0]).partial_cmp(&id), Some(Ordering::Greater));
         assert_eq!(SpanId(vec![1, 0, 1, 0, 0]).partial_cmp(&id), Some(Ordering::Greater));
         assert_eq!(SpanId(vec![1, 0, 1, 0, 1]).partial_cmp(&id), Some(Ordering::Greater));
+    }
+
+    #[test]
+    fn test_span_id_parent() {
+        assert!(SpanId(vec![1]).is_parent_of(&SpanId(vec![1, 0])));
+        assert!(SpanId(vec![1]).is_parent_of(&SpanId(vec![1, 0, 1])));
+        assert!(SpanId(vec![1, 0]).is_parent_of(&SpanId(vec![1, 0, 2])));
+        assert!(!SpanId(vec![1, 0]).is_parent_of(&SpanId(vec![1, 0])));
+        assert!(!SpanId(vec![1, 0]).is_parent_of(&SpanId(vec![1, 1])));
+        assert!(!SpanId(vec![1, 0]).is_parent_of(&SpanId(vec![1])));
+    }
+
+    #[test]
+    fn test_services_calls() {
+        struct Msg(SpanId, char);
+
+        impl SpanPosition for Msg {
+            fn get_span_id(&self) -> &SpanId { &self.0 }
+        }
+
+        impl Service for Msg {
+            type Service = char;
+            fn get_service(&self) -> &char { &self.1 }
+        }
+
+        let mut messages = vec![
+            Msg(SpanId(vec![0, 1, 0]), 'C'),
+            Msg(SpanId(vec![0]), 'A'),
+            Msg(SpanId(vec![0, 1]), 'B'),
+        ];
+
+        assert_eq!(service_calls(&mut messages), vec![('A', 'B'), ('A', 'C'), ('B', 'C')]);
+
+        let mut messages = vec![
+            Msg(SpanId(vec![1]), 'A'),
+            Msg(SpanId(vec![0, 1, 0]), 'C'),
+            Msg(SpanId(vec![0, 1]), 'B'),
+        ];
+
+        assert_eq!(service_calls(&mut messages), vec![('B', 'C')]);
+
+        let mut messages = vec![
+            Msg(SpanId(vec![0]), 'A'),
+            Msg(SpanId(vec![0, 1]), 'C'),
+            Msg(SpanId(vec![0, 0]), 'B'),
+        ];
+
+        assert_eq!(service_calls(&mut messages), vec![('A', 'B'), ('A', 'C')]);
     }
 }
