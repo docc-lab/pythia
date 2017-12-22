@@ -239,7 +239,7 @@ mod tests {
             fn get_service(&self) -> &char { &self.1 }
         }
 
-        assert_eq!(service_calls(&[]), vec![]);
+        assert_eq!(service_calls(&mut Vec::<Msg>::new()), vec![]);
 
         let mut messages = vec![
             Msg(SpanId(vec![0, 1, 0]), 'C'),
