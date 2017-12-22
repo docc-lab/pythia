@@ -18,7 +18,8 @@ use std::collections::HashSet;
 use timely::dataflow::channels::pact::Pipeline;
 use timely::dataflow::operators::{Input, Inspect, Map, Unary};
 
-use reconstruction::{canonical_shape, SessionizableMessage, SpanId, SpanPosition};
+use reconstruction::{canonical_shape, service_calls};
+use reconstruction::{SessionizableMessage, SpanId, SpanPosition, Service};
 use reconstruction::operators::Sessionize;
 use reconstruction::operators::stats::SumPerEpoch;
 
@@ -44,6 +45,7 @@ struct Message {
     session_id: String,
     time: u64,
     addr: SpanId,
+    service: String,
 }
 
 impl SessionizableMessage for Message {
@@ -62,12 +64,21 @@ impl SpanPosition for Message {
     }
 }
 
+impl Service for Message {
+    type Service = String;
+
+    fn get_service(&self) -> &Self::Service {
+        &self.service
+    }
+}
+
 impl Message {
-    fn new(session_id: String, time: u64, addr: SpanId) -> Message {
+    fn new(session_id: &str, time: u64, addr: SpanId, service: &str) -> Message {
         Message {
-            session_id: session_id,
+            session_id: session_id.to_string(),
             time: time,
             addr: addr,
+            service: service.to_string(),
         }
     }
 }
@@ -76,13 +87,14 @@ fn main() {
     timely::execute_from_args(std::env::args(), move |computation| {
         let index = computation.index();
         let log_data = vec![
-            Message::new("A".into(), 1000, SpanId(vec![0])),
-            Message::new("A".into(), 2100, SpanId(vec![0, 1])),
-            Message::new("B".into(), 2500, SpanId(vec![0])),
-            Message::new("A".into(), 6100, SpanId(vec![0, 2])),
-            Message::new("A".into(), 6890, SpanId(vec![0, 1, 1])),
-            Message::new("B".into(), 12100, SpanId(vec![1])),
-            Message::new("B".into(), 13500, SpanId(vec![2])),
+            Message::new("A", 1000, SpanId(vec![0]), "FrontendX"),
+            Message::new("A", 2100, SpanId(vec![0, 1]), "BackendX1"),
+            Message::new("B", 2500, SpanId(vec![0]), "FrontendX"),
+            Message::new("A", 6100, SpanId(vec![0, 2]), "BackendX2"),
+            Message::new("A", 6890, SpanId(vec![0, 1, 1]), "DatabaseX"),
+            Message::new("B", 12100, SpanId(vec![1]), "FrontendY"),
+            Message::new("B", 12200, SpanId(vec![1, 0]), "BackendY"),
+            Message::new("B", 13500, SpanId(vec![2]), "FrontendZ"),
         ];
 
         let mut input = computation.dataflow(move |scope| {
@@ -174,6 +186,18 @@ fn main() {
                 move |t, items| {
                     for &(ref session_id, ref shape) in items {
                         println!("shape,{},{},{:?}", t.inner, session_id, shape)
+                    }
+                },
+            );
+
+            // 7: Extract communicating service dependencies for each tree
+            sessions.map(|mut session| {
+                (session.session, service_calls(&mut session.messages))
+            })
+            .inspect_batch(
+                move |t, items| {
+                    for &(ref session_id, ref pairs) in items {
+                        println!("service,{},{},{:?}", t.inner, session_id, pairs)
                     }
                 },
             );
