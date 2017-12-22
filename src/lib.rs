@@ -56,7 +56,7 @@ pub struct MessagesForSession<M: SessionizableMessage> {
 // representation of the tree
 //
 // the result is a sequence of degrees of a BFS traversal of the graph.
-pub fn canonical_shape<S: AsRef<Vec<TraceId>>>(paths: &Vec<S>) -> Vec<Degree> {
+pub fn canonical_shape<S: AsRef<Vec<TraceId>>>(paths: &[S]) -> Vec<Degree> {
     let mut position = vec![0; paths.len()];
     let mut degrees = vec![0];
     let mut offsets = vec![1]; // where do children start?
@@ -91,7 +91,7 @@ pub fn canonical_shape<S: AsRef<Vec<TraceId>>>(paths: &Vec<S>) -> Vec<Degree> {
         }
     }
 
-    return degrees;
+    degrees
 }
 
 /// Describes where a span is located within the trace tree.
