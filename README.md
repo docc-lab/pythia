@@ -6,7 +6,7 @@
 
 [**API documentation**](https://strymon-system.github.io/reconstruction)
 
-Please also follow the [documentation](http://strymon-system.github.io/docs/reconstruction) on the website and consult the reading material below for a more in-depth introduction.
+Please also follow the [documentation](https://strymon-system.github.io/docs/reconstruction/introduction) on the website and consult the reading material below for a more in-depth introduction.
 
 ## Requirements
 
