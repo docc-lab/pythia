@@ -38,6 +38,28 @@ $ cd reconstruction/
 $ cargo run
 ```
 
+The example consists of multiple stages:
+
+  1. Sessionization, i.e. gather all messages of a session
+  2. Count the number of spans (transactions) in the session tree.
+  3. Count the number of root spans (i.e. at the top-most level)
+  4. Emit session durations (interval between earliest and last message in a tree)
+  5. Measure height of each trace tree (i.e. the deepest nested transaction)
+  6. Top-k shapes: emits degree of each node (span) encountered during a breadth-first scan.
+  7. Extract transitive communicating service dependencies for each session
+
+The output is printed per epoch. The following snippet is the output of epoch
+`18`, each line corresponds to one of the stages above:
+
+    0018 | Reconstructed sessions: MessagesForSession { session: "B", messages: [Message { session_id: "B", time: 12100, addr: SpanId([1]), service: "FrontendY" }, Message { session_id: "B", time: 12200, addr: SpanId([1, 0]), service: "BackendY" }, Message { session_id: "B", time: 13500, addr: SpanId([2]), service: "FrontendZ" }] }
+    0018 | Number of transactions: 3
+    0018 | Number of root transactions: 2
+    0018 | Duration of session "B": 1400
+    0018 | Maximum nested transaction depth in session "B": 2
+    0018 | Transaction tree shape of session "B": [3, 0, 1, 0, 0]
+    0018 | Service dependencies of session "B": [("FrontendY", "BackendY")]
+
+
 #### Additional information:
 
  - Zaheer Chothia, John Liagouris, Desislava Dimitrova, Timothy Roscoe. [Online Reconstruction of Structural Information from Datacenter Logs](https://people.inf.ethz.ch/zchothia/papers/online-reconstruction-eurosys17.pdf). **EuroSys**, 2017.

@@ -85,7 +85,6 @@ impl Message {
 
 fn main() {
     timely::execute_from_args(std::env::args(), move |computation| {
-        let index = computation.index();
         let log_data = vec![
             Message::new("A", 1000, SpanId(vec![0]), "FrontendX"),
             Message::new("A", 2100, SpanId(vec![0, 1]), "BackendX1"),
@@ -105,7 +104,7 @@ fn main() {
                        notificator.notify_at(time);
                    });
                    notificator.for_each(|time, _, _| {
-                       println!("done with time: {:?}", time.time());
+                       println!("{:04?} | Flushing messages with timestamp {0}", time.time().inner);
                    });
                });
 
@@ -115,7 +114,7 @@ fn main() {
             sessions.inspect_batch(
                 move |t, ds| {
                     for d in ds {
-                        println!("{}: Final output {:?}: {:?}", index, t, d)
+                        println!("{:04?} | Reconstructed sessions: {:?}", t.inner, d)
                     }
                 },
             );
@@ -128,7 +127,7 @@ fn main() {
                     .len()
             })
             .sum_per_epoch()
-            .inspect(|&(t, c)| println!("trx,{},{}", t.inner, c));
+            .inspect(|&(t, c)| println!("{:04?} | Number of transactions: {}", t.inner, c));
 
             // 3. Count the number of root spans (i.e. at the top-most level)
             sessions.map(|session| {
@@ -139,7 +138,7 @@ fn main() {
                     .len()
             })
             .sum_per_epoch()
-            .inspect(|&(t, c)| println!("root_trx,{},{}", t.inner, c));
+            .inspect(|&(t, c)| println!("{:04?} | Number of root transactions: {}", t.inner, c));
 
             // 4. Emit session durations (interval between earliest and last message in a tree)
             // TODO: make this generate per-epoch statistics (e.g. histogram of duration bins)
@@ -159,7 +158,7 @@ fn main() {
             .inspect_batch(
                 move |t, items| {
                     for &(ref session_id, duration) in items {
-                        println!("duration,{},{},{}", t.inner, session_id, duration)
+                        println!("{:04?} | Duration of session {:?}: {}", t.inner, session_id, duration);
                     }
                 },
             );
@@ -171,8 +170,8 @@ fn main() {
             })
             .inspect_batch(
                 move |t, items| {
-                    for &(ref session_id, duration) in items {
-                        println!("max_depth,{},{},{:?}", t.inner, session_id, duration)
+                    for &(ref session_id, depth) in items {
+                        println!("{:04?} | Maximum nested transaction depth in session {:?}: {}", t.inner, session_id, depth.unwrap_or(0));
                     }
                 },
             );
@@ -185,19 +184,19 @@ fn main() {
             .inspect_batch(
                 move |t, items| {
                     for &(ref session_id, ref shape) in items {
-                        println!("shape,{},{},{:?}", t.inner, session_id, shape)
+                        println!("{:04?} | Transaction tree shape of session {:?}: {:?}", t.inner, session_id, shape);
                     }
                 },
             );
 
-            // 7: Extract communicating service dependencies for each tree
+            // 7: Extract transitive communicating service dependencies for each session
             sessions.map(|mut session| {
                 (session.session, service_calls(&mut session.messages))
             })
             .inspect_batch(
                 move |t, items| {
                     for &(ref session_id, ref pairs) in items {
-                        println!("service,{},{},{:?}", t.inner, session_id, pairs)
+                        println!("{:04?} | Service dependencies of session {:?}: {:?}", t.inner, session_id, pairs);
                     }
                 },
             );
@@ -212,7 +211,6 @@ fn main() {
                 assert!(epoch > last_epoch);
                 input.advance_to(epoch);
                 last_epoch = epoch;
-                println!("began with time: {}", epoch);
             }
             input.send(msg);
         }
