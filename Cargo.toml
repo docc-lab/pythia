@@ -4,13 +4,7 @@ version = "0.1.0"
 authors = ["Zaheer Chothia <zchothia@inf.ethz.ch>"]
 
 [dependencies]
-rand = "0.3.17"
-
-[dependencies.abomonation]
-git = "https://github.com/frankmcsherry/abomonation"
-
-[dependencies.abomonation_derive]
-git = "https://github.com/mystor/abomonation_derive"
-
-[dependencies.timely]
-git = "https://github.com/frankmcsherry/timely-dataflow"
+abomonation = "0.5"
+abomonation_derive = "0.3"
+rand = "0.4"
+timely = "0.5"
