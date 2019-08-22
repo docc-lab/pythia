@@ -17,6 +17,40 @@ use std::cmp::Ordering;
 
 use timely::ExchangeData;
 
+extern crate redis;
+use redis::Commands;
+
+extern crate serde_json;
+extern crate serde;
+extern crate uuid;
+extern crate chrono;
+
+mod spans;
+use spans::OSProfilerSpan;
+
+pub fn redis_main() {
+    let trace = get_matches(&"7399ea9b-8556-44c5-b3a6-b32f0949ee20".to_string()).unwrap();
+    println!("{:?}", trace);
+}
+
+fn parse_field(field: &String) -> serde_json::Result<OSProfilerSpan> {
+    serde_json::from_str(field)
+}
+
+fn get_matches(span_id: &String) -> redis::RedisResult<Vec<OSProfilerSpan>> {
+    let client = redis::Client::open("redis://localhost:6379")?;
+    let mut con = client.get_connection()?;
+    let matches: Vec<String> = con.scan_match("osprofiler:".to_string() + span_id + "*")
+        .unwrap().collect();
+    let mut result = Vec::new();
+    for key in matches {
+        let dict_string: String = con.get(key)?;
+        println!("Parsing {:?}", dict_string);
+        result.push(parse_field(&dict_string).unwrap());
+    }
+    Ok(result)
+}
+
 pub type Timestamp = u64;
 pub type TraceId = u32;
 pub type Degree = u32;

@@ -23,6 +23,8 @@ use reconstruction::{SessionizableMessage, SpanId, SpanPosition, Service};
 use reconstruction::operators::Sessionize;
 use reconstruction::operators::stats::SumPerEpoch;
 
+use reconstruction::redis_main;
+
 /// For this example, we assign integer timestamps to events and the time axis is specified in
 /// terms of **milliseconds**.   For simplicity, we ignore time zones, leap seconds and other
 /// quirks of real clocks and instead simply use a linear time axis that begins at zero and
@@ -84,6 +86,13 @@ impl Message {
 }
 
 fn main() {
+    redis_main();
+    if false {
+        old_main();
+    }
+}
+
+fn old_main() {
     timely::execute_from_args(std::env::args(), move |computation| {
         let log_data = vec![
             Message::new("A", 1000, SpanId(vec![0]), "FrontendX"),
