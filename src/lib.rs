@@ -37,9 +37,16 @@ use spans::OSProfilerSpan;
 use spans::OSProfilerEnum;
 
 pub fn redis_main() {
-    let event_list = get_matches(&"5c1e5fc7-7d8a-47b3-8ae8-7e434827cf68".to_string()).unwrap();
-    let trace = create_dag(event_list);
-    println!("{}", Dot::new(&trace));
+    for p in std::fs::read_dir("/opt/stack/offline_profiling").unwrap() {
+        let path = p.unwrap().path();
+        // println!("Working on {:?}", path);
+        if path.extension().unwrap() == "dot" {
+            println!("Working on {:?}", path);
+            let event_list = get_matches(path.file_name().unwrap().to_str().unwrap().split('.').next().unwrap()).unwrap();
+            let trace = create_dag(event_list);
+            println!("{}", Dot::new(&trace));
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -190,7 +197,7 @@ fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
     Ok(result)
 }
 
-fn get_matches(span_id: &String) -> redis::RedisResult<Vec<OSProfilerSpan>> {
+fn get_matches(span_id: &str) -> redis::RedisResult<Vec<OSProfilerSpan>> {
     let client = redis::Client::open("redis://localhost:6379")?;
     let mut con = client.get_connection()?;
     let matches: Vec<String> = con.scan_match("osprofiler:".to_string() + span_id + "*")

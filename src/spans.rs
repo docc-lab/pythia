@@ -23,8 +23,8 @@ pub struct OSProfilerSpan {
 pub enum OSProfilerEnum {
     FunctionEntry(FunctionEntrySpan),
     FunctionExit(FunctionExitSpan),
-    Annotation(AnnotationSpan),
     RequestEntry(RequestEntrySpan),
+    Annotation(AnnotationSpan),
     RequestExit(RequestExitSpan),
 }
 
