@@ -9,7 +9,7 @@ pub struct OSProfilerSpan {
     pub trace_id: Uuid,
     pub parent_id: Uuid,
     project: String,
-    name: String,
+    pub name: String,
     pub base_id: Uuid,
     service: String,
     #[serde(deserialize_with = "from_osp_timestamp")]
@@ -23,14 +23,30 @@ pub struct OSProfilerSpan {
 pub enum OSProfilerEnum {
     FunctionEntry(FunctionEntrySpan),
     FunctionExit(FunctionExitSpan),
+    Annotation(AnnotationSpan),
     RequestEntry(RequestEntrySpan),
-    RequestExit(RequestExitSpan)
+    RequestExit(RequestExitSpan),
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct AnnotationSpan {
+    info: AnnotationInfo,
+    pub tracepoint_id: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+struct AnnotationInfo {
+    thread_id: u64,
+    host: String,
+    pub tracepoint_id: String,
+    child_id: Uuid,
+    pid: u64
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct RequestEntrySpan {
     info: RequestEntryInfo,
-    tracepoint_id: String,
+    pub tracepoint_id: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -38,7 +54,7 @@ struct RequestEntryInfo {
     request: RequestEntryRequest,
     thread_id: u64,
     host: String,
-    tracepoint_id: String,
+    pub tracepoint_id: String,
     pid: u64
 }
 
@@ -75,7 +91,7 @@ struct FunctionExitFunction { result: String }
 #[derive(Deserialize, Debug, Clone)]
 pub struct FunctionEntrySpan {
     info: FunctionEntryInfo,
-    tracepoint_id: String,
+    pub tracepoint_id: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]

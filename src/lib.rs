@@ -15,6 +15,8 @@ pub mod tree_repr;
 
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::fmt;
+use std::fmt::Display;
 
 use timely::ExchangeData;
 
@@ -27,7 +29,7 @@ extern crate uuid;
 extern crate chrono;
 extern crate petgraph;
 
-use petgraph::Graph;
+use petgraph::{Graph, dot::Dot};
 use uuid::Uuid;
 
 pub mod spans;
@@ -35,9 +37,9 @@ use spans::OSProfilerSpan;
 use spans::OSProfilerEnum;
 
 pub fn redis_main() {
-    let event_list = get_matches(&"7399ea9b-8556-44c5-b3a6-b32f0949ee20".to_string()).unwrap();
+    let event_list = get_matches(&"5c1e5fc7-7d8a-47b3-8ae8-7e434827cf68".to_string()).unwrap();
     let trace = create_dag(event_list);
-    println!("{:?}", trace);
+    println!("{}", Dot::new(&trace));
 }
 
 #[derive(Debug)]
@@ -51,13 +53,47 @@ impl DAGNode {
     }
 }
 
+impl Display for DAGNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.span.variant {
+            OSProfilerEnum::FunctionEntry(a) => {
+                write!(f, "{} start: {}", self.span.trace_id, a.tracepoint_id)
+            },
+            OSProfilerEnum::RequestEntry(a) => {
+                write!(f, "{} start: {}", self.span.trace_id, a.tracepoint_id)
+            },
+            OSProfilerEnum::Annotation(a) => {
+                write!(f, "{} start: {}", self.span.trace_id, a.tracepoint_id)
+            },
+            _ => {
+                write!(f, "{} end", self.span.trace_id)
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 struct DAGEdge {
     duration: chrono::Duration
 }
 
+impl Display for DAGEdge {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.duration)
+    }
+}
+
 fn create_dag(mut event_list: Vec<OSProfilerSpan>) -> Graph<DAGNode, DAGEdge> {
-    event_list.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    event_list.sort_by(|a, b| {
+        if a.timestamp == b.timestamp {
+            match a.variant {
+                OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => Ordering::Less,
+                _ => Ordering::Greater
+            }
+        } else {
+            a.timestamp.cmp(&b.timestamp)
+        }
+    });
     let base_id = event_list[0].base_id;
     let start_time = event_list[0].timestamp;
     let mut dag = Graph::<DAGNode, DAGEdge>::new();
@@ -100,8 +136,28 @@ fn create_dag(mut event_list: Vec<OSProfilerSpan>) -> Graph<DAGNode, DAGEdge> {
                     }
                 }
             },
+            OSProfilerEnum::Annotation(_) => {
+                match children_per_parent.get(&event.parent_id).unwrap() {
+                    Some(sibling_id) => {
+                        let sibling_node = id_map.get(sibling_id).unwrap();
+                        dag.add_edge(*sibling_node, mynode, DAGEdge {
+                            duration: event.timestamp - dag[*sibling_node].span.timestamp});
+                    },
+                    None => {
+                        let parent_node = id_map.get(&event.parent_id).unwrap();
+                        dag.add_edge(*parent_node, mynode, DAGEdge {
+                            duration: event.timestamp - dag[*parent_node].span.timestamp});
+                    }
+                }
+                children_per_parent.insert(event.parent_id, Some(event.trace_id));
+            },
             OSProfilerEnum::FunctionExit(_) | OSProfilerEnum::RequestExit(_) => {
-                let start_span = active_spans.remove(&event.trace_id).unwrap();
+                let start_span = match active_spans.remove(&event.trace_id) {
+                    Some(start_span) => start_span,
+                    None => {
+                        panic!("Start span not found: {:?}", event);
+                    }
+                };
                 match children_per_parent.remove(&event.trace_id).unwrap() {
                     Some(child_id) => {
                         let child_node = id_map.get(&child_id).unwrap();
@@ -113,14 +169,25 @@ fn create_dag(mut event_list: Vec<OSProfilerSpan>) -> Graph<DAGNode, DAGEdge> {
                             duration: event.timestamp - dag[start_span].span.timestamp});
                     }
                 }
+                children_per_parent.insert(event.parent_id, Some(event.trace_id));
             },
         }
     }
     dag
 }
 
-fn parse_field(field: &String) -> serde_json::Result<OSProfilerSpan> {
-    serde_json::from_str(field)
+fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
+    let result: OSProfilerSpan = serde_json::from_str(field).unwrap();
+    if result.name == "asynch_request" {
+        return match result.variant {
+            OSProfilerEnum::Annotation(_) => Ok(result),
+            _ => {
+                println!("{:?}", result);
+                Err("".to_string())
+            }
+        };
+    }
+    Ok(result)
 }
 
 fn get_matches(span_id: &String) -> redis::RedisResult<Vec<OSProfilerSpan>> {
