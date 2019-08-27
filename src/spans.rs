@@ -7,15 +7,15 @@ use std::fmt;
 #[derive(Deserialize, Debug, Clone)]
 pub struct OSProfilerSpan {
     pub trace_id: Uuid,
-    parent_id: Uuid,
+    pub parent_id: Uuid,
     project: String,
     name: String,
-    base_id: Uuid,
+    pub base_id: Uuid,
     service: String,
     #[serde(deserialize_with = "from_osp_timestamp")]
-    timestamp: NaiveDateTime,
+    pub timestamp: NaiveDateTime,
     #[serde(flatten)]
-    myenum: OSProfilerEnum
+    pub variant: OSProfilerEnum
 }
 
 #[derive(Deserialize, Debug, Clone)]

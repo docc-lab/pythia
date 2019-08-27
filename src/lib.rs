@@ -32,6 +32,7 @@ use uuid::Uuid;
 
 pub mod spans;
 use spans::OSProfilerSpan;
+use spans::OSProfilerEnum;
 
 pub fn redis_main() {
     let event_list = get_matches(&"7399ea9b-8556-44c5-b3a6-b32f0949ee20".to_string()).unwrap();
@@ -44,17 +45,76 @@ struct DAGNode {
     span: OSProfilerSpan
 }
 
+impl DAGNode {
+    fn from_osp_span(event: &OSProfilerSpan) -> DAGNode {
+        DAGNode {span: event.clone() }
+    }
+}
+
 #[derive(Debug)]
 struct DAGEdge {
     duration: chrono::Duration
 }
 
-fn create_dag(event_list: Vec<OSProfilerSpan>) -> Graph<DAGNode, DAGEdge> {
+fn create_dag(mut event_list: Vec<OSProfilerSpan>) -> Graph<DAGNode, DAGEdge> {
+    event_list.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    let base_id = event_list[0].base_id;
+    let start_time = event_list[0].timestamp;
     let mut dag = Graph::<DAGNode, DAGEdge>::new();
-    let mut id_map = HashMap::<Uuid, &OSProfilerSpan>::new();
+    // Latest event with the same id, end if event already finished, start if it didn't
+    let mut id_map = HashMap::new();
+    let mut active_spans = HashMap::new();
+    // The latest completed children span for each parent id
+    let mut children_per_parent = HashMap::<Uuid, Option<Uuid>>::new();
     for event in event_list.iter() {
-        id_map.insert(event.trace_id, &event);
-        dag.add_node(DAGNode{span: event.clone()});
+        assert!(event.base_id == base_id);
+        assert!(start_time <= event.timestamp);
+        let mynode = dag.add_node(DAGNode::from_osp_span(event));
+        id_map.insert(event.trace_id, mynode);
+        match event.variant {
+            OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {
+                active_spans.insert(event.trace_id, mynode);
+                children_per_parent.insert(event.trace_id, None);
+                if event.parent_id != event.base_id {
+                    match children_per_parent.get(&event.parent_id) {
+                        Some(result) => {
+                            match result {
+                                Some(sibling_id) => {
+                                    let sibling_node = id_map.get(sibling_id).unwrap();
+                                    dag.add_edge(*sibling_node, mynode, DAGEdge {
+                                        duration: event.timestamp - dag[*sibling_node].span.timestamp});
+                                },
+                                None => {
+                                    let parent_node = id_map.get(&event.parent_id).unwrap();
+                                    dag.add_edge(*parent_node, mynode, DAGEdge {
+                                        duration: event.timestamp - dag[*parent_node].span.timestamp});
+                                }
+                            }
+                        },
+                        None => {
+                            // Parent has finished execution before child starts - shouldn't happen
+                            let parent_node = &dag[*id_map.get(&event.parent_id).unwrap()];
+                            assert!(event.timestamp > parent_node.span.timestamp);
+                            panic!("Parent of node {:?} not found: {:?}", event, parent_node);
+                        }
+                    }
+                }
+            },
+            OSProfilerEnum::FunctionExit(_) | OSProfilerEnum::RequestExit(_) => {
+                let start_span = active_spans.remove(&event.trace_id).unwrap();
+                match children_per_parent.remove(&event.trace_id).unwrap() {
+                    Some(child_id) => {
+                        let child_node = id_map.get(&child_id).unwrap();
+                        dag.add_edge(*child_node, mynode, DAGEdge {
+                            duration: event.timestamp - dag[*child_node].span.timestamp});
+                    },
+                    None => {
+                        dag.add_edge(start_span, mynode, DAGEdge {
+                            duration: event.timestamp - dag[start_span].span.timestamp});
+                    }
+                }
+            },
+        }
     }
     dag
 }
@@ -71,8 +131,10 @@ fn get_matches(span_id: &String) -> redis::RedisResult<Vec<OSProfilerSpan>> {
     let mut result = Vec::new();
     for key in matches {
         let dict_string: String = con.get(key)?;
-        println!("Parsing {:?}", dict_string);
-        result.push(parse_field(&dict_string).unwrap());
+        match parse_field(&dict_string) {
+            Ok(span) => result.push(span),
+            Err(e) => panic!("Problem while parsing {}: {}", dict_string, e),
+        }
     }
     Ok(result)
 }
