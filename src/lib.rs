@@ -29,7 +29,7 @@ extern crate uuid;
 extern crate chrono;
 extern crate petgraph;
 
-use petgraph::{Graph, dot::Dot};
+use petgraph::{Graph, dot::Dot, graph::NodeIndex};
 use uuid::Uuid;
 
 pub mod spans;
@@ -37,6 +37,10 @@ use spans::OSProfilerSpan;
 use spans::OSProfilerEnum;
 
 pub fn redis_main() {
+    let event_list = get_matches("ffd1560e-7928-437c-87e9-a712c85ed2ac").unwrap();
+    let trace = create_dag(event_list);
+    println!("{}", Dot::new(&trace));
+    return;
     for p in std::fs::read_dir("/opt/stack/offline_profiling").unwrap() {
         let path = p.unwrap().path();
         // println!("Working on {:?}", path);
@@ -81,106 +85,177 @@ impl Display for DAGNode {
 
 #[derive(Debug)]
 struct DAGEdge {
-    duration: chrono::Duration
+    duration: chrono::Duration,
+    variant: EdgeType
+}
+
+#[derive(Debug)]
+enum EdgeType {
+    ChildOf,
+    FollowsFrom
 }
 
 impl Display for DAGEdge {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.duration)
+        match &self.variant {
+            EdgeType::ChildOf => write!(f, "C{}", self.duration),
+            EdgeType::FollowsFrom => write!(f, "F{}", self.duration)
+        }
     }
 }
 
-fn create_dag(mut event_list: Vec<OSProfilerSpan>) -> Graph<DAGNode, DAGEdge> {
-    event_list.sort_by(|a, b| {
-        if a.timestamp == b.timestamp {
-            match a.variant {
-                OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => Ordering::Less,
-                _ => Ordering::Greater
-            }
-        } else {
-            a.timestamp.cmp(&b.timestamp)
-        }
-    });
-    let base_id = event_list[0].base_id;
-    let start_time = event_list[0].timestamp;
+type OSProfilerDAG = Graph<DAGNode, DAGEdge>;
+
+fn create_dag(mut event_list: Vec<OSProfilerSpan>) -> OSProfilerDAG {
     let mut dag = Graph::<DAGNode, DAGEdge>::new();
-    // Latest event with the same id, end if event already finished, start if it didn't
-    let mut id_map = HashMap::new();
-    let mut active_spans = HashMap::new();
-    // The latest completed children span for each parent id
-    let mut children_per_parent = HashMap::<Uuid, Option<Uuid>>::new();
-    for event in event_list.iter() {
-        assert!(event.base_id == base_id);
-        assert!(start_time <= event.timestamp);
-        let mynode = dag.add_node(DAGNode::from_osp_span(event));
-        id_map.insert(event.trace_id, mynode);
-        match event.variant {
-            OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {
-                active_spans.insert(event.trace_id, mynode);
-                children_per_parent.insert(event.trace_id, None);
-                if event.parent_id != event.base_id {
-                    match children_per_parent.get(&event.parent_id) {
-                        Some(result) => {
-                            match result {
-                                Some(sibling_id) => {
-                                    let sibling_node = id_map.get(sibling_id).unwrap();
-                                    dag.add_edge(*sibling_node, mynode, DAGEdge {
-                                        duration: event.timestamp - dag[*sibling_node].span.timestamp});
-                                },
-                                None => {
-                                    let parent_node = id_map.get(&event.parent_id).unwrap();
-                                    dag.add_edge(*parent_node, mynode, DAGEdge {
-                                        duration: event.timestamp - dag[*parent_node].span.timestamp});
+    dag.add_events(&mut event_list);
+    dag
+}
+
+trait MyTrait {
+    fn add_events(&mut self, event_list: &mut Vec<OSProfilerSpan>);
+    fn add_asynch(&mut self, trace_id: &Uuid, parent: NodeIndex);
+}
+
+impl MyTrait for OSProfilerDAG {
+    fn add_events(&mut self, event_list: &mut Vec<OSProfilerSpan>) {
+        event_list.sort_by(|a, b| {
+            if a.timestamp == b.timestamp {
+                match a.variant {
+                    OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => Ordering::Less,
+                    _ => Ordering::Greater
+                }
+            } else {
+                a.timestamp.cmp(&b.timestamp)
+            }
+        });
+        let base_id = event_list[0].base_id;
+        let start_time = event_list[0].timestamp;
+        // Latest event with the same id, end if event already finished, start if it didn't
+        let mut id_map = HashMap::new();
+        let mut active_spans = HashMap::new();
+        // The latest completed children span for each parent id
+        let mut children_per_parent = HashMap::<Uuid, Option<Uuid>>::new();
+        children_per_parent.insert(event_list[0].base_id, None);
+        // Map of asynchronous traces that start from this DAG -> parent node in DAG
+        let mut asynch_traces = HashMap::new();
+        for event in event_list.iter() {
+            assert!(event.base_id == base_id);
+            assert!(start_time <= event.timestamp);
+            let mynode = self.add_node(DAGNode::from_osp_span(event));
+            id_map.insert(event.trace_id, mynode);
+            match &event.variant {
+                OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {
+                    active_spans.insert(event.trace_id, mynode);
+                    children_per_parent.insert(event.trace_id, None);
+                    if event.parent_id == event.base_id {
+                        match children_per_parent.get(&event.parent_id).unwrap() {
+                            Some(sibling_id) => {
+                                let sibling_node = id_map.get(sibling_id).unwrap();
+                                self.add_edge(*sibling_node, mynode, DAGEdge {
+                                    duration: event.timestamp - self[*sibling_node].span.timestamp,
+                                    variant: EdgeType::ChildOf
+                                });
+                            },
+                            None => {}
+                        }
+                    } else {
+                        match children_per_parent.get(&event.parent_id) {
+                            Some(result) => {
+                                match result {
+                                    Some(sibling_id) => {
+                                        let sibling_node = id_map.get(sibling_id).unwrap();
+                                        self.add_edge(*sibling_node, mynode, DAGEdge {
+                                            duration: event.timestamp - self[*sibling_node].span.timestamp,
+                                            variant: EdgeType::ChildOf
+                                        });
+                                    },
+                                    None => {
+                                        let parent_node = id_map.get(&event.parent_id).unwrap();
+                                        self.add_edge(*parent_node, mynode, DAGEdge {
+                                            duration: event.timestamp - self[*parent_node].span.timestamp,
+                                            variant: EdgeType::ChildOf
+                                        });
+                                    }
                                 }
+                            },
+                            None => {
+                                // Parent has finished execution before child starts - shouldn't happen
+                                let parent_node = &self[*id_map.get(&event.parent_id).unwrap()];
+                                assert!(event.timestamp > parent_node.span.timestamp);
+                                panic!("Parent of node {:?} not found: {:?}", event, parent_node);
                             }
-                        },
-                        None => {
-                            // Parent has finished execution before child starts - shouldn't happen
-                            let parent_node = &dag[*id_map.get(&event.parent_id).unwrap()];
-                            assert!(event.timestamp > parent_node.span.timestamp);
-                            panic!("Parent of node {:?} not found: {:?}", event, parent_node);
                         }
                     }
-                }
-            },
-            OSProfilerEnum::Annotation(_) => {
-                match children_per_parent.get(&event.parent_id).unwrap() {
-                    Some(sibling_id) => {
-                        let sibling_node = id_map.get(sibling_id).unwrap();
-                        dag.add_edge(*sibling_node, mynode, DAGEdge {
-                            duration: event.timestamp - dag[*sibling_node].span.timestamp});
-                    },
-                    None => {
-                        let parent_node = id_map.get(&event.parent_id).unwrap();
-                        dag.add_edge(*parent_node, mynode, DAGEdge {
-                            duration: event.timestamp - dag[*parent_node].span.timestamp});
+                },
+                OSProfilerEnum::Annotation(myspan) => {
+                    match children_per_parent.get(&event.parent_id).unwrap() {
+                        Some(sibling_id) => {
+                            let sibling_node = id_map.get(sibling_id).unwrap();
+                            self.add_edge(*sibling_node, mynode, DAGEdge {
+                                duration: event.timestamp - self[*sibling_node].span.timestamp,
+                                variant: EdgeType::ChildOf
+                            });
+                        },
+                        None => {
+                            let parent_node = id_map.get(&event.parent_id).unwrap();
+                            self.add_edge(*parent_node, mynode, DAGEdge {
+                                duration: event.timestamp - self[*parent_node].span.timestamp,
+                                variant: EdgeType::ChildOf
+                            });
+                        }
                     }
-                }
-                children_per_parent.insert(event.parent_id, Some(event.trace_id));
-            },
-            OSProfilerEnum::FunctionExit(_) | OSProfilerEnum::RequestExit(_) => {
-                let start_span = match active_spans.remove(&event.trace_id) {
-                    Some(start_span) => start_span,
-                    None => {
-                        panic!("Start span not found: {:?}", event);
+                    asynch_traces.insert(myspan.info.child_id, mynode);
+                },
+                OSProfilerEnum::FunctionExit(_) | OSProfilerEnum::RequestExit(_) => {
+                    let start_span = match active_spans.remove(&event.trace_id) {
+                        Some(start_span) => start_span,
+                        None => {
+                            panic!("Start span not found: {:?}", event);
+                        }
+                    };
+                    match children_per_parent.remove(&event.trace_id).unwrap() {
+                        Some(child_id) => {
+                            let child_node = id_map.get(&child_id).unwrap();
+                            self.add_edge(*child_node, mynode, DAGEdge {
+                                duration: event.timestamp - self[*child_node].span.timestamp,
+                                variant: EdgeType::ChildOf
+                            });
+                        },
+                        None => {
+                            self.add_edge(start_span, mynode, DAGEdge {
+                                duration: event.timestamp - self[start_span].span.timestamp,
+                                variant: EdgeType::ChildOf
+                            });
+                        }
                     }
-                };
-                match children_per_parent.remove(&event.trace_id).unwrap() {
-                    Some(child_id) => {
-                        let child_node = id_map.get(&child_id).unwrap();
-                        dag.add_edge(*child_node, mynode, DAGEdge {
-                            duration: event.timestamp - dag[*child_node].span.timestamp});
-                    },
-                    None => {
-                        dag.add_edge(start_span, mynode, DAGEdge {
-                            duration: event.timestamp - dag[start_span].span.timestamp});
-                    }
-                }
-                children_per_parent.insert(event.parent_id, Some(event.trace_id));
-            },
+                },
+            }
+            children_per_parent.insert(event.parent_id, Some(event.trace_id));
+        }
+        for (trace_id, parent) in asynch_traces.iter() {
+            self.add_asynch(trace_id, *parent);
         }
     }
-    dag
+
+    fn add_asynch(&mut self, trace_id: &Uuid, parent: NodeIndex) {
+        let mut event_list = get_matches(&trace_id.to_hyphenated().to_string()).unwrap();
+        if event_list.len() == 0 {
+            return;
+        }
+        self.add_events(&mut event_list);
+        let first_event = event_list.iter().fold(None, |min, x| match min {
+            None => Some(x),
+            Some(y) => Some(if x.timestamp < y.timestamp {x} else {y}),
+        }).unwrap();
+        let first_node = self.node_indices().find(|idx| {
+            self[*idx].span.trace_id == first_event.trace_id
+        }).unwrap();
+        self.add_edge(parent, first_node, DAGEdge {
+            duration: first_event.timestamp - self[parent].span.timestamp,
+            variant: EdgeType::FollowsFrom
+        });
+    }
 }
 
 fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {

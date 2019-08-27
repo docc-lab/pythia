@@ -30,16 +30,16 @@ pub enum OSProfilerEnum {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct AnnotationSpan {
-    info: AnnotationInfo,
+    pub info: AnnotationInfo,
     pub tracepoint_id: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
-struct AnnotationInfo {
+pub struct AnnotationInfo {
     thread_id: u64,
     host: String,
     pub tracepoint_id: String,
-    child_id: Uuid,
+    pub child_id: Uuid,
     pid: u64
 }
 
