@@ -14,6 +14,7 @@ pub mod operators;
 pub mod tree_repr;
 
 use std::cmp::Ordering;
+use std::collections::HashMap;
 
 use timely::ExchangeData;
 
@@ -24,13 +25,38 @@ extern crate serde_json;
 extern crate serde;
 extern crate uuid;
 extern crate chrono;
+extern crate petgraph;
 
-mod spans;
+use petgraph::Graph;
+use uuid::Uuid;
+
+pub mod spans;
 use spans::OSProfilerSpan;
 
 pub fn redis_main() {
-    let trace = get_matches(&"7399ea9b-8556-44c5-b3a6-b32f0949ee20".to_string()).unwrap();
+    let event_list = get_matches(&"7399ea9b-8556-44c5-b3a6-b32f0949ee20".to_string()).unwrap();
+    let trace = create_dag(event_list);
     println!("{:?}", trace);
+}
+
+#[derive(Debug)]
+struct DAGNode {
+    span: OSProfilerSpan
+}
+
+#[derive(Debug)]
+struct DAGEdge {
+    duration: chrono::Duration
+}
+
+fn create_dag(event_list: Vec<OSProfilerSpan>) -> Graph<DAGNode, DAGEdge> {
+    let mut dag = Graph::<DAGNode, DAGEdge>::new();
+    let mut id_map = HashMap::<Uuid, &OSProfilerSpan>::new();
+    for event in event_list.iter() {
+        id_map.insert(event.trace_id, &event);
+        dag.add_node(DAGNode{span: event.clone()});
+    }
+    dag
 }
 
 fn parse_field(field: &String) -> serde_json::Result<OSProfilerSpan> {

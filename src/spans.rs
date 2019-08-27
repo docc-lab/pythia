@@ -4,30 +4,36 @@ use chrono::NaiveDateTime;
 use serde::de;
 use std::fmt;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
+pub struct OSProfilerSpan {
+    pub trace_id: Uuid,
+    parent_id: Uuid,
+    project: String,
+    name: String,
+    base_id: Uuid,
+    service: String,
+    #[serde(deserialize_with = "from_osp_timestamp")]
+    timestamp: NaiveDateTime,
+    #[serde(flatten)]
+    myenum: OSProfilerEnum
+}
+
+#[derive(Deserialize, Debug, Clone)]
 #[serde(untagged)]
-pub enum OSProfilerSpan {
+pub enum OSProfilerEnum {
     FunctionEntry(FunctionEntrySpan),
     FunctionExit(FunctionExitSpan),
     RequestEntry(RequestEntrySpan),
     RequestExit(RequestExitSpan)
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct RequestEntrySpan {
     info: RequestEntryInfo,
-    parent_id: Uuid,
-    project: String,
-    name: String,
-    base_id: Uuid,
-    #[serde(deserialize_with = "from_osp_timestamp")]
-    timestamp: NaiveDateTime,
-    service: String,
     tracepoint_id: String,
-    trace_id: Uuid
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct RequestEntryInfo {
     request: RequestEntryRequest,
     thread_id: u64,
@@ -36,7 +42,7 @@ struct RequestEntryInfo {
     pid: u64
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct RequestEntryRequest {
     path: String,
     scheme: String,
@@ -44,59 +50,35 @@ struct RequestEntryRequest {
     query: String
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct RequestExitSpan {
     info: RequestExitInfo,
-    parent_id: Uuid,
-    project: String,
-    name: String,
-    base_id: Uuid,
-    #[serde(deserialize_with = "from_osp_timestamp")]
-    timestamp: NaiveDateTime,
-    service: String,
-    trace_id: Uuid
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct RequestExitInfo { host: String }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct FunctionExitSpan {
     info: FunctionExitInfo,
-    parent_id: Uuid,
-    project: String,
-    name: String,
-    base_id: Uuid,
-    #[serde(deserialize_with = "from_osp_timestamp")]
-    timestamp: NaiveDateTime,
-    service: String,
-    trace_id: Uuid
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct FunctionExitInfo {
     function: FunctionExitFunction,
     host: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct FunctionExitFunction { result: String }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct FunctionEntrySpan {
     info: FunctionEntryInfo,
-    parent_id: Uuid,
-    project: String,
-    name: String,
-    base_id: Uuid,
-    #[serde(deserialize_with = "from_osp_timestamp")]
-    timestamp: NaiveDateTime,
-    service: String,
     tracepoint_id: String,
-    trace_id: Uuid
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct FunctionEntryInfo {
     function: FunctionEntryFunction,
     thread_id: u64,
@@ -105,7 +87,7 @@ struct FunctionEntryInfo {
     pid: u64
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct FunctionEntryFunction { name: String, args: String, kwargs: String }
 
 struct NaiveDateTimeVisitor;
