@@ -37,10 +37,10 @@ use spans::OSProfilerSpan;
 use spans::OSProfilerEnum;
 
 pub fn redis_main() {
-    let event_list = get_matches("ffd1560e-7928-437c-87e9-a712c85ed2ac").unwrap();
-    let trace = create_dag(event_list);
-    println!("{}", Dot::new(&trace));
-    return;
+    // let event_list = get_matches("ffd1560e-7928-437c-87e9-a712c85ed2ac").unwrap();
+    // let trace = create_dag(event_list);
+    // println!("{}", Dot::new(&trace));
+    // return;
     for p in std::fs::read_dir("/opt/stack/offline_profiling").unwrap() {
         let path = p.unwrap().path();
         // println!("Working on {:?}", path);
@@ -49,7 +49,26 @@ pub fn redis_main() {
             let event_list = get_matches(path.file_name().unwrap().to_str().unwrap().split('.').next().unwrap()).unwrap();
             let trace = create_dag(event_list);
             println!("{}", Dot::new(&trace));
+            let crit = CriticalPath::from_trace(trace);
+            println!("{:?}", crit);
         }
+    }
+}
+
+#[derive(Debug)]
+struct CriticalPath {
+    graph: OSProfilerDAG,
+    duration: chrono::Duration,
+}
+
+impl CriticalPath {
+    fn from_trace(dag: OSProfilerDAG) -> CriticalPath {
+        let mut path = CriticalPath {
+            duration: chrono::Duration::seconds(0),
+            graph: OSProfilerDAG::new()
+        };
+        path.graph = dag;
+        path
     }
 }
 
