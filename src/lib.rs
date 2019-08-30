@@ -51,6 +51,24 @@ pub fn redis_main() {
         // let crit = CriticalPath::from_trace(trace);
         // println!("{:?}", crit);
     }
+    let manifest = Poset::from_trace_list(traces);
+    println!("{}", Dot::new(&manifest.g));
+}
+
+struct Poset {
+    g: Graph<DAGNode, u32>
+}
+
+impl Poset {
+    fn from_trace_list(list: Vec<OSProfilerDAG>) -> Poset {
+        let mut dag = Graph::<DAGNode, u32>::new();
+        for trace in list {
+            for nid in trace.g.node_indices() {
+                dag.add_node(trace.g[nid].clone());
+            }
+        }
+        Poset{g: dag}
+    }
 }
 
 #[derive(Debug)]
@@ -70,7 +88,7 @@ impl CriticalPath {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct DAGNode {
     span: OSProfilerSpan
 }
