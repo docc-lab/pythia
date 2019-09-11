@@ -2,6 +2,7 @@
 name = "reconstruction"
 version = "0.1.0"
 authors = ["Zaheer Chothia <zchothia@inf.ethz.ch>"]
+default-run = "main"
 
 [dependencies]
 abomonation = "0.5"
@@ -14,3 +15,5 @@ serde_json = "*"
 uuid = { version = "0.7", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 petgraph = "*"
+clap = "*"
+lazy_static = "1.4.0"

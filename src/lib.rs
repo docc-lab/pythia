@@ -17,6 +17,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
+use std::sync::Mutex;
 
 use timely::ExchangeData;
 
@@ -28,6 +29,7 @@ extern crate serde;
 extern crate uuid;
 extern crate chrono;
 extern crate petgraph;
+extern crate lazy_static;
 
 use petgraph::{Graph, dot::Dot, graph::NodeIndex};
 use uuid::Uuid;
@@ -42,29 +44,71 @@ pub fn redis_main() {
     // println!("{}", Dot::new(&trace));
     // return;
     let trace_ids = std::fs::read_to_string("/opt/stack/requests.txt").unwrap();
+    for id in trace_ids.split('\n') {
+        println!("Working on {:?}", id);
+        let trace = OSProfilerDAG::from_base_id(id);
+        println!("{}", Dot::new(&trace.g));
+        let crit = CriticalPath::from_trace(trace);
+        println!("{:?}", crit);
+    }
+}
+
+pub fn get_manifest(manfile: &str) {
+    let trace_ids = std::fs::read_to_string(manfile).unwrap();
     let mut traces = Vec::new();
     for id in trace_ids.split('\n') {
         println!("Working on {:?}", id);
         let trace = OSProfilerDAG::from_base_id(id);
         traces.push(trace);
-        // println!("{}", Dot::new(&trace));
-        // let crit = CriticalPath::from_trace(trace);
-        // println!("{:?}", crit);
     }
     let manifest = Poset::from_trace_list(traces);
     println!("{}", Dot::new(&manifest.g));
 }
 
 struct Poset {
-    g: Graph<DAGNode, u32>
+    g: Graph<ManifestNode, u32>
+}
+
+#[derive(Debug, Clone)]
+struct ManifestNode {
+    pub tracepoint_id: String,
+    pub variant: ManifestEnum
+}
+
+lazy_static! {
+    static ref SPAN_CACHE: Mutex<HashMap<Uuid, &str>> = {
+        let mut m = HashMap::new();
+        Mutex::new(m)
+    };
+}
+
+impl ManifestNode {
+    fn from_span(span: OSProfilerSpan) -> ManifestNode {
+        let mut node = ManifestNode {};
+        match span {
+            FunctionEntry(s) => {
+                node.tracepoint_id = s.tracepoint_id;
+                node.variant = ManifestEnum::FunctionEntry;
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+enum ManifestEnum {
+    FunctionEntry,
+    FunctionExit,
+    RequestEntry,
+    RequestExit,
+    Annotation
 }
 
 impl Poset {
     fn from_trace_list(list: Vec<OSProfilerDAG>) -> Poset {
-        let mut dag = Graph::<DAGNode, u32>::new();
+        let mut dag = Graph::<ManifestNode, u32>::new();
         for trace in list {
             for nid in trace.g.node_indices() {
-                dag.add_node(trace.g[nid].clone());
+                dag.add_node(ManifestNode::from_span(trace.g[nid]));
             }
         }
         Poset{g: dag}

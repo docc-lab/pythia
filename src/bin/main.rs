@@ -13,6 +13,9 @@ extern crate abomonation;
 extern crate timely;
 extern crate reconstruction;
 
+extern crate clap;
+use clap::{Arg, App, SubCommand};
+
 use std::collections::HashSet;
 
 use timely::dataflow::channels::pact::Pipeline;
@@ -23,7 +26,7 @@ use reconstruction::{SessionizableMessage, SpanId, SpanPosition, Service};
 use reconstruction::operators::Sessionize;
 use reconstruction::operators::stats::SumPerEpoch;
 
-use reconstruction::redis_main;
+use reconstruction::{redis_main, get_manifest};
 
 /// For this example, we assign integer timestamps to events and the time axis is specified in
 /// terms of **milliseconds**.   For simplicity, we ignore time zones, leap seconds and other
@@ -86,10 +89,22 @@ impl Message {
 }
 
 fn main() {
-    redis_main();
-    if false {
-        old_main();
-    }
+    let matches = App::new("Pythia")
+        .version("1.0")
+        .author("Emre Ates <ates@bu.edu>")
+        .subcommand(SubCommand::with_name("old_reconstruction"))
+        .subcommand(SubCommand::with_name("manifest")
+            .arg(Arg::with_name("manifest_file")
+                .required(true)
+                .index(1)))
+        .get_matches();
+    match matches.subcommand() {
+        ("old_reconstruction", Some(_)) => old_main(),
+        ("manifest", Some(matches)) => {
+            get_manifest(matches.value_of("manifest_file").unwrap());
+        }
+        _ => redis_main()
+    };
 }
 
 fn old_main() {
