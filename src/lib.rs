@@ -7,7 +7,8 @@
 // except according to those terms.
 
 extern crate abomonation;
-#[macro_use] extern crate abomonation_derive;
+#[macro_use]
+extern crate abomonation_derive;
 extern crate timely;
 
 pub mod operators;
@@ -29,6 +30,7 @@ extern crate serde;
 extern crate uuid;
 extern crate chrono;
 extern crate petgraph;
+#[macro_use]
 extern crate lazy_static;
 
 use petgraph::{Graph, dot::Dot, graph::NodeIndex};
@@ -69,46 +71,83 @@ struct Poset {
     g: Graph<ManifestNode, u32>
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 struct ManifestNode {
     pub tracepoint_id: String,
     pub variant: ManifestEnum
 }
 
 lazy_static! {
-    static ref SPAN_CACHE: Mutex<HashMap<Uuid, &str>> = {
-        let mut m = HashMap::new();
-        Mutex::new(m)
+    static ref SPAN_CACHE: Mutex<HashMap<Uuid, String>> = {
+        Mutex::new(HashMap::new())
     };
 }
 
 impl ManifestNode {
-    fn from_span(span: OSProfilerSpan) -> ManifestNode {
-        let mut node = ManifestNode {};
-        match span {
-            FunctionEntry(s) => {
-                node.tracepoint_id = s.tracepoint_id;
-                node.variant = ManifestEnum::FunctionEntry;
+    fn from_span(span: &OSProfilerSpan) -> ManifestNode {
+        let (id, variant) = match &span.variant {
+            OSProfilerEnum::FunctionEntry(s) => {
+                let mut map = SPAN_CACHE.lock().unwrap();
+                map.insert(span.trace_id, s.tracepoint_id.clone());
+                (s.tracepoint_id.clone(), ManifestEnum::SpanEntry)
+            },
+            OSProfilerEnum::RequestEntry(s) => {
+                let mut map = SPAN_CACHE.lock().unwrap();
+                map.insert(span.trace_id, s.tracepoint_id.clone());
+                (s.tracepoint_id.clone(), ManifestEnum::SpanEntry)
+            },
+            OSProfilerEnum::FunctionExit(_) | OSProfilerEnum::RequestExit(_) => {
+                let mut map = SPAN_CACHE.lock().unwrap();
+                (map.remove(&span.trace_id).unwrap(), ManifestEnum::SpanExit)
+            },
+            OSProfilerEnum::Annotation(s) => {
+                (s.tracepoint_id.clone(), ManifestEnum::Annotation)
             }
-        }
+        };
+        ManifestNode { tracepoint_id: id, variant: variant }
     }
 }
 
-#[derive(Debug, Clone)]
+impl Display for ManifestNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.tracepoint_id)
+    }
+}
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 enum ManifestEnum {
-    FunctionEntry,
-    FunctionExit,
-    RequestEntry,
-    RequestExit,
+    SpanEntry,
+    SpanExit,
     Annotation
 }
 
 impl Poset {
     fn from_trace_list(list: Vec<OSProfilerDAG>) -> Poset {
         let mut dag = Graph::<ManifestNode, u32>::new();
-        for trace in list {
-            for nid in trace.g.node_indices() {
-                dag.add_node(ManifestNode::from_span(trace.g[nid]));
+        let mut node_index_map = HashMap::new();
+        for trace in &list {
+            for nid in trace.g.raw_nodes() {
+                let node = ManifestNode::from_span(&nid.weight.span);
+                match node_index_map.get(&node) {
+                    Some(_) => {},
+                    None => {
+                        node_index_map.insert(node.clone(), dag.add_node(node));
+                    }
+                }
+            }
+        }
+        for trace in &list {
+            for edge in trace.g.raw_edges() {
+                let source = *node_index_map.get(&ManifestNode::from_span(&trace.g[edge.source()].span)).unwrap();
+                let target = *node_index_map.get(&ManifestNode::from_span(&trace.g[edge.target()].span)).unwrap();
+                match dag.find_edge(source, target) {
+                    Some(idx) => {
+                        dag[idx] += 1;
+                    },
+                    None => {
+                        dag.add_edge(source, target, 1);
+                    }
+                }
             }
         }
         Poset{g: dag}
