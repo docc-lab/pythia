@@ -1,10 +1,10 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::NaiveDateTime;
 use serde::de;
 use std::fmt;
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct OSProfilerSpan {
     pub trace_id: Uuid,
     pub parent_id: Uuid,
@@ -20,7 +20,7 @@ pub struct OSProfilerSpan {
     pub variant: OSProfilerEnum
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(untagged)]
 pub enum OSProfilerEnum {
     FunctionEntry(FunctionEntrySpan),
@@ -30,13 +30,13 @@ pub enum OSProfilerEnum {
     RequestExit(RequestExitSpan),
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct AnnotationSpan {
     pub info: AnnotationInfo,
     pub tracepoint_id: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct AnnotationInfo {
     thread_id: u64,
     host: String,
@@ -45,13 +45,13 @@ pub struct AnnotationInfo {
     pid: u64
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct RequestEntrySpan {
     info: RequestEntryInfo,
     pub tracepoint_id: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 struct RequestEntryInfo {
     request: RequestEntryRequest,
     thread_id: u64,
@@ -60,7 +60,7 @@ struct RequestEntryInfo {
     pid: u64
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 struct RequestEntryRequest {
     path: String,
     scheme: String,
@@ -68,35 +68,35 @@ struct RequestEntryRequest {
     query: String
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct RequestExitSpan {
     info: RequestExitInfo,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 struct RequestExitInfo { host: String }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct FunctionExitSpan {
     info: FunctionExitInfo,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 struct FunctionExitInfo {
     function: FunctionExitFunction,
     host: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 struct FunctionExitFunction { result: String }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct FunctionEntrySpan {
     info: FunctionEntryInfo,
     pub tracepoint_id: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 struct FunctionEntryInfo {
     function: FunctionEntryFunction,
     thread_id: u64,
@@ -105,7 +105,7 @@ struct FunctionEntryInfo {
     pid: u64
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 struct FunctionEntryFunction { name: String, args: String, kwargs: String }
 
 struct NaiveDateTimeVisitor;
