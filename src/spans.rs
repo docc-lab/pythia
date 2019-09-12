@@ -5,6 +5,22 @@ use serde::de;
 use std::fmt;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+pub struct Event {
+    pub trace_id: Uuid,
+    pub parent_id: Uuid,
+    pub tracepoint_id: String,
+    pub timestamp: NaiveDateTime,
+    pub variant: EventEnum
+}
+
+#[derive(Serialize, Deserialize, Hash, Debug, Clone, Copy, Eq, PartialEq)]
+pub enum EventEnum {
+    Entry,
+    Exit,
+    Annotation
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct OSProfilerSpan {
     pub trace_id: Uuid,
     pub parent_id: Uuid,

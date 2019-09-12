@@ -41,6 +41,8 @@ use uuid::Uuid;
 pub mod spans;
 use spans::OSProfilerSpan;
 use spans::OSProfilerEnum;
+use spans::Event;
+use spans::EventEnum;
 
 /// Configuration Options
 const TRACE_CACHE: &str = "/opt/stack/pythia_trace_cache/";
@@ -85,37 +87,23 @@ struct Poset {
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 struct ManifestNode {
     pub tracepoint_id: String,
-    pub variant: ManifestEnum
+    pub variant: EventEnum
 }
 
 impl ManifestNode {
-    fn from_span(span: &OSProfilerSpan) -> ManifestNode {
-        let variant = match &span.variant {
-            OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) =>
-                ManifestEnum::SpanEntry,
-            OSProfilerEnum::FunctionExit(_) | OSProfilerEnum::RequestExit(_) =>
-                ManifestEnum::SpanExit,
-            OSProfilerEnum::Annotation(_) => ManifestEnum::Annotation
-        };
-        ManifestNode { tracepoint_id: span.tracepoint_id.clone(), variant: variant }
+    fn from_event(span: &Event) -> ManifestNode {
+        ManifestNode { tracepoint_id: span.tracepoint_id.clone(), variant: span.variant }
     }
 }
 
 impl Display for ManifestNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.variant {
-            ManifestEnum::SpanEntry => write!(f, "{}: S", self.tracepoint_id),
-            ManifestEnum::SpanExit => write!(f, "{}: E", self.tracepoint_id),
-            ManifestEnum::Annotation => write!(f, "{}: A", self.tracepoint_id)
+            EventEnum::Entry => write!(f, "{}: S", self.tracepoint_id),
+            EventEnum::Exit => write!(f, "{}: E", self.tracepoint_id),
+            EventEnum::Annotation => write!(f, "{}: A", self.tracepoint_id)
         }
     }
-}
-
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
-enum ManifestEnum {
-    SpanEntry,
-    SpanExit,
-    Annotation
 }
 
 impl Poset {
@@ -124,7 +112,7 @@ impl Poset {
         let mut node_index_map = HashMap::new();
         for trace in &list {
             for nid in trace.g.raw_nodes() {
-                let node = ManifestNode::from_span(&nid.weight.span);
+                let node = ManifestNode::from_event(&nid.weight.span);
                 match node_index_map.get(&node) {
                     Some(_) => {},
                     None => {
@@ -135,8 +123,8 @@ impl Poset {
         }
         for trace in &list {
             for edge in trace.g.raw_edges() {
-                let source = *node_index_map.get(&ManifestNode::from_span(&trace.g[edge.source()].span)).unwrap();
-                let target = *node_index_map.get(&ManifestNode::from_span(&trace.g[edge.target()].span)).unwrap();
+                let source = *node_index_map.get(&ManifestNode::from_event(&trace.g[edge.source()].span)).unwrap();
+                let target = *node_index_map.get(&ManifestNode::from_event(&trace.g[edge.target()].span)).unwrap();
                 match dag.find_edge(source, target) {
                     Some(idx) => {
                         dag[idx] += 1;
@@ -170,28 +158,37 @@ impl CriticalPath {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 struct DAGNode {
-    span: OSProfilerSpan
+    span: Event
 }
 
 impl DAGNode {
     fn from_osp_span(event: &OSProfilerSpan) -> DAGNode {
-        DAGNode { span: event.clone() }
+        DAGNode { span: Event {
+            trace_id: event.trace_id,
+            parent_id: event.parent_id,
+            tracepoint_id: event.tracepoint_id.clone(),
+            timestamp: event.timestamp,
+            variant: match event.variant {
+                OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) =>
+                    EventEnum::Entry,
+                OSProfilerEnum::FunctionExit(_) | OSProfilerEnum::RequestExit(_) =>
+                    EventEnum::Exit,
+                OSProfilerEnum::Annotation(_) => EventEnum::Annotation
+            }
+        }}
     }
 }
 
 impl Display for DAGNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.span.variant {
-            OSProfilerEnum::FunctionEntry(a) => {
-                write!(f, "{} start: {}", self.span.trace_id, a.tracepoint_id)
+            EventEnum::Entry => {
+                write!(f, "{} start: {}", self.span.trace_id, self.span.tracepoint_id)
             },
-            OSProfilerEnum::RequestEntry(a) => {
-                write!(f, "{} start: {}", self.span.trace_id, a.tracepoint_id)
+            EventEnum::Annotation => {
+                write!(f, "{} start: {}", self.span.trace_id, self.span.tracepoint_id)
             },
-            OSProfilerEnum::Annotation(a) => {
-                write!(f, "{} start: {}", self.span.trace_id, a.tracepoint_id)
-            },
-            _ => {
+            EventEnum::Exit => {
                 write!(f, "{} end", self.span.trace_id)
             }
         }
@@ -272,7 +269,6 @@ impl OSProfilerDAG {
         match std::fs::File::open([TRACE_CACHE, id, ".json"].concat()) {
             Ok(file) => {
                 let mut result: OSProfilerDAG = serde_json::from_reader(file).unwrap();
-                println!("{:?}", result);
                 result.start_node = result.get_start_node();
                 Some(result)
             },
