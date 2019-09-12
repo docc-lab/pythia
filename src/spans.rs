@@ -12,6 +12,8 @@ pub struct OSProfilerSpan {
     pub name: String,
     pub base_id: Uuid,
     service: String,
+    #[serde(skip_deserializing)]
+    pub tracepoint_id: String,
     #[serde(deserialize_with = "from_osp_timestamp")]
     pub timestamp: NaiveDateTime,
     #[serde(flatten)]

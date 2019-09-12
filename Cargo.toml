@@ -16,4 +16,3 @@ uuid = { version = "0.7", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 petgraph = "*"
 clap = "*"
-lazy_static = "1.4.0"

@@ -18,7 +18,6 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
-use std::sync::Mutex;
 
 use timely::ExchangeData;
 
@@ -30,8 +29,6 @@ extern crate serde;
 extern crate uuid;
 extern crate chrono;
 extern crate petgraph;
-#[macro_use]
-extern crate lazy_static;
 
 use petgraph::{Graph, dot::Dot, graph::NodeIndex};
 use uuid::Uuid;
@@ -47,6 +44,9 @@ pub fn redis_main() {
     // return;
     let trace_ids = std::fs::read_to_string("/opt/stack/requests.txt").unwrap();
     for id in trace_ids.split('\n') {
+        if id.len() <= 1 {
+            continue;
+        }
         println!("Working on {:?}", id);
         let trace = OSProfilerDAG::from_base_id(id);
         println!("{}", Dot::new(&trace.g));
@@ -59,6 +59,9 @@ pub fn get_manifest(manfile: &str) {
     let trace_ids = std::fs::read_to_string(manfile).unwrap();
     let mut traces = Vec::new();
     for id in trace_ids.split('\n') {
+        if id.len() <= 1 {
+            continue;
+        }
         println!("Working on {:?}", id);
         let trace = OSProfilerDAG::from_base_id(id);
         traces.push(trace);
@@ -77,40 +80,26 @@ struct ManifestNode {
     pub variant: ManifestEnum
 }
 
-lazy_static! {
-    static ref SPAN_CACHE: Mutex<HashMap<Uuid, String>> = {
-        Mutex::new(HashMap::new())
-    };
-}
-
 impl ManifestNode {
     fn from_span(span: &OSProfilerSpan) -> ManifestNode {
-        let (id, variant) = match &span.variant {
-            OSProfilerEnum::FunctionEntry(s) => {
-                let mut map = SPAN_CACHE.lock().unwrap();
-                map.insert(span.trace_id, s.tracepoint_id.clone());
-                (s.tracepoint_id.clone(), ManifestEnum::SpanEntry)
-            },
-            OSProfilerEnum::RequestEntry(s) => {
-                let mut map = SPAN_CACHE.lock().unwrap();
-                map.insert(span.trace_id, s.tracepoint_id.clone());
-                (s.tracepoint_id.clone(), ManifestEnum::SpanEntry)
-            },
-            OSProfilerEnum::FunctionExit(_) | OSProfilerEnum::RequestExit(_) => {
-                let mut map = SPAN_CACHE.lock().unwrap();
-                (map.remove(&span.trace_id).unwrap(), ManifestEnum::SpanExit)
-            },
-            OSProfilerEnum::Annotation(s) => {
-                (s.tracepoint_id.clone(), ManifestEnum::Annotation)
-            }
+        let variant = match &span.variant {
+            OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) =>
+                ManifestEnum::SpanEntry,
+            OSProfilerEnum::FunctionExit(_) | OSProfilerEnum::RequestExit(_) =>
+                ManifestEnum::SpanExit,
+            OSProfilerEnum::Annotation(_) => ManifestEnum::Annotation
         };
-        ManifestNode { tracepoint_id: id, variant: variant }
+        ManifestNode { tracepoint_id: span.tracepoint_id.clone(), variant: variant }
     }
 }
 
 impl Display for ManifestNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.tracepoint_id)
+        match self.variant {
+            ManifestEnum::SpanEntry => write!(f, "{}: S", self.tracepoint_id),
+            ManifestEnum::SpanExit => write!(f, "{}: E", self.tracepoint_id),
+            ManifestEnum::Annotation => write!(f, "{}: A", self.tracepoint_id)
+        }
     }
 }
 
@@ -178,7 +167,7 @@ struct DAGNode {
 
 impl DAGNode {
     fn from_osp_span(event: &OSProfilerSpan) -> DAGNode {
-        DAGNode {span: event.clone() }
+        DAGNode { span: event.clone() }
     }
 }
 
@@ -243,8 +232,15 @@ impl OSProfilerDAG {
     }
 
     fn from_base_id(id: &str) -> OSProfilerDAG {
-        let event_list = get_matches(id).unwrap();
-        OSProfilerDAG::from_event_list(event_list)
+        match Uuid::parse_str(id) {
+            Ok(_) => {
+                let event_list = get_matches(id).unwrap();
+                OSProfilerDAG::from_event_list(event_list)
+            },
+            Err(_) => {
+                panic!("Malformed UUID received as base ID: {}", id);
+            }
+        }
     }
 }
 
@@ -267,6 +263,7 @@ impl MyTrait for OSProfilerDAG {
         });
         let base_id = event_list[0].base_id;
         let start_time = event_list[0].timestamp;
+        let mut tracepoint_id_map = HashMap::<Uuid, String>::new();
         // Latest event with the same id, end if event already finished, start if it didn't
         let mut id_map = HashMap::new();
         let mut active_spans = HashMap::new();
@@ -278,20 +275,37 @@ impl MyTrait for OSProfilerDAG {
         for event in event_list.iter() {
             assert!(event.base_id == base_id);
             assert!(start_time <= event.timestamp);
-            let mynode = self.g.add_node(DAGNode::from_osp_span(event));
-            id_map.insert(event.trace_id, mynode);
+            let mut mynode = DAGNode::from_osp_span(event);
+            match &event.variant {
+                OSProfilerEnum::FunctionEntry(s) => {
+                    tracepoint_id_map.insert(event.trace_id, s.tracepoint_id.clone());
+                    mynode.span.tracepoint_id = s.tracepoint_id.clone();
+                },
+                OSProfilerEnum::RequestEntry(s) => {
+                    tracepoint_id_map.insert(event.trace_id, s.tracepoint_id.clone());
+                    mynode.span.tracepoint_id = s.tracepoint_id.clone();
+                },
+                OSProfilerEnum::Annotation(s) => {
+                    mynode.span.tracepoint_id = s.tracepoint_id.clone();
+                },
+                OSProfilerEnum::RequestExit(_) | OSProfilerEnum::FunctionExit(_) => {
+                    mynode.span.tracepoint_id = tracepoint_id_map.remove(&event.trace_id).unwrap();
+                }
+            };
+            let nidx = self.g.add_node(mynode);
+            id_map.insert(event.trace_id, nidx);
             if self.start_node == NodeIndex::end() {
-                self.start_node = mynode;
+                self.start_node = nidx;
             }
             match &event.variant {
                 OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {
-                    active_spans.insert(event.trace_id, mynode);
+                    active_spans.insert(event.trace_id, nidx);
                     children_per_parent.insert(event.trace_id, None);
                     if event.parent_id == event.base_id {
                         match children_per_parent.get(&event.parent_id).unwrap() {
                             Some(sibling_id) => {
                                 let sibling_node = id_map.get(sibling_id).unwrap();
-                                self.g.add_edge(*sibling_node, mynode, DAGEdge {
+                                self.g.add_edge(*sibling_node, nidx, DAGEdge {
                                     duration: event.timestamp - self.g[*sibling_node].span.timestamp,
                                     variant: EdgeType::ChildOf
                                 });
@@ -304,14 +318,14 @@ impl MyTrait for OSProfilerDAG {
                                 match result {
                                     Some(sibling_id) => {
                                         let sibling_node = id_map.get(sibling_id).unwrap();
-                                        self.g.add_edge(*sibling_node, mynode, DAGEdge {
+                                        self.g.add_edge(*sibling_node, nidx, DAGEdge {
                                             duration: event.timestamp - self.g[*sibling_node].span.timestamp,
                                             variant: EdgeType::ChildOf
                                         });
                                     },
                                     None => {
                                         let parent_node = id_map.get(&event.parent_id).unwrap();
-                                        self.g.add_edge(*parent_node, mynode, DAGEdge {
+                                        self.g.add_edge(*parent_node, nidx, DAGEdge {
                                             duration: event.timestamp - self.g[*parent_node].span.timestamp,
                                             variant: EdgeType::ChildOf
                                         });
@@ -331,20 +345,20 @@ impl MyTrait for OSProfilerDAG {
                     match children_per_parent.get(&event.parent_id).unwrap() {
                         Some(sibling_id) => {
                             let sibling_node = id_map.get(sibling_id).unwrap();
-                            self.g.add_edge(*sibling_node, mynode, DAGEdge {
+                            self.g.add_edge(*sibling_node, nidx, DAGEdge {
                                 duration: event.timestamp - self.g[*sibling_node].span.timestamp,
                                 variant: EdgeType::ChildOf
                             });
                         },
                         None => {
                             let parent_node = id_map.get(&event.parent_id).unwrap();
-                            self.g.add_edge(*parent_node, mynode, DAGEdge {
+                            self.g.add_edge(*parent_node, nidx, DAGEdge {
                                 duration: event.timestamp - self.g[*parent_node].span.timestamp,
                                 variant: EdgeType::ChildOf
                             });
                         }
                     }
-                    asynch_traces.insert(myspan.info.child_id, mynode);
+                    asynch_traces.insert(myspan.info.child_id, nidx);
                 },
                 OSProfilerEnum::FunctionExit(_) | OSProfilerEnum::RequestExit(_) => {
                     let start_span = match active_spans.remove(&event.trace_id) {
@@ -356,13 +370,13 @@ impl MyTrait for OSProfilerDAG {
                     match children_per_parent.remove(&event.trace_id).unwrap() {
                         Some(child_id) => {
                             let child_node = id_map.get(&child_id).unwrap();
-                            self.g.add_edge(*child_node, mynode, DAGEdge {
+                            self.g.add_edge(*child_node, nidx, DAGEdge {
                                 duration: event.timestamp - self.g[*child_node].span.timestamp,
                                 variant: EdgeType::ChildOf
                             });
                         },
                         None => {
-                            self.g.add_edge(start_span, mynode, DAGEdge {
+                            self.g.add_edge(start_span, nidx, DAGEdge {
                                 duration: event.timestamp - self.g[start_span].span.timestamp,
                                 variant: EdgeType::ChildOf
                             });
@@ -399,7 +413,7 @@ impl MyTrait for OSProfilerDAG {
 
 fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
     let result: OSProfilerSpan = serde_json::from_str(field).unwrap();
-    if result.name == "asynch_request" {
+    if result.name == "asynch_request" || result.name == "asynch_wait" {
         return match result.variant {
             OSProfilerEnum::Annotation(_) => Ok(result),
             _ => {
