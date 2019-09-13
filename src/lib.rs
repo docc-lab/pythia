@@ -46,6 +46,7 @@ use spans::EventEnum;
 
 /// Configuration Options
 const TRACE_CACHE: &str = "/opt/stack/pythia_trace_cache/";
+const LINE_WIDTH: usize = 75;
 
 pub fn redis_main() {
     // let event_list = get_matches("ffd1560e-7928-437c-87e9-a712c85ed2ac").unwrap();
@@ -98,11 +99,24 @@ impl ManifestNode {
 
 impl Display for ManifestNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.variant {
-            EventEnum::Entry => write!(f, "{}: S", self.tracepoint_id),
-            EventEnum::Exit => write!(f, "{}: E", self.tracepoint_id),
-            EventEnum::Annotation => write!(f, "{}: A", self.tracepoint_id)
+        // Break the tracepoint id into multiple lines so that the graphs look prettier
+        let mut result = String::with_capacity(self.tracepoint_id.len() + 10);
+        let mut written = 0;
+        while written <= self.tracepoint_id.len() {
+            if written + LINE_WIDTH <= self.tracepoint_id.len() {
+                result.push_str(&self.tracepoint_id[written..written + LINE_WIDTH]);
+                result.push_str("-\n");
+            } else {
+                result.push_str(&self.tracepoint_id[written..self.tracepoint_id.len()]);
+            }
+            written += LINE_WIDTH;
         }
+        match self.variant {
+            EventEnum::Entry => result.push_str(": S"),
+            EventEnum::Exit => result.push_str(": E"),
+            EventEnum::Annotation => result.push_str(": A")
+        };
+        write!(f, "{}", result)
     }
 }
 
