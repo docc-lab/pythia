@@ -309,12 +309,7 @@ impl OSProfilerDAG {
     }
 }
 
-trait MyTrait {
-    fn add_events(&mut self, event_list: &mut Vec<OSProfilerSpan>);
-    fn add_asynch(&mut self, trace_id: &Uuid, parent: NodeIndex);
-}
-
-impl MyTrait for OSProfilerDAG {
+impl OSProfilerDAG {
     fn add_events(&mut self, event_list: &mut Vec<OSProfilerSpan>) {
         event_list.sort_by(|a, b| {
             if a.timestamp == b.timestamp {
