@@ -26,7 +26,7 @@ use reconstruction::{SessionizableMessage, SpanId, SpanPosition, Service};
 use reconstruction::operators::Sessionize;
 use reconstruction::operators::stats::SumPerEpoch;
 
-use reconstruction::{redis_main, get_manifest};
+use reconstruction::{redis_main, get_manifest, get_trace};
 
 /// For this example, we assign integer timestamps to events and the time axis is specified in
 /// terms of **milliseconds**.   For simplicity, we ignore time zones, leap seconds and other
@@ -97,12 +97,19 @@ fn main() {
             .arg(Arg::with_name("manifest_file")
                 .required(true)
                 .index(1)))
+        .subcommand(SubCommand::with_name("get_trace")
+            .arg(Arg::with_name("trace_id")
+                .required(true)
+                .index(1)))
         .get_matches();
     match matches.subcommand() {
         ("old_reconstruction", Some(_)) => old_main(),
         ("manifest", Some(matches)) => {
             get_manifest(matches.value_of("manifest_file").unwrap());
-        }
+        },
+        ("get_trace", Some(matches)) => {
+            get_trace(matches.value_of("trace_id").unwrap());
+        },
         _ => redis_main()
     };
 }

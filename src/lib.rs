@@ -81,6 +81,11 @@ pub fn get_manifest(manfile: &str) {
     println!("{}", Dot::new(&manifest.g));
 }
 
+pub fn get_trace(trace_id: &str) {
+    let trace = OSProfilerDAG::from_base_id(trace_id);
+    println!("{}", Dot::new(&trace.g));
+}
+
 struct Poset {
     g: Graph<ManifestNode, u32>
 }
