@@ -1,8 +1,36 @@
+use std::fmt;
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::NaiveDateTime;
 use serde::de;
-use std::fmt;
+
+impl OSProfilerSpan {
+    pub fn get_tracepoint_id(&self, map: &mut HashMap<Uuid, String>) -> String {
+        // The map needs to be initialized and passed to it from outside :(
+        match &self.variant {
+            OSProfilerEnum::FunctionEntry(s) => {
+                map.insert(self.trace_id, s.tracepoint_id.clone());
+                s.tracepoint_id.clone()
+            },
+            OSProfilerEnum::RequestEntry(s) => {
+                map.insert(self.trace_id, s.tracepoint_id.clone());
+                s.tracepoint_id.clone()
+            },
+            OSProfilerEnum::WaitAnnotation(s) => {
+                map.insert(self.trace_id, s.tracepoint_id.clone());
+                s.tracepoint_id.clone()
+            },
+            OSProfilerEnum::Annotation(s) => {
+                s.tracepoint_id.clone()
+            },
+            OSProfilerEnum::RequestExit(_) | OSProfilerEnum::FunctionExit(_) => {
+                map.remove(&self.trace_id).unwrap()
+            }
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct Event {
@@ -39,11 +67,28 @@ pub struct OSProfilerSpan {
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(untagged)]
 pub enum OSProfilerEnum {
+    WaitAnnotation(WaitAnnotationSpan),
     FunctionEntry(FunctionEntrySpan),
     FunctionExit(FunctionExitSpan),
     RequestEntry(RequestEntrySpan),
     Annotation(AnnotationSpan),
     RequestExit(RequestExitSpan),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+pub struct WaitAnnotationSpan {
+    pub info: WaitAnnotationInfo,
+    pub tracepoint_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+pub struct WaitAnnotationInfo {
+    function: FunctionEntryFunction,
+    thread_id: u64,
+    host: String,
+    tracepoint_id: String,
+    pid: u64,
+    pub wait_for: Uuid
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
