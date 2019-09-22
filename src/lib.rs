@@ -241,14 +241,15 @@ impl Display for DAGEdge {
 struct OSProfilerDAG {
     g: Graph<DAGNode, DAGEdge>,
     base_id: Uuid,
-    start_node: NodeIndex
+    start_node: NodeIndex,
+    end_node: NodeIndex
 }
 
 impl OSProfilerDAG {
     fn new() -> OSProfilerDAG {
         let dag = Graph::<DAGNode, DAGEdge>::new();
         OSProfilerDAG {
-            g: dag, base_id: Uuid::nil(), start_node: NodeIndex::end()
+            g: dag, base_id: Uuid::nil(), start_node: NodeIndex::end(), end_node: NodeIndex::end()
         }
     }
 
@@ -290,7 +291,9 @@ impl OSProfilerDAG {
         match std::fs::File::open([TRACE_CACHE, id, ".json"].concat()) {
             Ok(file) => {
                 let mut result: OSProfilerDAG = serde_json::from_reader(file).unwrap();
-                result.start_node = result.get_start_node();
+                let (start, end) = result.get_start_end_nodes();
+                result.start_node = start;
+                result.end_node = end;
                 Some(result)
             },
             Err(_) => None
@@ -303,16 +306,22 @@ impl OSProfilerDAG {
         serde_json::to_writer(writer, self).expect("Failed to write trace to cache");
     }
 
-    fn get_start_node(&self) -> NodeIndex {
+    fn get_start_end_nodes(&self) -> (NodeIndex, NodeIndex) {
         let mut smallest_time = NaiveDateTime::parse_from_str("3000/01/01 01:01", "%Y/%m/%d %H:%M").unwrap();
-        let mut result = NodeIndex::end();
+        let mut largest_time = NaiveDateTime::parse_from_str("1000/01/01 01:01", "%Y/%m/%d %H:%M").unwrap();
+        let mut start = NodeIndex::end();
+        let mut end = NodeIndex::end();
         for i in self.g.node_indices() {
+            if self.g[i].span.timestamp > largest_time {
+                end = i;
+                largest_time = self.g[i].span.timestamp;
+            }
             if self.g[i].span.timestamp < smallest_time {
-                result = i;
+                start = i;
                 smallest_time = self.g[i].span.timestamp;
             }
         }
-        result
+        (start, end)
     }
 
     fn add_events(&mut self, event_list: &mut Vec<OSProfilerSpan>) -> Option<NodeIndex> {
@@ -494,6 +503,7 @@ impl OSProfilerDAG {
                 None => {}
             };
         }
+        self.end_node = nidx;
         nidx
     }
 
