@@ -36,7 +36,7 @@ use chrono::NaiveDateTime;
 
 use serde::{Deserialize, Serialize};
 
-use petgraph::{Graph, dot::Dot, graph::NodeIndex};
+use petgraph::{Graph, dot::Dot, graph::NodeIndex, Direction};
 use uuid::Uuid;
 
 pub mod spans;
@@ -85,6 +85,12 @@ pub fn get_manifest(manfile: &str) {
 pub fn get_trace(trace_id: &str) {
     let trace = OSProfilerDAG::from_base_id(trace_id);
     println!("{}", Dot::new(&trace.g));
+}
+
+pub fn get_crit(trace_id: &str) {
+    let trace = OSProfilerDAG::from_base_id(trace_id);
+    let crit = CriticalPath::from_trace(trace);
+    println!("{}", Dot::new(&crit.g.g));
 }
 
 struct Poset {
@@ -161,7 +167,7 @@ impl Poset {
 
 #[derive(Debug)]
 struct CriticalPath {
-    graph: OSProfilerDAG,
+    g: OSProfilerDAG,
     duration: Duration,
 }
 
@@ -169,9 +175,18 @@ impl CriticalPath {
     fn from_trace(dag: OSProfilerDAG) -> CriticalPath {
         let mut path = CriticalPath {
             duration: Duration::new(0, 0),
-            graph: OSProfilerDAG::new()
+            g: OSProfilerDAG::new()
         };
-        path.graph = dag;
+        let mut cur_node = dag.end_node;
+        let mut end_nidx = path.g.g.add_node(dag.g[cur_node].clone());
+        loop {
+            let next_node = dag.g.neighbors_directed(cur_node, Direction::Incoming).max_by_key(|&nidx| dag.g[nidx].span.timestamp).unwrap();
+            let start_nidx = path.g.g.add_node(dag.g[next_node].clone());
+            path.g.g.add_edge(start_nidx, end_nidx, dag.g[dag.g.find_edge(next_node, cur_node).unwrap()].clone());
+            if next_node == dag.start_node { break; }
+            cur_node = next_node;
+            end_nidx = start_nidx;
+        }
         path
     }
 }
@@ -216,13 +231,13 @@ impl Display for DAGNode {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 struct DAGEdge {
     duration: Duration,
     variant: EdgeType
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 enum EdgeType {
     ChildOf,
     FollowsFrom
@@ -503,7 +518,10 @@ impl OSProfilerDAG {
                 None => {}
             };
         }
-        self.end_node = nidx;
+        match nidx {
+            Some(nid) => {self.end_node = nid;},
+            None => {}
+        };
         nidx
     }
 
