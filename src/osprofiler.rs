@@ -18,6 +18,7 @@ use trace::Event;
 use trace::EventEnum;
 
 use options::TRACE_CACHE;
+use options::REDIS_URL;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OSProfilerDAG {
@@ -332,7 +333,7 @@ fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
 }
 
 fn get_matches(span_id: &str) -> redis::RedisResult<Vec<OSProfilerSpan>> {
-    let client = redis::Client::open("redis://localhost:6379")?;
+    let client = redis::Client::open(REDIS_URL)?;
     let mut con = client.get_connection()?;
     let matches: Vec<String> = con.scan_match("osprofiler:".to_string() + span_id + "*")
         .unwrap().collect();
