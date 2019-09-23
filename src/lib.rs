@@ -305,10 +305,10 @@ impl OSProfilerDAG {
     fn fetch_from_cache(id: &str) -> Option<OSProfilerDAG> {
         match std::fs::File::open([TRACE_CACHE, id, ".json"].concat()) {
             Ok(file) => {
-                let mut result: OSProfilerDAG = serde_json::from_reader(file).unwrap();
+                let result: OSProfilerDAG = serde_json::from_reader(file).unwrap();
                 let (start, end) = result.get_start_end_nodes();
-                result.start_node = start;
-                result.end_node = end;
+                assert!(result.start_node == start);
+                assert!(result.end_node == end);
                 Some(result)
             },
             Err(_) => None
@@ -500,12 +500,19 @@ impl OSProfilerDAG {
                 children_per_parent.insert(event.parent_id, Some(event.trace_id));
             }
         }
+        self.end_node = match nidx {
+            Some(nid) => nid,
+            None => self.start_node
+        };
         for (trace_id, parent) in asynch_traces.iter() {
             let last_node = self.add_asynch(trace_id, *parent);
-            match &waiters.get(trace_id) {
-                Some(parent) => {
-                    match &last_node {
-                        Some(node) => {
+            match &last_node {
+                Some(node) => {
+                    if self.g[*node].span.timestamp > self.g[self.end_node].span.timestamp {
+                        self.end_node = *node;
+                    }
+                    match &waiters.get(trace_id) {
+                        Some(parent) => {
                             self.g.add_edge(*node, **parent, DAGEdge {
                                 duration: (self.g[**parent].span.timestamp
                                            - self.g[*node].span.timestamp).to_std().unwrap(),
@@ -518,10 +525,6 @@ impl OSProfilerDAG {
                 None => {}
             };
         }
-        match nidx {
-            Some(nid) => {self.end_node = nid;},
-            None => {}
-        };
         nidx
     }
 
