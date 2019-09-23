@@ -1,14 +1,10 @@
 [package]
-name = "reconstruction"
+name = "pythia"
 version = "0.1.0"
-authors = ["Zaheer Chothia <zchothia@inf.ethz.ch>"]
+authors = ["Emre Ates <ates@bu.edu>"]
 default-run = "main"
 
 [dependencies]
-abomonation = "0.5"
-abomonation_derive = "0.3"
-rand = "0.4"
-timely = "0.5"
 redis = "*"
 serde = {version = "1.0", features = ["derive"] }
 serde_json = "*"
