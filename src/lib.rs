@@ -18,10 +18,10 @@ use petgraph::{Graph, dot::Dot, Direction};
 
 use trace::Event;
 use trace::EventEnum;
-
 use osprofiler::OSProfilerDAG;
-
 use options::LINE_WIDTH;
+use options::ManifestMethod;
+use options::MANIFEST_METHOD;
 
 pub fn redis_main() {
     // let event_list = get_matches("ffd1560e-7928-437c-87e9-a712c85ed2ac").unwrap();
@@ -52,8 +52,16 @@ pub fn get_manifest(manfile: &str) {
         let trace = OSProfilerDAG::from_base_id(id);
         traces.push(trace);
     }
-    let manifest = Poset::from_trace_list(traces);
-    println!("{}", Dot::new(&manifest.g));
+    match MANIFEST_METHOD {
+        ManifestMethod::Poset => {
+            let manifest = Poset::from_trace_list(traces);
+            println!("{}", Dot::new(&manifest.g));
+        },
+        ManifestMethod::CCT => {
+            let manifest = CCT::from_trace_list(traces);
+            println!("{}", Dot::new(&manifest.g));
+        }
+    };
 }
 
 pub fn get_trace(trace_id: &str) {
@@ -67,8 +75,77 @@ pub fn get_crit(trace_id: &str) {
     println!("{}", Dot::new(&crit.g.g));
 }
 
+use chrono::NaiveDateTime;
+use petgraph::graph::NodeIndex;
+use uuid::Uuid;
+
+struct CCT {
+    g: Graph<String, u32>, // Nodes indicate tracepoint id, edges don't matter
+    entry_points: HashMap<String, NodeIndex>
+}
+
+impl CCT {
+    fn from_trace_list(list: Vec<OSProfilerDAG>) -> CCT {
+        let mut cct = CCT{ g: Graph::<String, u32>::new(),
+                           entry_points: HashMap::<String, NodeIndex>::new() };
+        for trace in &list {
+            cct.add_to_manifest(trace);
+        }
+        cct
+    }
+
+    fn add_to_manifest(&mut self, trace: &OSProfilerDAG) {
+        let mut stack = Vec::<(&str, Uuid)>::new();
+        let start_node = &trace.g[trace.start_node];
+        // Add start node
+        let idx = match self.entry_points.get(&start_node.span.tracepoint_id) {
+            Some(&i) => i,
+            None => self.g.add_node(start_node.span.tracepoint_id.clone())
+        };
+        stack.push((&start_node.span.tracepoint_id, start_node.span.trace_id));
+        for nidx in trace.g.neighbors_directed(trace.start_node, Direction::Outgoing) {
+            self.manifest_helper(trace, nidx, idx, stack.clone());
+        }
+    }
+
+    fn manifest_helper(self, trace: &OSProfilerDAG, trace_idx: NodeIndex,
+                       self_idx: NodeIndex, mut stack: Vec<(&str, Uuid)>) {
+        // This function traverses the new trace and the manifest concurrently,
+        // and adds new nodes as needed
+        // trace_idx is the node to be added from the trace, self_idx is the
+        // parent of that node
+        let cur_tracepoint_id = &trace.g[trace_idx].span.tracepoint_id;
+        let new_self_idx = match trace.g[trace_idx].span.variant {
+            EventEnum::Entry => {
+                let mut matches = self.g.neighbors_directed(self_idx, Direction::Outgoing)
+                    .filter(|&nidx| self.g[nidx] == *cur_tracepoint_id);
+                let first = matches.next();
+                assert!(matches.next() == None);
+                let new_idx = match first {
+                    Some(nidx) => nidx,
+                    None => {
+                        let nidx = self.g.add_node(cur_tracepoint_id.clone());
+                        self.g.add_edge(self_idx, nidx, 1);
+                        nidx
+                    }
+                };
+                stack.push((cur_tracepoint_id, trace.g[trace_idx].span.trace_id));
+                new_idx
+            },
+            EventEnum::Exit => {
+                assert!(stack.last().unwrap().0 == cur_tracepoint_id);
+            },
+            EventEnum::Annotation => {
+            }
+        };
+        for nidx in trace.g.neighbors_directed(trace_idx, Direction::Outgoing) {
+            self.manifest_helper(trace, nidx, new_self_idx, stack.clone());
+        }
+    }
+}
+
 struct Poset {
-    g: Graph<ManifestNode, u32>
+    g: Graph<ManifestNode, u32> // Edge weights indicate number of occurance of an ordering.
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
