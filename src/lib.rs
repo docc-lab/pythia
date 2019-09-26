@@ -75,7 +75,6 @@ pub fn get_crit(trace_id: &str) {
     println!("{}", Dot::new(&crit.g.g));
 }
 
-use chrono::NaiveDateTime;
 use petgraph::graph::NodeIndex;
 use uuid::Uuid;
 
@@ -95,51 +94,81 @@ impl CCT {
     }
 
     fn add_to_manifest(&mut self, trace: &OSProfilerDAG) {
-        let mut stack = Vec::<(&str, Uuid)>::new();
+        let mut stack = Vec::<(NodeIndex, Uuid)>::new();
         let start_node = &trace.g[trace.start_node];
         // Add start node
         let idx = match self.entry_points.get(&start_node.span.tracepoint_id) {
             Some(&i) => i,
             None => self.g.add_node(start_node.span.tracepoint_id.clone())
         };
-        stack.push((&start_node.span.tracepoint_id, start_node.span.trace_id));
+        stack.push((idx, start_node.span.trace_id));
         for nidx in trace.g.neighbors_directed(trace.start_node, Direction::Outgoing) {
-            self.manifest_helper(trace, nidx, idx, stack.clone());
+            self.manifest_helper(trace, nidx, stack.clone());
         }
     }
 
-    fn manifest_helper(self, trace: &OSProfilerDAG, trace_idx: NodeIndex,
-                       self_idx: NodeIndex, mut stack: Vec<(&str, Uuid)>) {
+    fn manifest_helper(&mut self, trace: &OSProfilerDAG, trace_idx: NodeIndex,
+                       mut stack: Vec<(NodeIndex, Uuid)>) {
         // This function traverses the new trace and the manifest concurrently,
         // and adds new nodes as needed
-        // trace_idx is the node to be added from the trace, self_idx is the
+        // trace_idx is the node to be added from the trace, stack.last() is the
         // parent of that node
         let cur_tracepoint_id = &trace.g[trace_idx].span.tracepoint_id;
-        let new_self_idx = match trace.g[trace_idx].span.variant {
+        match trace.g[trace_idx].span.variant {
             EventEnum::Entry => {
-                let mut matches = self.g.neighbors_directed(self_idx, Direction::Outgoing)
+                let mut matches = self.g.neighbors_directed(stack.last().unwrap().0, Direction::Outgoing)
                     .filter(|&nidx| self.g[nidx] == *cur_tracepoint_id);
                 let first = matches.next();
                 assert!(matches.next() == None);
                 let new_idx = match first {
                     Some(nidx) => nidx,
-                    None => {
-                        let nidx = self.g.add_node(cur_tracepoint_id.clone());
-                        self.g.add_edge(self_idx, nidx, 1);
-                        nidx
-                    }
+                    None => self.g.add_node(cur_tracepoint_id.clone())
                 };
-                stack.push((cur_tracepoint_id, trace.g[trace_idx].span.trace_id));
-                new_idx
+                stack.push((new_idx, trace.g[trace_idx].span.trace_id));
             },
             EventEnum::Exit => {
-                assert!(stack.last().unwrap().0 == cur_tracepoint_id);
+                let mut self_idx = NodeIndex::end();
+                let mut self_trace_idx;
+                let mut found_self = false;
+                let mut index_to_remove = 0;
+                for (idx, i) in stack.iter().enumerate().rev() {
+                    if found_self {
+                        let parent_idx = i.0;
+                        match self.g.find_edge(parent_idx, self_idx) {
+                            Some(_) => {},
+                            None => {self.g.add_edge(parent_idx, self_idx, 1);}
+                        }
+                        break;
+                    }
+                    self_idx = i.0;
+                    self_trace_idx = i.1;
+                    if *cur_tracepoint_id == self.g[self_idx] {
+                        assert_eq!(self_trace_idx, trace.g[trace_idx].span.trace_id);
+                        index_to_remove = idx;
+                        found_self = true;
+                    }
+                }
+                // Remove self from the stack
+                stack.remove(index_to_remove);
             },
             EventEnum::Annotation => {
+                let matches: Vec<_> = self.g
+                    .neighbors_directed(stack.last().unwrap().0, Direction::Outgoing)
+                    .filter(|&nidx| self.g[nidx] == *cur_tracepoint_id).collect();
+                let new_idx = if matches.len() == 1 {
+                    matches[0]
+                } else if matches.len() == 0 {
+                    let nidx = self.g.add_node(cur_tracepoint_id.clone());
+                    self.g.add_edge(stack.last().unwrap().0, nidx, 1);
+                    nidx
+                } else {
+                    panic!("Too many matches");
+                };
+                stack.push((new_idx, trace.g[trace_idx].span.trace_id));
             }
         };
         for nidx in trace.g.neighbors_directed(trace_idx, Direction::Outgoing) {
-            self.manifest_helper(trace, nidx, new_self_idx, stack.clone());
+            self.manifest_helper(trace, nidx, stack.clone());
         }
     }
 }

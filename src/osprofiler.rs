@@ -23,7 +23,7 @@ use options::REDIS_URL;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OSProfilerDAG {
     pub g: Graph<DAGNode, DAGEdge>,
-    base_id: Uuid,
+    pub base_id: Uuid,
     pub start_node: NodeIndex,
     pub end_node: NodeIndex
 }
@@ -45,18 +45,13 @@ impl OSProfilerDAG {
 
     pub fn from_base_id(id: &str) -> OSProfilerDAG {
         match Uuid::parse_str(id) {
-            Ok(_) => {
-                match OSProfilerDAG::fetch_from_cache(id) {
+            Ok(uuid) => {
+                match OSProfilerDAG::fetch_from_cache(&uuid) {
                     Some(result) => {
-                        let event_list = get_matches(id).unwrap();
-                        let dag = OSProfilerDAG::from_event_list(
-                            Uuid::parse_str(id).unwrap(), event_list);
-                        assert!(dag.base_id == result.base_id);
-                        // assert!(dag.g == result.g);
                         result
                     },
                     None => {
-                        let event_list = get_matches(id).unwrap();
+                        let event_list = get_matches(&uuid).unwrap();
                         let dag = OSProfilerDAG::from_event_list(
                             Uuid::parse_str(id).unwrap(), event_list);
                         dag.store_to_cache();
@@ -70,13 +65,10 @@ impl OSProfilerDAG {
         }
     }
 
-    fn fetch_from_cache(id: &str) -> Option<OSProfilerDAG> {
-        match std::fs::File::open([TRACE_CACHE, id, ".json"].concat()) {
+    fn fetch_from_cache(id: &Uuid) -> Option<OSProfilerDAG> {
+        match std::fs::File::open([TRACE_CACHE, &id.to_hyphenated().to_string(), ".json"].concat()) {
             Ok(file) => {
                 let result: OSProfilerDAG = serde_json::from_reader(file).unwrap();
-                let (start, end) = result.get_start_end_nodes();
-                assert!(result.start_node == start);
-                assert!(result.end_node == end);
                 Some(result)
             },
             Err(_) => None
@@ -89,7 +81,7 @@ impl OSProfilerDAG {
         serde_json::to_writer(writer, self).expect("Failed to write trace to cache");
     }
 
-    fn get_start_end_nodes(&self) -> (NodeIndex, NodeIndex) {
+    fn _get_start_end_nodes(&self) -> (NodeIndex, NodeIndex) {
         let mut smallest_time = NaiveDateTime::parse_from_str("3000/01/01 01:01", "%Y/%m/%d %H:%M").unwrap();
         let mut largest_time = NaiveDateTime::parse_from_str("1000/01/01 01:01", "%Y/%m/%d %H:%M").unwrap();
         let mut start = NodeIndex::end();
@@ -297,7 +289,7 @@ impl OSProfilerDAG {
     }
 
     fn add_asynch(&mut self, trace_id: &Uuid, parent: NodeIndex) -> Option<NodeIndex> {
-        let mut event_list = get_matches(&trace_id.to_hyphenated().to_string()).unwrap();
+        let mut event_list = get_matches(trace_id).unwrap();
         if event_list.len() == 0 {
             return None;
         }
@@ -332,10 +324,11 @@ fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
     Ok(result)
 }
 
-fn get_matches(span_id: &str) -> redis::RedisResult<Vec<OSProfilerSpan>> {
+fn get_matches(span_id: &Uuid) -> redis::RedisResult<Vec<OSProfilerSpan>> {
     let client = redis::Client::open(REDIS_URL)?;
     let mut con = client.get_connection()?;
-    let matches: Vec<String> = con.scan_match("osprofiler:".to_string() + span_id + "*")
+    let matches: Vec<String> = con.scan_match(
+        "osprofiler:".to_string() + &span_id.to_hyphenated().to_string() + "*")
         .unwrap().collect();
     let mut result = Vec::new();
     for key in matches {
