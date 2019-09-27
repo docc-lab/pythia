@@ -79,7 +79,6 @@ pub fn get_crit(trace_id: &str) {
 }
 
 use petgraph::graph::NodeIndex;
-use uuid::Uuid;
 
 struct CCT {
     g: Graph<String, u32>, // Nodes indicate tracepoint id, edges don't matter
@@ -91,7 +90,8 @@ impl CCT {
         let mut cct = CCT{ g: Graph::<String, u32>::new(),
                            entry_points: HashMap::<String, NodeIndex>::new() };
         for trace in &list {
-            for path in HypotheticalCriticalPath::from_trace(trace) {
+            for mut path in HypotheticalCriticalPath::from_trace(trace) {
+                path.filter_incomplete_spans();
                 cct.add_to_manifest(&path);
             }
         }
@@ -99,10 +99,20 @@ impl CCT {
     }
 
     fn add_to_manifest(&mut self, path: &HypotheticalCriticalPath) {
-        let mut stack = Vec::<(NodeIndex, Uuid)>::new();
-        let mut next_nidx = path.start_node;
-        let mut next_node = path.g.g[path.start_node];
+        let mut cur_nidx = path.start_node;
         loop {
+            match path.g.g[cur_nidx].span.variant {
+                EventEnum::Entry => {
+                },
+                EventEnum::Annotation => {
+                },
+                EventEnum::Exit => {
+                }
+            }
+            cur_nidx = match path.next_node(cur_nidx) {
+                Some(nidx) => nidx,
+                None => break
+            };
         }
     }
 }
