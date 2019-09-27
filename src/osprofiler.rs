@@ -11,7 +11,7 @@ use uuid::Uuid;
 use chrono::NaiveDateTime;
 use serde::de;
 use redis::Commands;
-use petgraph::{Graph, graph::NodeIndex};
+use petgraph::{stable_graph::StableGraph, graph::NodeIndex};
 use petgraph::Direction;
 
 use trace::{DAGNode, DAGEdge, EdgeType};
@@ -23,7 +23,7 @@ use options::REDIS_URL;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OSProfilerDAG {
-    pub g: Graph<DAGNode, DAGEdge>,
+    pub g: StableGraph<DAGNode, DAGEdge>,
     pub base_id: Uuid,
     pub start_node: NodeIndex,
     pub end_node: NodeIndex
@@ -31,7 +31,7 @@ pub struct OSProfilerDAG {
 
 impl OSProfilerDAG {
     pub fn new() -> OSProfilerDAG {
-        let dag = Graph::<DAGNode, DAGEdge>::new();
+        let dag = StableGraph::<DAGNode, DAGEdge>::new();
         OSProfilerDAG {
             g: dag, base_id: Uuid::nil(), start_node: NodeIndex::end(), end_node: NodeIndex::end()
         }

@@ -4,6 +4,7 @@ extern crate serde;
 extern crate uuid;
 extern crate chrono;
 extern crate petgraph;
+extern crate single;
 
 pub mod trace;
 pub mod osprofiler;
@@ -18,6 +19,8 @@ use petgraph::{Graph, dot::Dot, Direction};
 
 use trace::Event;
 use trace::EventEnum;
+use trace::DAGEdge;
+use trace::EdgeType;
 use osprofiler::OSProfilerDAG;
 use options::LINE_WIDTH;
 use options::ManifestMethod;
@@ -54,8 +57,8 @@ pub fn get_manifest(manfile: &str) {
     }
     match MANIFEST_METHOD {
         ManifestMethod::Poset => {
-            let manifest = Poset::from_trace_list(traces);
-            println!("{}", Dot::new(&manifest.g));
+            // let manifest = Poset::from_trace_list(traces);
+            // println!("{}", Dot::new(&manifest.g));
         },
         ManifestMethod::CCT => {
             let manifest = CCT::from_trace_list(traces);
@@ -100,81 +103,8 @@ impl CCT {
         let mut next_nidx = path.start_node;
         let mut next_node = path.g.g[path.start_node];
         loop {
-            let next_tracepoint_id = &next_node.span.tracepoint_id;
-            match next_node.span.variant {
-                EventEnum::Entry => {
-            let idx = match self.entry_points.get(&next_node.span.tracepoint_id) {
-                Some(&i) => i,
-                None => self.g.add_node(next_node.span.tracepoint_id.clone())
-            };
-            stack.push((idx, next_node.span.trace_id));
-                    let mut matches = self.g.neighbors_directed(stack.last().unwrap().0, Direction::Outgoing)
-                        .filter(|&nidx| self.g[nidx] == *cur_tracepoint_id);
-                    let first = matches.next();
-                    assert!(matches.next() == None);
-                    let new_idx = match first {
-                        Some(nidx) => nidx,
-                        None => self.g.add_node(cur_tracepoint_id.clone())
-                    };
-                    stack.push((new_idx, trace.g[trace_idx].span.trace_id));
-                },
-                EventEnum::Exit => {
-                    let mut self_idx = NodeIndex::end();
-                    let mut self_trace_idx;
-                    let mut found_self = false;
-                    let mut index_to_remove = 0;
-                    for (idx, i) in stack.iter().enumerate().rev() {
-                        if found_self {
-                            let parent_idx = i.0;
-                            match self.g.find_edge(parent_idx, self_idx) {
-                                Some(_) => {},
-                                None => {self.g.add_edge(parent_idx, self_idx, 1);}
-                            }
-                            break;
-                        }
-                        self_idx = i.0;
-                        self_trace_idx = i.1;
-                        if *cur_tracepoint_id == self.g[self_idx] {
-                            assert_eq!(self_trace_idx, trace.g[trace_idx].span.trace_id);
-                            index_to_remove = idx;
-                            found_self = true;
-                        }
-                    }
-                    // Remove self from the stack
-                    stack.remove(index_to_remove);
-                },
-                EventEnum::Annotation => {
-                    let matches: Vec<_> = self.g
-                        .neighbors_directed(stack.last().unwrap().0, Direction::Outgoing)
-                        .filter(|&nidx| self.g[nidx] == *cur_tracepoint_id).collect();
-                    if matches.len() == 1 {
-                        matches[0]
-                    } else if matches.len() == 0 {
-                        let nidx = self.g.add_node(cur_tracepoint_id.clone());
-                        self.g.add_edge(stack.last().unwrap().0, nidx, 1);
-                        nidx
-                    } else {
-                        panic!("Too many matches");
-                    };
-                }
-            };
-            let next_nodes: Vec<_> = path.g.g.neighbors_directed(next_nidx, Direction::Outgoing).collect();
-            assert!(next_nodes.len() == 1);
-            let next_node = path.g.g[next_nodes[0]];
         }
     }
-
-    fn manifest_helper(&mut self, path: &HypotheticalCriticalPath, trace_idx: NodeIndex,
-                       stack: &mut Vec<(NodeIndex, Uuid)>) {
-        // This function traverses the new trace and the manifest concurrently,
-        // and adds new nodes as needed
-        // trace_idx is the node to be added from the trace, stack.last() is the
-        // parent of that node
-    }
-}
-
-struct Poset {
-    g: Graph<ManifestNode, u32> // Edge weights indicate number of occurance of an ordering.
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
@@ -212,58 +142,70 @@ impl Display for ManifestNode {
     }
 }
 
-impl Poset {
-    fn from_trace_list(list: Vec<OSProfilerDAG>) -> Poset {
-        let mut dag = Graph::<ManifestNode, u32>::new();
-        let mut node_index_map = HashMap::new();
-        for trace in &list {
-            for nid in trace.g.raw_nodes() {
-                let node = ManifestNode::from_event(&nid.weight.span);
-                match node_index_map.get(&node) {
-                    Some(_) => {},
-                    None => {
-                        node_index_map.insert(node.clone(), dag.add_node(node));
-                    }
-                }
-            }
-        }
-        for trace in &list {
-            for edge in trace.g.raw_edges() {
-                let source = *node_index_map.get(&ManifestNode::from_event(&trace.g[edge.source()].span)).unwrap();
-                let target = *node_index_map.get(&ManifestNode::from_event(&trace.g[edge.target()].span)).unwrap();
-                match dag.find_edge(source, target) {
-                    Some(idx) => {
-                        dag[idx] += 1;
-                    },
-                    None => {
-                        dag.add_edge(source, target, 1);
-                    }
-                }
-            }
-        }
-        Poset{g: dag}
-    }
-}
+// struct Poset {
+//     g: Graph<ManifestNode, u32> // Edge weights indicate number of occurance of an ordering.
+// }
+
+// impl Poset {
+//     fn from_trace_list(list: Vec<OSProfilerDAG>) -> Poset {
+//         let mut dag = Graph::<ManifestNode, u32>::new();
+//         let mut node_index_map = HashMap::new();
+//         for trace in &list {
+//             for nid in trace.g.raw_nodes() {
+//                 let node = ManifestNode::from_event(&nid.weight.span);
+//                 match node_index_map.get(&node) {
+//                     Some(_) => {},
+//                     None => {
+//                         node_index_map.insert(node.clone(), dag.add_node(node));
+//                     }
+//                 }
+//             }
+//         }
+//         for trace in &list {
+//             for edge in trace.g.raw_edges() {
+//                 let source = *node_index_map.get(&ManifestNode::from_event(&trace.g[edge.source()].span)).unwrap();
+//                 let target = *node_index_map.get(&ManifestNode::from_event(&trace.g[edge.target()].span)).unwrap();
+//                 match dag.find_edge(source, target) {
+//                     Some(idx) => {
+//                         dag[idx] += 1;
+//                     },
+//                     None => {
+//                         dag.add_edge(source, target, 1);
+//                     }
+//                 }
+//             }
+//         }
+//         Poset{g: dag}
+//     }
+// }
 
 #[derive(Debug)]
 struct CriticalPath {
     g: OSProfilerDAG,
-    duration: Duration,
+    start_node: NodeIndex,
+    end_node: NodeIndex,
+    duration: Duration
 }
 
 impl CriticalPath {
     fn from_trace(dag: OSProfilerDAG) -> CriticalPath {
         let mut path = CriticalPath {
             duration: Duration::new(0, 0),
-            g: OSProfilerDAG::new()
+            g: OSProfilerDAG::new(),
+            start_node: NodeIndex::end(),
+            end_node: NodeIndex::end()
         };
         let mut cur_node = dag.end_node;
         let mut end_nidx = path.g.g.add_node(dag.g[cur_node].clone());
+        path.end_node = end_nidx;
         loop {
             let next_node = dag.g.neighbors_directed(cur_node, Direction::Incoming).max_by_key(|&nidx| dag.g[nidx].span.timestamp).unwrap();
             let start_nidx = path.g.g.add_node(dag.g[next_node].clone());
             path.g.g.add_edge(start_nidx, end_nidx, dag.g[dag.g.find_edge(next_node, cur_node).unwrap()].clone());
-            if next_node == dag.start_node { break; }
+            if next_node == dag.start_node {
+                path.start_node = start_nidx;
+                break;
+            }
             cur_node = next_node;
             end_nidx = start_nidx;
         }
@@ -328,5 +270,83 @@ impl HypotheticalCriticalPath {
             }
             result
         }
+    }
+
+    fn filter_incomplete_spans(&mut self) {
+        let mut cur_node = self.start_node;
+        let mut span_map = HashMap::new();
+        loop {
+            match self.g.g[cur_node].span.variant {
+                EventEnum::Entry => {
+                    span_map.insert(self.g.g[cur_node].span.trace_id, cur_node);
+                },
+                EventEnum::Annotation => {},
+                EventEnum::Exit => {
+                    match &span_map.get(&self.g.g[cur_node].span.trace_id) {
+                        Some(_) => {
+                           span_map.remove(&self.g.g[cur_node].span.trace_id);
+                        },
+                        None => {
+                            self.remove_node(cur_node);
+                        }
+                    }
+                }
+            }
+            cur_node = match self.next_node(cur_node) {
+                Some(nidx) => nidx,
+                None => break
+            }
+        }
+        for (_, nidx) in span_map {
+            self.remove_node(nidx);
+        }
+    }
+
+    fn next_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
+        let mut matches = self.g.g.neighbors_directed(nidx, Direction::Outgoing);
+        let result = matches.next();
+        assert!(matches.next().is_none());
+        result
+    }
+
+    fn prev_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
+        let mut matches = self.g.g.neighbors_directed(nidx, Direction::Incoming);
+        let result = matches.next();
+        assert!(matches.next().is_none());
+        result
+    }
+
+    fn remove_node(&mut self, nidx: NodeIndex) {
+        let next_node = self.next_node(nidx);
+        let prev_node = self.prev_node(nidx);
+        match next_node {
+            Some(next_nidx) => {
+                self.g.g.remove_edge(self.g.g.find_edge(nidx, next_nidx).unwrap());
+                match prev_node {
+                    Some(prev_nidx) => {
+                        self.g.g.remove_edge(self.g.g.find_edge(prev_nidx, nidx).unwrap());
+                        self.g.g.add_edge(prev_nidx, next_nidx, DAGEdge{
+                            duration: (self.g.g[next_nidx].span.timestamp
+                                       - self.g.g[prev_nidx].span.timestamp).to_std().unwrap(),
+                            variant: EdgeType::ChildOf});
+                    },
+                    None => {
+                        self.start_node = next_nidx;
+                    }
+                }
+            },
+            None => {
+                match prev_node {
+                    Some(prev_nidx) => {
+                        self.g.g.remove_edge(self.g.g.find_edge(prev_nidx, nidx).unwrap());
+                        self.end_node = prev_nidx;
+                    },
+                    None => {
+                        panic!("Something went wrong here");
+                    }
+                }
+            }
+        }
+        self.g.g.remove_node(nidx);
     }
 }
