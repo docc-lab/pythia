@@ -12,6 +12,7 @@ use chrono::NaiveDateTime;
 use serde::de;
 use redis::Commands;
 use petgraph::{Graph, graph::NodeIndex};
+use petgraph::Direction;
 
 use trace::{DAGNode, DAGEdge, EdgeType};
 use trace::Event;
@@ -20,7 +21,7 @@ use trace::EventEnum;
 use options::TRACE_CACHE;
 use options::REDIS_URL;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OSProfilerDAG {
     pub g: Graph<DAGNode, DAGEdge>,
     pub base_id: Uuid,
@@ -97,6 +98,16 @@ impl OSProfilerDAG {
             }
         }
         (start, end)
+    }
+
+    pub fn possible_end_nodes(&self) -> Vec<NodeIndex> {
+        let mut result = Vec::new();
+        for i in self.g.node_indices() {
+            if self.g.neighbors_directed(i, Direction::Outgoing).count() == 0 {
+                result.push(i);
+            }
+        }
+        result
     }
 
     fn add_events(&mut self, event_list: &mut Vec<OSProfilerSpan>) -> Option<NodeIndex> {

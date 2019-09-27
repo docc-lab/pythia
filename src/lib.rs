@@ -88,88 +88,88 @@ impl CCT {
         let mut cct = CCT{ g: Graph::<String, u32>::new(),
                            entry_points: HashMap::<String, NodeIndex>::new() };
         for trace in &list {
-            cct.add_to_manifest(trace);
+            for path in HypotheticalCriticalPath::from_trace(trace) {
+                cct.add_to_manifest(&path);
+            }
         }
         cct
     }
 
-    fn add_to_manifest(&mut self, trace: &OSProfilerDAG) {
+    fn add_to_manifest(&mut self, path: &HypotheticalCriticalPath) {
         let mut stack = Vec::<(NodeIndex, Uuid)>::new();
-        let start_node = &trace.g[trace.start_node];
-        // Add start node
-        let idx = match self.entry_points.get(&start_node.span.tracepoint_id) {
-            Some(&i) => i,
-            None => self.g.add_node(start_node.span.tracepoint_id.clone())
-        };
-        stack.push((idx, start_node.span.trace_id));
-        for nidx in trace.g.neighbors_directed(trace.start_node, Direction::Outgoing) {
-            self.manifest_helper(trace, nidx, stack.clone());
+        let mut next_nidx = path.start_node;
+        let mut next_node = path.g.g[path.start_node];
+        loop {
+            let next_tracepoint_id = &next_node.span.tracepoint_id;
+            match next_node.span.variant {
+                EventEnum::Entry => {
+            let idx = match self.entry_points.get(&next_node.span.tracepoint_id) {
+                Some(&i) => i,
+                None => self.g.add_node(next_node.span.tracepoint_id.clone())
+            };
+            stack.push((idx, next_node.span.trace_id));
+                    let mut matches = self.g.neighbors_directed(stack.last().unwrap().0, Direction::Outgoing)
+                        .filter(|&nidx| self.g[nidx] == *cur_tracepoint_id);
+                    let first = matches.next();
+                    assert!(matches.next() == None);
+                    let new_idx = match first {
+                        Some(nidx) => nidx,
+                        None => self.g.add_node(cur_tracepoint_id.clone())
+                    };
+                    stack.push((new_idx, trace.g[trace_idx].span.trace_id));
+                },
+                EventEnum::Exit => {
+                    let mut self_idx = NodeIndex::end();
+                    let mut self_trace_idx;
+                    let mut found_self = false;
+                    let mut index_to_remove = 0;
+                    for (idx, i) in stack.iter().enumerate().rev() {
+                        if found_self {
+                            let parent_idx = i.0;
+                            match self.g.find_edge(parent_idx, self_idx) {
+                                Some(_) => {},
+                                None => {self.g.add_edge(parent_idx, self_idx, 1);}
+                            }
+                            break;
+                        }
+                        self_idx = i.0;
+                        self_trace_idx = i.1;
+                        if *cur_tracepoint_id == self.g[self_idx] {
+                            assert_eq!(self_trace_idx, trace.g[trace_idx].span.trace_id);
+                            index_to_remove = idx;
+                            found_self = true;
+                        }
+                    }
+                    // Remove self from the stack
+                    stack.remove(index_to_remove);
+                },
+                EventEnum::Annotation => {
+                    let matches: Vec<_> = self.g
+                        .neighbors_directed(stack.last().unwrap().0, Direction::Outgoing)
+                        .filter(|&nidx| self.g[nidx] == *cur_tracepoint_id).collect();
+                    if matches.len() == 1 {
+                        matches[0]
+                    } else if matches.len() == 0 {
+                        let nidx = self.g.add_node(cur_tracepoint_id.clone());
+                        self.g.add_edge(stack.last().unwrap().0, nidx, 1);
+                        nidx
+                    } else {
+                        panic!("Too many matches");
+                    };
+                }
+            };
+            let next_nodes: Vec<_> = path.g.g.neighbors_directed(next_nidx, Direction::Outgoing).collect();
+            assert!(next_nodes.len() == 1);
+            let next_node = path.g.g[next_nodes[0]];
         }
     }
 
-    fn manifest_helper(&mut self, trace: &OSProfilerDAG, trace_idx: NodeIndex,
-                       mut stack: Vec<(NodeIndex, Uuid)>) {
+    fn manifest_helper(&mut self, path: &HypotheticalCriticalPath, trace_idx: NodeIndex,
+                       stack: &mut Vec<(NodeIndex, Uuid)>) {
         // This function traverses the new trace and the manifest concurrently,
         // and adds new nodes as needed
         // trace_idx is the node to be added from the trace, stack.last() is the
         // parent of that node
-        let cur_tracepoint_id = &trace.g[trace_idx].span.tracepoint_id;
-        match trace.g[trace_idx].span.variant {
-            EventEnum::Entry => {
-                let mut matches = self.g.neighbors_directed(stack.last().unwrap().0, Direction::Outgoing)
-                    .filter(|&nidx| self.g[nidx] == *cur_tracepoint_id);
-                let first = matches.next();
-                assert!(matches.next() == None);
-                let new_idx = match first {
-                    Some(nidx) => nidx,
-                    None => self.g.add_node(cur_tracepoint_id.clone())
-                };
-                stack.push((new_idx, trace.g[trace_idx].span.trace_id));
-            },
-            EventEnum::Exit => {
-                let mut self_idx = NodeIndex::end();
-                let mut self_trace_idx;
-                let mut found_self = false;
-                let mut index_to_remove = 0;
-                for (idx, i) in stack.iter().enumerate().rev() {
-                    if found_self {
-                        let parent_idx = i.0;
-                        match self.g.find_edge(parent_idx, self_idx) {
-                            Some(_) => {},
-                            None => {self.g.add_edge(parent_idx, self_idx, 1);}
-                        }
-                        break;
-                    }
-                    self_idx = i.0;
-                    self_trace_idx = i.1;
-                    if *cur_tracepoint_id == self.g[self_idx] {
-                        assert_eq!(self_trace_idx, trace.g[trace_idx].span.trace_id);
-                        index_to_remove = idx;
-                        found_self = true;
-                    }
-                }
-                // Remove self from the stack
-                stack.remove(index_to_remove);
-            },
-            EventEnum::Annotation => {
-                let matches: Vec<_> = self.g
-                    .neighbors_directed(stack.last().unwrap().0, Direction::Outgoing)
-                    .filter(|&nidx| self.g[nidx] == *cur_tracepoint_id).collect();
-                let new_idx = if matches.len() == 1 {
-                    matches[0]
-                } else if matches.len() == 0 {
-                    let nidx = self.g.add_node(cur_tracepoint_id.clone());
-                    self.g.add_edge(stack.last().unwrap().0, nidx, 1);
-                    nidx
-                } else {
-                    panic!("Too many matches");
-                };
-                stack.push((new_idx, trace.g[trace_idx].span.trace_id));
-            }
-        };
-        for nidx in trace.g.neighbors_directed(trace_idx, Direction::Outgoing) {
-            self.manifest_helper(trace, nidx, stack.clone());
-        }
     }
 }
 
@@ -268,5 +268,65 @@ impl CriticalPath {
             end_nidx = start_nidx;
         }
         path
+    }
+}
+
+#[derive(Debug, Clone)]
+struct HypotheticalCriticalPath {
+    /// A HypotheticalCriticalPath is a possible critical path that
+    /// is generated by splitting the critical path into two at every
+    /// concurrent part of the trace.
+    g: OSProfilerDAG,
+    start_node: NodeIndex,
+    end_node: NodeIndex
+}
+
+impl HypotheticalCriticalPath {
+    fn from_trace(dag: &OSProfilerDAG) -> Vec<HypotheticalCriticalPath> {
+        let mut result = Vec::new();
+        for end_node in dag.possible_end_nodes() {
+            let mut path = HypotheticalCriticalPath {
+                g: OSProfilerDAG::new(),
+                start_node: NodeIndex::end(),
+                end_node: NodeIndex::end()
+            };
+            let cur_node = end_node;
+            let end_nidx = path.g.g.add_node(dag.g[cur_node].clone());
+            path.end_node = end_nidx;
+            result.extend(HypotheticalCriticalPath::from_trace_helper(dag, cur_node, end_nidx, path));
+        }
+        result
+    }
+
+    fn from_trace_helper(dag: &OSProfilerDAG, cur_node: NodeIndex, end_nidx: NodeIndex,
+        mut path: HypotheticalCriticalPath) -> Vec<HypotheticalCriticalPath> {
+        let next_nodes: Vec<_> = dag.g.neighbors_directed(cur_node, Direction::Incoming).collect();
+        if next_nodes.len() == 0 {
+            panic!("Path finished too early");
+        } else if next_nodes.len() == 1 {
+            let next_node = next_nodes[0];
+            let start_nidx = path.g.g.add_node(dag.g[next_node].clone());
+            path.g.g.add_edge(start_nidx, end_nidx, dag.g[dag.g.find_edge(next_node, cur_node).unwrap()].clone());
+            if next_node == dag.start_node {
+                path.start_node = start_nidx;
+                vec![path]
+            } else {
+                HypotheticalCriticalPath::from_trace_helper(dag, next_node, start_nidx, path)
+            }
+        } else {
+            let mut result = Vec::new();
+            for next_node in next_nodes {
+                let mut new_path = path.clone();
+                let start_nidx = new_path.g.g.add_node(dag.g[next_node].clone());
+                new_path.g.g.add_edge(start_nidx, end_nidx, dag.g[dag.g.find_edge(next_node, cur_node).unwrap()].clone());
+                if next_node == dag.start_node {
+                    path.start_node = start_nidx;
+                    result.push(new_path);
+                } else {
+                    result.extend(HypotheticalCriticalPath::from_trace_helper(dag, next_node, start_nidx, new_path));
+                }
+            }
+            result
+        }
     }
 }
