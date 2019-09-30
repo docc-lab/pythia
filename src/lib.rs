@@ -99,21 +99,114 @@ impl CCT {
     }
 
     fn add_to_manifest(&mut self, path: &HypotheticalCriticalPath) {
-        let mut cur_nidx = path.start_node;
+        println!("Adding this path: {}", Dot::new(&path.g.g));
+        let mut cur_path_nidx = path.start_node;
+        let mut cur_manifest_nidx = None;
         loop {
-            match path.g.g[cur_nidx].span.variant {
+            let cur_span = &path.g.g[cur_path_nidx].span;
+            match cur_manifest_nidx {
+                None => println!("Cur node: None"),
+                Some(nidx) => println!("Cur node: {:?}", self.g[nidx])
+            }
+            println!("Adding {:?}", cur_span);
+            match cur_span.variant {
                 EventEnum::Entry => {
+                    let next_nidx = match cur_manifest_nidx {
+                        Some(nidx) => {
+                            self.add_child_if_necessary(nidx, &cur_span.tracepoint_id)
+                        },
+                        None => {
+                            match self.entry_points.get(&cur_span.tracepoint_id) {
+                                Some(nidx) => *nidx,
+                                None => {
+                                    let new_nidx = self.g.add_node(cur_span.tracepoint_id.clone());
+                                    self.entry_points.insert(cur_span.tracepoint_id.clone(), new_nidx);
+                                    new_nidx
+                                }
+                            }
+                        }
+                    };
+                    cur_manifest_nidx = Some(next_nidx);
                 },
                 EventEnum::Annotation => {
+                    self.add_child_if_necessary(
+                        cur_manifest_nidx.unwrap(), &cur_span.tracepoint_id);
                 },
                 EventEnum::Exit => {
+                    let mut parent_nidx = self.find_parent(cur_manifest_nidx.unwrap());
+                    if cur_span.tracepoint_id == self.g[cur_manifest_nidx.unwrap()] {
+                        cur_manifest_nidx = parent_nidx;
+                    } else {
+                        loop {
+                            match parent_nidx {
+                                Some(nidx) => {
+                                    if self.g[nidx] == cur_span.tracepoint_id {
+                                        parent_nidx = self.find_parent(nidx);
+                                        break;
+                                    }
+                                    parent_nidx = self.find_parent(nidx);
+                                },
+                                None => break
+                            }
+                        }
+                        match parent_nidx {
+                            Some(nidx) => {
+                                self.move_to_parent(cur_manifest_nidx.unwrap(), nidx);
+                                cur_manifest_nidx = Some(nidx);
+                            },
+                            None => {
+                                self.entry_points.insert(cur_span.tracepoint_id.clone(), cur_manifest_nidx.unwrap());
+                                cur_manifest_nidx = None;
+                            }
+                        }
+                    }
                 }
             }
-            cur_nidx = match path.next_node(cur_nidx) {
+            cur_path_nidx = match path.next_node(cur_path_nidx) {
                 Some(nidx) => nidx,
                 None => break
             };
         }
+    }
+
+    fn move_to_parent(&mut self, node: NodeIndex, new_parent: NodeIndex) {
+        let cur_parent = self.find_parent(node);
+        match cur_parent {
+            Some(p) => {
+                let edge = self.g.find_edge(p, node).unwrap();
+                self.g.remove_edge(edge);
+            },
+            None => {}
+        }
+        self.g.add_edge(new_parent, node, 1);
+    }
+
+    fn add_child_if_necessary(&mut self, parent: NodeIndex, node: &str) -> NodeIndex {
+        match self.find_child(parent, node) {
+            Some(child_nidx) => child_nidx,
+            None => self.add_child(parent, node)
+        }
+    }
+
+    fn add_child(&mut self, parent: NodeIndex, node: &str) -> NodeIndex {
+        let nidx = self.g.add_node(String::from(node));
+        self.g.add_edge(parent, nidx, 1);
+        nidx
+    }
+
+    fn find_parent(&mut self, node: NodeIndex) -> Option<NodeIndex> {
+        let mut matches = self.g.neighbors_directed(node, Direction::Incoming);
+        let result = matches.next();
+        assert!(matches.next().is_none());
+        result
+    }
+
+    fn find_child(&mut self, parent: NodeIndex, node: &str) -> Option<NodeIndex> {
+        let mut matches = self.g.neighbors_directed(parent, Direction::Outgoing)
+            .filter(|&a| self.g[a] == node);
+        let result = matches.next();
+        assert!(matches.next().is_none());
+        result
     }
 }
 
@@ -124,7 +217,7 @@ struct ManifestNode {
 }
 
 impl ManifestNode {
-    fn from_event(span: &Event) -> ManifestNode {
+    fn _from_event(span: &Event) -> ManifestNode {
         ManifestNode { tracepoint_id: span.tracepoint_id.clone(), variant: span.variant }
     }
 }
