@@ -39,7 +39,7 @@ pub fn redis_main() {
         println!("Working on {:?}", id);
         let trace = OSProfilerDAG::from_base_id(id);
         println!("{}", Dot::new(&trace.g));
-        let crit = CriticalPath::from_trace(trace);
+        let crit = CriticalPath::from_trace(&trace);
         println!("{:?}", crit);
     }
 }
@@ -74,7 +74,7 @@ pub fn get_trace(trace_id: &str) {
 
 pub fn get_crit(trace_id: &str) {
     let trace = OSProfilerDAG::from_base_id(trace_id);
-    let crit = CriticalPath::from_trace(trace);
+    let crit = CriticalPath::from_trace(&trace);
     println!("{}", Dot::new(&crit.g.g));
 }
 
@@ -293,7 +293,7 @@ struct CriticalPath {
 }
 
 impl CriticalPath {
-    fn from_trace(dag: OSProfilerDAG) -> CriticalPath {
+    fn from_trace(dag: &OSProfilerDAG) -> CriticalPath {
         let mut path = CriticalPath {
             duration: Duration::new(0, 0),
             g: OSProfilerDAG::new(),
@@ -315,6 +315,7 @@ impl CriticalPath {
             cur_node = next_node;
             end_nidx = start_nidx;
         }
+        path.add_synthetic_nodes(dag);
         path
     }
 
@@ -335,6 +336,9 @@ impl CriticalPath {
             let end_nidx = path.g.g.add_node(dag.g[cur_node].clone());
             path.end_node = end_nidx;
             result.extend(CriticalPath::possible_paths_helper(dag, cur_node, end_nidx, path));
+        }
+        for i in &mut result {
+            i.add_synthetic_nodes(dag);
         }
         result
     }
@@ -398,6 +402,28 @@ impl CriticalPath {
         }
         for (_, nidx) in span_map {
             self.remove_node(nidx);
+        }
+    }
+
+    fn add_synthetic_nodes(&mut self, dag: &OSProfilerDAG) {
+        let mut cur_nidx = self.start_node;
+        let mut cur_dag_nidx = dag.start_node;
+        let mut active_spans = Vec::new();
+        loop {
+            let cur_node = self.g.g[cur_nidx];
+            let cur_dag_node = dag.g[cur_dag_nidx];
+            match cur_node.span.variant {
+                EventEnum::Entry => {
+                },
+                EventEnum::Annotation => {
+                },
+                EventEnum::Exit => {
+                }
+            }
+            cur_nidx = match self.next_node(cur_nidx) {
+                Some(nidx) => nidx,
+                None => break
+            };
         }
     }
 
