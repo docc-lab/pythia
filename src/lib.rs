@@ -20,6 +20,7 @@ use petgraph::{Graph, dot::Dot, Direction};
 use trace::Event;
 use trace::EventEnum;
 use trace::DAGEdge;
+use trace::DAGNode;
 use trace::EdgeType;
 use osprofiler::OSProfilerDAG;
 use options::LINE_WIDTH;
@@ -405,26 +406,75 @@ impl CriticalPath {
         }
     }
 
+    /// We add synthetic nodes for spans with exit nodes off the critical path
+    /// e.g.,
+    /// A_start -> B_start -> C_start -> C_end -> ... rest of the path
+    ///                   \-> D_start -> B_end -> A_end
+    /// We add B_end and A_end (in that order) right before C_start
     fn add_synthetic_nodes(&mut self, dag: &OSProfilerDAG) {
         let mut cur_nidx = self.start_node;
         let mut cur_dag_nidx = dag.start_node;
         let mut active_spans = Vec::new();
         loop {
-            let cur_node = self.g.g[cur_nidx];
-            let cur_dag_node = dag.g[cur_dag_nidx];
+            let cur_node = &self.g.g[cur_nidx];
+            let cur_dag_node = &dag.g[cur_dag_nidx];
             match cur_node.span.variant {
                 EventEnum::Entry => {
+                    active_spans.push(cur_dag_node.span.clone());
                 },
-                EventEnum::Annotation => {
-                },
+                EventEnum::Annotation => {},
                 EventEnum::Exit => {
+                    let to_remove = active_spans.iter()
+                        .rposition(|span| span.trace_id == cur_node.span.trace_id)
+                        .unwrap();
+                    active_spans.remove(to_remove);
                 }
+            }
+            let next_nidx = match self.next_node(cur_nidx) {
+                Some(nidx) => nidx,
+                None => {
+                    assert!(active_spans.is_empty());
+                    break
+                }
+            };
+            let next_dag_nodes = dag.g.neighbors_directed(cur_dag_nidx, Direction::Outgoing).collect::<Vec<_>>();
+            if next_dag_nodes.len() == 1 {
+                cur_dag_nidx = next_dag_nodes[0];
+            } else {
+                assert!(next_dag_nodes.len() != 0);
+                let mut next_dag_nidx = next_dag_nodes.iter()
+                    .filter(|&nidx| dag.g[*nidx].span.trace_id == self.g.g[next_nidx].span.trace_id);
+                cur_dag_nidx = *next_dag_nidx.next().unwrap();
+                assert!(next_dag_nidx.next().is_none());
+                let unfinished_spans = self.find_unfinished(&active_spans, next_nidx);
+                for span in unfinished_spans.iter().rev() {
+                    self.add_node_after(cur_nidx, span);
+                }
+            }
+            cur_nidx = next_nidx;
+        }
+    }
+
+    fn find_unfinished(&self, spans: &Vec<Event>, nidx: NodeIndex) -> Vec<Event> {
+        let mut result = spans.clone();
+        let mut cur_nidx = nidx;
+        loop {
+            let mut to_remove = None;
+            for (idx, span) in result.iter().enumerate() {
+                if span.trace_id == self.g.g[cur_nidx].span.trace_id {
+                    to_remove = Some(idx);
+                }
+            }
+            match to_remove {
+                Some(idx) => {result.remove(idx);},
+                None => {}
             }
             cur_nidx = match self.next_node(cur_nidx) {
                 Some(nidx) => nidx,
                 None => break
             };
         }
+        result
     }
 
     fn next_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
@@ -473,5 +523,24 @@ impl CriticalPath {
             }
         }
         self.g.g.remove_node(nidx);
+    }
+
+    fn add_node_after(&mut self, after: NodeIndex, node: &Event) {
+        let next_node = self.next_node(after);
+        let new_node = self.g.g.add_node(DAGNode{span: node.clone()});
+        self.g.g.add_edge(after, new_node, DAGEdge{
+            duration: Duration::new(0, 0), variant: EdgeType::ChildOf});
+        match next_node {
+            Some(next_nidx) => {
+                let old_edge = self.g.g.find_edge(after, next_nidx).unwrap();
+                let old_duration = self.g.g[old_edge].duration;
+                self.g.g.remove_edge(old_edge);
+                self.g.g.add_edge(new_node, next_nidx, DAGEdge{
+                    duration: old_duration, variant: EdgeType::ChildOf});
+            },
+            None => {
+                self.end_node = new_node;
+            }
+        }
     }
 }
