@@ -135,6 +135,10 @@ impl CCT {
                         cur_manifest_nidx.unwrap(), &cur_span.tracepoint_id);
                 },
                 EventEnum::Exit => {
+                    if cur_manifest_nidx.is_none() {
+                        println!("Manifest: {}", Dot::new(&self.g));
+                        println!("Current path: {}", Dot::new(&path.g.g));
+                    }
                     let mut parent_nidx = self.find_parent(cur_manifest_nidx.unwrap());
                     if cur_span.tracepoint_id == self.g[cur_manifest_nidx.unwrap()] {
                         cur_manifest_nidx = parent_nidx;
@@ -284,6 +288,8 @@ impl Display for ManifestNode {
 //     }
 // }
 
+use uuid::Uuid;
+
 #[derive(Debug, Clone)]
 struct CriticalPath {
     g: OSProfilerDAG,
@@ -415,26 +421,41 @@ impl CriticalPath {
         let mut cur_nidx = self.start_node;
         let mut cur_dag_nidx = dag.start_node;
         let mut active_spans = Vec::new();
+        println!("starting with {}", dag.base_id);
         loop {
+            println!("looping");
             let cur_node = &self.g.g[cur_nidx];
             let cur_dag_node = &dag.g[cur_dag_nidx];
+            assert!(cur_node.span.trace_id == cur_dag_node.span.trace_id);
             match cur_node.span.variant {
                 EventEnum::Entry => {
                     active_spans.push(cur_dag_node.span.clone());
                 },
                 EventEnum::Annotation => {},
                 EventEnum::Exit => {
-                    let to_remove = active_spans.iter()
-                        .rposition(|span| span.trace_id == cur_node.span.trace_id)
-                        .unwrap();
-                    active_spans.remove(to_remove);
+                    match active_spans.iter()
+                        .rposition(|span| span.trace_id == cur_node.span.trace_id) {
+                            Some(idx) => {
+                                active_spans.remove(idx);
+                            },
+                            None => {
+                                self.add_synthetic_start_node(cur_nidx, cur_dag_nidx, dag);
+                            }
+                        };
                 }
             }
             let next_nidx = match self.next_node(cur_nidx) {
                 Some(nidx) => nidx,
                 None => {
-                    assert!(active_spans.is_empty());
-                    break
+                    if active_spans.is_empty() {
+                        assert!(active_spans.is_empty());
+                        break;
+                    } else {
+                        println!("The whole trace: {}", Dot::new(&dag.g));
+                        println!("Active spans: {:?}", active_spans);
+                        println!("Current critical path: {}", Dot::new(&self.g.g));
+                        panic!();
+                    }
                 }
             };
             let next_dag_nodes = dag.g.neighbors_directed(cur_dag_nidx, Direction::Outgoing).collect::<Vec<_>>();
@@ -446,27 +467,112 @@ impl CriticalPath {
                     .filter(|&nidx| dag.g[*nidx].span.trace_id == self.g.g[next_nidx].span.trace_id);
                 cur_dag_nidx = *next_dag_nidx.next().unwrap();
                 assert!(next_dag_nidx.next().is_none());
-                let unfinished_spans = self.find_unfinished(&active_spans, next_nidx);
+                let unfinished_spans = self.remove_unfinished(&mut active_spans, next_nidx, cur_dag_nidx, dag);
                 for span in unfinished_spans.iter().rev() {
                     self.add_node_after(cur_nidx, span);
+                    cur_nidx = self.next_node(cur_nidx).unwrap();
                 }
             }
             cur_nidx = next_nidx;
         }
     }
 
-    fn find_unfinished(&self, spans: &Vec<Event>, nidx: NodeIndex) -> Vec<Event> {
-        let mut result = spans.clone();
+    /// We encountered an end node for a span that did not start on our critical path
+    /// We should go back, and add a corresponding synthetic start node after the correct
+    /// synchronization point
+    fn add_synthetic_start_node(&mut self, start_nidx: NodeIndex,
+        start_dag_nidx: NodeIndex, dag: &OSProfilerDAG) {
+        let span_to_add = self.g.g[start_nidx].span.clone();
+        println!("Adding node {:?}", span_to_add);
+        // Find synch. point
+        let mut cur_nidx = start_nidx;
+        let mut cur_dag_nidx = start_dag_nidx;
+        loop {
+            assert!(dag.g[cur_dag_nidx].span.trace_id == self.g.g[cur_nidx].span.trace_id);
+            println!("Working on node: {:?}, dag_node: {:?}",
+                self.g.g[cur_nidx], dag.g[cur_dag_nidx]);
+            let prev_dag_nodes = dag.g
+                .neighbors_directed(cur_dag_nidx, Direction::Incoming).collect::<Vec<_>>();
+            let mut prev_nidx = cur_nidx;
+            loop {
+                prev_nidx = self.prev_node(prev_nidx).unwrap();
+                if self.g.g[prev_nidx].span.parent_id != Uuid::nil() {
+                    break;
+                }
+            }
+            if prev_dag_nodes.len() == 1 {
+                cur_dag_nidx = prev_dag_nodes[0];
+                // We may have added other synthetic nodes to self, so iterate self
+                // until we find matches in the dag
+            } else {
+                assert!(!prev_dag_nodes.is_empty());
+                let mut found_start = false;
+                for prev_dag_nidx in prev_dag_nodes {
+                    if dag.g[prev_dag_nidx].span.trace_id == self.g.g[prev_nidx].span.trace_id {
+                        cur_dag_nidx = prev_dag_nidx;
+                    } else {
+                        if self.find_start_node(&span_to_add, prev_dag_nidx, dag) {
+                            found_start = true;
+                        }
+                    }
+                }
+                if found_start {
+                    println!("Added synth node");
+                    self.add_node_after(prev_nidx, &span_to_add);
+                    return;
+                }
+            }
+            cur_nidx = prev_nidx;
+        }
+    }
+
+    fn find_start_node(&self, span: &Event, start_nidx: NodeIndex, dag: &OSProfilerDAG) -> bool {
+        let mut cur_dag_nidx = start_nidx;
+        loop {
+            if dag.g[cur_dag_nidx].span.trace_id == span.trace_id {
+                return true;
+            }
+            let prev_dag_nodes = dag.g
+                .neighbors_directed(cur_dag_nidx, Direction::Incoming).collect::<Vec<_>>();
+            if prev_dag_nodes.len() == 1 {
+                cur_dag_nidx = prev_dag_nodes[0];
+            } else {
+                if prev_dag_nodes.is_empty() {
+                    return false;
+                }
+                for prev_node in prev_dag_nodes {
+                    if self.find_start_node(span, prev_node, dag) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+    }
+
+    /// Get all of the active spans that are not finished in the rest of the critical path.
+    /// Remove the unfinished ones from active_spans and return them. A synthetic node will be
+    /// added after all unfinished spans.
+    ///
+    /// The end of the unfinished span needs to be accessible through dag_nidx, otherwise we
+    /// would be removing it too early.
+    fn remove_unfinished(&self, spans: &mut Vec<Event>, nidx: NodeIndex,
+        dag_nidx: NodeIndex, dag: &OSProfilerDAG) -> Vec<Event> {
+        let mut unfinished = spans.clone();
         let mut cur_nidx = nidx;
         loop {
             let mut to_remove = None;
-            for (idx, span) in result.iter().enumerate() {
+            for (idx, span) in unfinished.iter().enumerate() {
                 if span.trace_id == self.g.g[cur_nidx].span.trace_id {
                     to_remove = Some(idx);
                 }
             }
             match to_remove {
-                Some(idx) => {result.remove(idx);},
+                Some(idx) => {
+                    if !dag.can_reach_from_node(self.g.g[nidx].span.trace_id, dag_nidx) {
+                        unfinished.remove(idx);
+                    }
+                },
                 None => {}
             }
             cur_nidx = match self.next_node(cur_nidx) {
@@ -474,7 +580,13 @@ impl CriticalPath {
                 None => break
             };
         }
-        result
+        for unfinished_span in &unfinished {
+            // If a given active span is unfinished, we should remove it from active_spans
+            let to_remove = spans.iter()
+                .position(|e| e.trace_id == unfinished_span.trace_id).unwrap();
+            spans.remove(to_remove);
+        }
+        unfinished
     }
 
     fn next_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
@@ -525,11 +637,22 @@ impl CriticalPath {
         self.g.g.remove_node(nidx);
     }
 
+    /// Modifies the span to be exit/end, and changes timestamp
     fn add_node_after(&mut self, after: NodeIndex, node: &Event) {
         let next_node = self.next_node(after);
-        let new_node = self.g.g.add_node(DAGNode{span: node.clone()});
+        let new_node = self.g.g.add_node(DAGNode{span: Event{
+            tracepoint_id: node.tracepoint_id.clone(),
+            variant: match node.variant {
+                EventEnum::Entry => EventEnum::Exit,
+                EventEnum::Exit => EventEnum::Entry,
+                EventEnum::Annotation => panic!("don't give me annotation")
+            },
+            trace_id: node.trace_id,
+            timestamp: self.g.g[after].span.timestamp + chrono::Duration::nanoseconds(1),
+            parent_id: Uuid::nil()
+        }});
         self.g.g.add_edge(after, new_node, DAGEdge{
-            duration: Duration::new(0, 0), variant: EdgeType::ChildOf});
+            duration: Duration::new(0, 1), variant: EdgeType::ChildOf});
         match next_node {
             Some(next_nidx) => {
                 let old_edge = self.g.g.find_edge(after, next_nidx).unwrap();

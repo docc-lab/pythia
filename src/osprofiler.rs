@@ -66,6 +66,28 @@ impl OSProfilerDAG {
         }
     }
 
+    pub fn can_reach_from_node(&self, trace_id: Uuid, nidx: NodeIndex) -> bool {
+        let mut cur_nidx = nidx;
+        loop {
+            if self.g[cur_nidx].span.trace_id == trace_id {
+                return true;
+            }
+            let next_nids = self.g.neighbors_directed(nidx, Direction::Outgoing).collect::<Vec<_>>();
+            if next_nids.len() == 0 {
+                return false;
+            } else if next_nids.len() == 1 {
+                cur_nidx = next_nids[0];
+            } else {
+                for next_nidx in next_nids {
+                    if self.can_reach_from_node(trace_id, next_nidx) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+    }
+
     fn fetch_from_cache(id: &Uuid) -> Option<OSProfilerDAG> {
         match std::fs::File::open([TRACE_CACHE, &id.to_hyphenated().to_string(), ".json"].concat()) {
             Ok(file) => {
