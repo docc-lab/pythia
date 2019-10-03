@@ -106,21 +106,43 @@ impl CriticalPath {
     pub fn filter_incomplete_spans(&mut self) {
         let mut cur_node = self.start_node;
         let mut span_map = HashMap::new();
+        let mut nodes_to_remove = Vec::new();
+        let mut exits = HashMap::<Uuid,NodeIndex>::new();
         loop {
+            let cur_trace_id = self.g.g[cur_node].span.trace_id;
+            let existing_node_id = span_map.get(&cur_trace_id);
             match self.g.g[cur_node].span.variant {
                 EventEnum::Entry => {
-                    span_map.insert(self.g.g[cur_node].span.trace_id, cur_node);
+                    match existing_node_id {
+                        Some(_) => {
+                            nodes_to_remove.push(cur_node.clone());
+                            assert!(exits.get(&cur_trace_id).is_none());
+                        },
+                        None => {
+                            span_map.insert(cur_trace_id.clone(), cur_node.clone());
+                        }
+                    }
                 },
                 EventEnum::Annotation => {},
                 EventEnum::Exit => {
-                    match &span_map.get(&self.g.g[cur_node].span.trace_id) {
+                    match existing_node_id {
                         Some(_) => {
-                           span_map.remove(&self.g.g[cur_node].span.trace_id);
+                            span_map.remove(&cur_trace_id);
                         },
                         None => {
-                            self.remove_node(cur_node);
+                            match exits.get(&cur_trace_id) {
+                                Some(node) => {
+                                    nodes_to_remove.push(node.clone());
+                                },
+                                None => {
+                                    println!("Current path: {}", Dot::new(&self.g.g));
+                                    println!("Node to remove: {:?}", cur_node);
+                                    panic!("We shouldn't have any incomplete spans");
+                                }
+                            }
                         }
                     }
+                    exits.insert(cur_trace_id.clone(), cur_node.clone());
                 }
             }
             cur_node = match self.next_node(cur_node) {
@@ -128,7 +150,7 @@ impl CriticalPath {
                 None => break
             }
         }
-        for (_, nidx) in span_map {
+        for nidx in nodes_to_remove {
             self.remove_node(nidx);
         }
     }
@@ -142,13 +164,9 @@ impl CriticalPath {
         let mut cur_nidx = self.start_node;
         let mut cur_dag_nidx = dag.start_node;
         let mut active_spans = Vec::new();
-        println!("starting with {}", dag.base_id);
-        println!("Path is {}", Dot::new(&self.g.g));
         loop {
             let cur_node = &self.g.g[cur_nidx];
             let cur_dag_node = &dag.g[cur_dag_nidx];
-            println!("Traversing {:?}", cur_node);
-            println!("Active spans: {:?}", active_spans);
             assert!(cur_node.span.trace_id == cur_dag_node.span.trace_id);
             match cur_node.span.variant {
                 EventEnum::Entry => {
@@ -170,15 +188,8 @@ impl CriticalPath {
             let next_nidx = match self.next_node(cur_nidx) {
                 Some(nidx) => nidx,
                 None => {
-                    if active_spans.is_empty() {
-                        assert!(active_spans.is_empty());
-                        break;
-                    } else {
-                        println!("The whole trace: {}", Dot::new(&dag.g));
-                        println!("Active spans: {:?}", active_spans);
-                        println!("Current critical path: {}", Dot::new(&self.g.g));
-                        panic!();
-                    }
+                    assert!(active_spans.is_empty());
+                    break;
                 }
             };
             let next_dag_nodes = dag.g.neighbors_directed(cur_dag_nidx, Direction::Outgoing).collect::<Vec<_>>();
@@ -210,14 +221,11 @@ impl CriticalPath {
     fn add_synthetic_start_node(&mut self, start_nidx: NodeIndex,
         start_dag_nidx: NodeIndex, dag: &OSProfilerDAG) {
         let span_to_add = self.g.g[start_nidx].span.clone();
-        println!("Adding node {:?}", span_to_add);
         // Find synch. point
         let mut cur_nidx = start_nidx;
         let mut cur_dag_nidx = start_dag_nidx;
         loop {
             assert!(dag.g[cur_dag_nidx].span.trace_id == self.g.g[cur_nidx].span.trace_id);
-            println!("Working on node: {:?}, dag_node: {:?}",
-                self.g.g[cur_nidx], dag.g[cur_dag_nidx]);
             let prev_dag_nodes = dag.g
                 .neighbors_directed(cur_dag_nidx, Direction::Incoming).collect::<Vec<_>>();
             let mut prev_nidx = cur_nidx;
@@ -244,7 +252,6 @@ impl CriticalPath {
                     }
                 }
                 if found_start {
-                    println!("Added synth node");
                     self.add_node_after(prev_nidx, &span_to_add);
                     return;
                 }

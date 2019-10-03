@@ -99,16 +99,10 @@ impl CCT {
 
     fn add_to_manifest(&mut self, path: &CriticalPath) {
         assert!(path.is_hypothetical);
-        println!("Adding this path: {}", Dot::new(&path.g.g));
         let mut cur_path_nidx = path.start_node;
         let mut cur_manifest_nidx = None;
         loop {
             let cur_span = &path.g.g[cur_path_nidx].span;
-            match cur_manifest_nidx {
-                None => println!("Cur node: None"),
-                Some(nidx) => println!("Cur node: {:?}", self.g[nidx])
-            }
-            println!("Adding {:?}", cur_span);
             match cur_span.variant {
                 EventEnum::Entry => {
                     let next_nidx = match cur_manifest_nidx {
@@ -133,10 +127,6 @@ impl CCT {
                         cur_manifest_nidx.unwrap(), &cur_span.tracepoint_id);
                 },
                 EventEnum::Exit => {
-                    if cur_manifest_nidx.is_none() {
-                        println!("Manifest: {}", Dot::new(&self.g));
-                        println!("Current path: {}", Dot::new(&path.g.g));
-                    }
                     let mut parent_nidx = self.find_parent(cur_manifest_nidx.unwrap());
                     if cur_span.tracepoint_id == self.g[cur_manifest_nidx.unwrap()] {
                         cur_manifest_nidx = parent_nidx;
@@ -170,6 +160,10 @@ impl CCT {
     }
 
     fn move_to_parent(&mut self, node: NodeIndex, new_parent: Option<NodeIndex>) {
+        if self.g[node] == "/opt/stack/nova/nova/compute/manager.py:1495:nova.compute.manager.ComputeManager._allocate_network_async" {
+            println!("Working on allocate network async");
+            assert!(!new_parent.is_none());
+        }
         let cur_parent = self.find_parent(node);
         match cur_parent {
             Some(p) => {
