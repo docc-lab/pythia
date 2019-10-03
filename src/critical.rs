@@ -143,10 +143,12 @@ impl CriticalPath {
         let mut cur_dag_nidx = dag.start_node;
         let mut active_spans = Vec::new();
         println!("starting with {}", dag.base_id);
+        println!("Path is {}", Dot::new(&self.g.g));
         loop {
-            println!("looping");
             let cur_node = &self.g.g[cur_nidx];
             let cur_dag_node = &dag.g[cur_dag_nidx];
+            println!("Traversing {:?}", cur_node);
+            println!("Active spans: {:?}", active_spans);
             assert!(cur_node.span.trace_id == cur_dag_node.span.trace_id);
             match cur_node.span.variant {
                 EventEnum::Entry => {
@@ -184,11 +186,15 @@ impl CriticalPath {
                 cur_dag_nidx = next_dag_nodes[0];
             } else {
                 assert!(next_dag_nodes.len() != 0);
-                let mut next_dag_nidx = next_dag_nodes.iter()
-                    .filter(|&nidx| dag.g[*nidx].span.trace_id == self.g.g[next_nidx].span.trace_id);
-                cur_dag_nidx = *next_dag_nidx.next().unwrap();
-                assert!(next_dag_nidx.next().is_none());
-                let unfinished_spans = self.remove_unfinished(&mut active_spans, next_nidx, cur_dag_nidx, dag);
+                let mut unfinished_spans = Vec::new();
+                for next_dag_nidx in next_dag_nodes {
+                    if dag.g[next_dag_nidx].span.trace_id == self.g.g[next_nidx].span.trace_id {
+                        cur_dag_nidx = next_dag_nidx;
+                    } else {
+                        unfinished_spans.extend(self.remove_unfinished(
+                                &mut active_spans, next_nidx, next_dag_nidx, dag));
+                    }
+                }
                 for span in unfinished_spans.iter().rev() {
                     self.add_node_after(cur_nidx, span);
                     cur_nidx = self.next_node(cur_nidx).unwrap();
@@ -282,19 +288,11 @@ impl CriticalPath {
         let mut unfinished = spans.clone();
         let mut cur_nidx = nidx;
         loop {
-            let mut to_remove = None;
             for (idx, span) in unfinished.iter().enumerate() {
                 if span.trace_id == self.g.g[cur_nidx].span.trace_id {
-                    to_remove = Some(idx);
+                    unfinished.remove(idx);
+                    break;
                 }
-            }
-            match to_remove {
-                Some(idx) => {
-                    if !dag.can_reach_from_node(self.g.g[nidx].span.trace_id, dag_nidx) {
-                        unfinished.remove(idx);
-                    }
-                },
-                None => {}
             }
             cur_nidx = match self.next_node(cur_nidx) {
                 Some(nidx) => nidx,
@@ -302,6 +300,9 @@ impl CriticalPath {
             };
         }
         for unfinished_span in &unfinished {
+            if !dag.can_reach_from_node(unfinished_span.trace_id, dag_nidx) {
+                continue;
+            }
             // If a given active span is unfinished, we should remove it from active_spans
             let to_remove = spans.iter()
                 .position(|e| e.trace_id == unfinished_span.trace_id).unwrap();

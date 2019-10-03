@@ -141,28 +141,24 @@ impl CCT {
                     if cur_span.tracepoint_id == self.g[cur_manifest_nidx.unwrap()] {
                         cur_manifest_nidx = parent_nidx;
                     } else {
+                        let nidx_to_move;
                         loop {
                             match parent_nidx {
                                 Some(nidx) => {
                                     if self.g[nidx] == cur_span.tracepoint_id {
+                                        nidx_to_move = nidx;
                                         parent_nidx = self.find_parent(nidx);
                                         break;
                                     }
                                     parent_nidx = self.find_parent(nidx);
                                 },
-                                None => break
+                                None => {
+                                    nidx_to_move = cur_manifest_nidx.unwrap();
+                                    break;
+                                }
                             }
                         }
-                        match parent_nidx {
-                            Some(nidx) => {
-                                self.move_to_parent(cur_manifest_nidx.unwrap(), nidx);
-                                cur_manifest_nidx = Some(nidx);
-                            },
-                            None => {
-                                self.entry_points.insert(cur_span.tracepoint_id.clone(), cur_manifest_nidx.unwrap());
-                                cur_manifest_nidx = None;
-                            }
-                        }
+                        self.move_to_parent(nidx_to_move, parent_nidx);
                     }
                 }
             }
@@ -173,7 +169,7 @@ impl CCT {
         }
     }
 
-    fn move_to_parent(&mut self, node: NodeIndex, new_parent: NodeIndex) {
+    fn move_to_parent(&mut self, node: NodeIndex, new_parent: Option<NodeIndex>) {
         let cur_parent = self.find_parent(node);
         match cur_parent {
             Some(p) => {
@@ -182,7 +178,9 @@ impl CCT {
             },
             None => {}
         }
-        self.g.add_edge(new_parent, node, 1);
+        if !new_parent.is_none() {
+            self.g.add_edge(new_parent.unwrap(), node, 1);
+        }
     }
 
     fn add_child_if_necessary(&mut self, parent: NodeIndex, node: &str) -> NodeIndex {

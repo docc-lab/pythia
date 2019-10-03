@@ -72,7 +72,7 @@ impl OSProfilerDAG {
             if self.g[cur_nidx].span.trace_id == trace_id {
                 return true;
             }
-            let next_nids = self.g.neighbors_directed(nidx, Direction::Outgoing).collect::<Vec<_>>();
+            let next_nids = self.g.neighbors_directed(cur_nidx, Direction::Outgoing).collect::<Vec<_>>();
             if next_nids.len() == 0 {
                 return false;
             } else if next_nids.len() == 1 {
