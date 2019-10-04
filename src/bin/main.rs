@@ -2,7 +2,7 @@ extern crate pythia;
 extern crate clap;
 use clap::{Arg, App, SubCommand};
 
-use pythia::{redis_main, get_manifest, get_trace};
+use pythia::{get_manifest, get_trace};
 
 fn main() {
     let matches = App::new("Pythia")
@@ -24,6 +24,6 @@ fn main() {
         ("get_trace", Some(matches)) => {
             get_trace(matches.value_of("trace_id").unwrap());
         },
-        _ => redis_main()
+        _ => panic!("Must provide a subcommand, see --help for commands")
     };
 }

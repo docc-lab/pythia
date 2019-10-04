@@ -25,24 +25,6 @@ use options::ManifestMethod;
 use options::MANIFEST_METHOD;
 use critical::CriticalPath;
 
-pub fn redis_main() {
-    // let event_list = get_matches("ffd1560e-7928-437c-87e9-a712c85ed2ac").unwrap();
-    // let trace = create_dag(event_list);
-    // println!("{}", Dot::new(&trace));
-    // return;
-    let trace_ids = std::fs::read_to_string("/opt/stack/requests.txt").unwrap();
-    for id in trace_ids.split('\n') {
-        if id.len() <= 1 {
-            continue;
-        }
-        println!("Working on {:?}", id);
-        let trace = OSProfilerDAG::from_base_id(id);
-        println!("{}", Dot::new(&trace.g));
-        let crit = CriticalPath::from_trace(&trace);
-        println!("{:?}", crit);
-    }
-}
-
 pub fn get_manifest(manfile: &str) {
     let trace_ids = std::fs::read_to_string(manfile).unwrap();
     let mut traces = Vec::new();
