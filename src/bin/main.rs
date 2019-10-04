@@ -2,7 +2,11 @@ extern crate pythia;
 extern crate clap;
 use clap::{Arg, App, SubCommand};
 
-use pythia::{get_manifest, get_trace};
+use pythia::{
+    get_manifest,
+    get_trace,
+    make_decision,
+};
 
 fn main() {
     let matches = App::new("Pythia")
@@ -16,6 +20,7 @@ fn main() {
             .arg(Arg::with_name("trace_id")
                 .required(true)
                 .index(1)))
+        .subcommand(SubCommand::with_name("diagnose"))
         .get_matches();
     match matches.subcommand() {
         ("manifest", Some(matches)) => {
@@ -23,6 +28,9 @@ fn main() {
         },
         ("get_trace", Some(matches)) => {
             get_trace(matches.value_of("trace_id").unwrap());
+        },
+        ("diagnose", Some(_)) => {
+            make_decision();
         },
         _ => panic!("Must provide a subcommand, see --help for commands")
     };

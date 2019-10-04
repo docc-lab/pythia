@@ -10,6 +10,7 @@ pub mod trace;
 pub mod osprofiler;
 pub mod options;
 pub mod critical;
+pub mod controller;
 
 use std::collections::HashMap;
 use std::fmt;
@@ -24,6 +25,13 @@ use options::LINE_WIDTH;
 use options::ManifestMethod;
 use options::MANIFEST_METHOD;
 use critical::CriticalPath;
+use controller::OSProfilerController;
+
+
+/// Make a single instrumentation decision.
+pub fn make_decision() {
+    let controller = OSProfilerController::new();
+}
 
 pub fn get_manifest(manfile: &str) {
     let trace_ids = std::fs::read_to_string(manfile).unwrap();
