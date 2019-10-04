@@ -160,10 +160,6 @@ impl CCT {
     }
 
     fn move_to_parent(&mut self, node: NodeIndex, new_parent: Option<NodeIndex>) {
-        if self.g[node] == "/opt/stack/nova/nova/compute/manager.py:1495:nova.compute.manager.ComputeManager._allocate_network_async" {
-            println!("Working on allocate network async");
-            assert!(!new_parent.is_none());
-        }
         let cur_parent = self.find_parent(node);
         match cur_parent {
             Some(p) => {

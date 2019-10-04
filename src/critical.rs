@@ -187,10 +187,7 @@ impl CriticalPath {
             }
             let next_nidx = match self.next_node(cur_nidx) {
                 Some(nidx) => nidx,
-                None => {
-                    assert!(active_spans.is_empty());
-                    break;
-                }
+                None => break
             };
             let next_dag_nodes = dag.g.neighbors_directed(cur_dag_nidx, Direction::Outgoing).collect::<Vec<_>>();
             if next_dag_nodes.len() == 1 {
@@ -202,8 +199,8 @@ impl CriticalPath {
                     if dag.g[next_dag_nidx].span.trace_id == self.g.g[next_nidx].span.trace_id {
                         cur_dag_nidx = next_dag_nidx;
                     } else {
-                        unfinished_spans.extend(self.remove_unfinished(
-                                &mut active_spans, next_nidx, next_dag_nidx, dag));
+                        unfinished_spans.extend(self.get_unfinished(
+                                &active_spans, next_nidx, next_dag_nidx, dag));
                     }
                 }
                 for span in unfinished_spans.iter().rev() {
@@ -285,12 +282,11 @@ impl CriticalPath {
     }
 
     /// Get all of the active spans that are not finished in the rest of the critical path.
-    /// Remove the unfinished ones from active_spans and return them. A synthetic node will be
-    /// added after all unfinished spans.
+    /// A synthetic node will be added after all unfinished spans.
     ///
     /// The end of the unfinished span needs to be accessible through dag_nidx, otherwise we
-    /// would be removing it too early.
-    fn remove_unfinished(&self, spans: &mut Vec<Event>, nidx: NodeIndex,
+    /// would be adding an erroneous edge
+    fn get_unfinished(&self, spans: &Vec<Event>, nidx: NodeIndex,
         dag_nidx: NodeIndex, dag: &OSProfilerDAG) -> Vec<Event> {
         let mut unfinished = spans.clone();
         let mut cur_nidx = nidx;
@@ -306,15 +302,7 @@ impl CriticalPath {
                 None => break
             };
         }
-        for unfinished_span in &unfinished {
-            if !dag.can_reach_from_node(unfinished_span.trace_id, dag_nidx) {
-                continue;
-            }
-            // If a given active span is unfinished, we should remove it from active_spans
-            let to_remove = spans.iter()
-                .position(|e| e.trace_id == unfinished_span.trace_id).unwrap();
-            spans.remove(to_remove);
-        }
+        unfinished.retain(|span| dag.can_reach_from_node(span.trace_id, dag_nidx));
         unfinished
     }
 
