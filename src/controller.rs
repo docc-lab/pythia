@@ -1,15 +1,17 @@
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::fs::{File, read_dir};
-
-use options::MANIFEST_ROOT;
+use std::collections::HashMap;
 
 pub struct OSProfilerController {
+    manifest_root: PathBuf
 }
 
 impl OSProfilerController {
-    pub fn new() -> OSProfilerController {
-        OSProfilerController{}
+    pub fn from_settings(settings: &HashMap<String,String>) -> OSProfilerController {
+        OSProfilerController{
+            manifest_root: PathBuf::from(settings.get("manifest_root").unwrap())
+        }
     }
 
     pub fn enable(&self, points: Vec<String>) {
@@ -26,17 +28,17 @@ impl OSProfilerController {
 
     pub fn diable_all(&self) {
         fn disable_dir(dir: &Path) {
-            read_dir(dir).unwrap().map(|f| {
+            for f in read_dir(dir).unwrap() {
                 let path = f.unwrap().path();
                 if path.is_dir() {
                     disable_dir(&path);
                 } else {
                     let mut file = File::create(path).unwrap();
-                    file.write_all(b"0");
+                    file.write_all(b"0").unwrap();
                 }
-            });
+            }
         }
-        disable_dir(MANIFEST_ROOT);
+        disable_dir(self.manifest_root.as_path());
     }
 
     fn write_to_tracepoint(&self, tracepoint: String, to_write: &[u8]) {
@@ -45,7 +47,7 @@ impl OSProfilerController {
     }
 
     fn get_path(&self, tracepoint: String) -> PathBuf {
-        let mut result = PathBuf::from(MANIFEST_ROOT);
+        let mut result = self.manifest_root.clone();
         if tracepoint.chars().nth(0).unwrap() == '/' {
             result.push(&tracepoint[1..]);
         } else {

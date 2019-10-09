@@ -1,0 +1,6 @@
+pythia_cache = "/opt/stack/pythia_cache"
+manifest_root = "/opt/stack/manifest"
+
+redis_url = "redis://localhost:6379"
+
+manifest_method = "CCT" # can be Poset

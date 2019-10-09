@@ -1,11 +1,13 @@
 extern crate pythia;
 extern crate clap;
+
 use clap::{Arg, App, SubCommand};
 
 use pythia::{
     get_manifest,
     get_trace,
     make_decision,
+    disable_all,
 };
 
 fn main() {
@@ -21,6 +23,7 @@ fn main() {
                 .required(true)
                 .index(1)))
         .subcommand(SubCommand::with_name("diagnose"))
+        .subcommand(SubCommand::with_name("disable"))
         .get_matches();
     match matches.subcommand() {
         ("manifest", Some(matches)) => {
@@ -31,6 +34,9 @@ fn main() {
         },
         ("diagnose", Some(_)) => {
             make_decision();
+        },
+        ("disable", Some(_)) => {
+            disable_all();
         },
         _ => panic!("Must provide a subcommand, see --help for commands")
     };

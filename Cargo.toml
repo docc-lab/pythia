@@ -12,4 +12,4 @@ uuid = { version = "0.7", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 petgraph = { version = "0.4.13", features = ["serde-1"] }
 clap = "*"
-single = "*"
+config = "*"

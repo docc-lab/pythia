@@ -4,71 +4,106 @@ extern crate serde;
 extern crate uuid;
 extern crate chrono;
 extern crate petgraph;
-extern crate single;
+extern crate config;
 
 pub mod trace;
 pub mod osprofiler;
-pub mod options;
 pub mod critical;
 pub mod controller;
 
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
+use std::path::Path;
+use std::io::stdin;
 
 use petgraph::{Graph, dot::Dot, Direction};
+use serde::{Deserialize, Serialize};
+use config::{Config, File};
 
 use trace::Event;
 use trace::EventEnum;
 use osprofiler::OSProfilerDAG;
-use options::LINE_WIDTH;
-use options::ManifestMethod;
-use options::MANIFEST_METHOD;
+use osprofiler::OSProfilerReader;
 use critical::CriticalPath;
 use controller::OSProfilerController;
 
 
 /// Make a single instrumentation decision.
 pub fn make_decision() {
-    let controller = OSProfilerController::new();
+    let settings = get_settings();
+    let controller = OSProfilerController::from_settings(&settings);
+}
+
+pub fn disable_all() {
+    let settings = get_settings();
+    let controller = OSProfilerController::from_settings(&settings);
+    controller.diable_all();
+}
+
+pub fn enable_skeleton() {
+    let settings = get_settings();
+    let manifest = CCT::from_file(Path::new(settings.get("manifest_file").unwrap()));
 }
 
 pub fn get_manifest(manfile: &str) {
+    let settings = get_settings();
     let trace_ids = std::fs::read_to_string(manfile).unwrap();
     let mut traces = Vec::new();
+    let reader = OSProfilerReader::from_settings(&settings);
     for id in trace_ids.split('\n') {
         if id.len() <= 1 {
             continue;
         }
         println!("Working on {:?}", id);
-        let trace = OSProfilerDAG::from_base_id(id);
+        let trace = reader.get_trace_from_base_id(id);
         traces.push(trace);
     }
-    match MANIFEST_METHOD {
-        ManifestMethod::Poset => {
-            // let manifest = Poset::from_trace_list(traces);
-            // println!("{}", Dot::new(&manifest.g));
-        },
-        ManifestMethod::CCT => {
-            let manifest = CCT::from_trace_list(traces);
-            println!("{}", Dot::new(&manifest.g));
+    let manifest_method = settings.get("manifest_method").unwrap();
+    if manifest_method == "Poset" {
+        // let manifest = Poset::from_trace_list(traces);
+        // println!("{}", Dot::new(&manifest.g));
+    } else if manifest_method == "CCT" {
+        let manifest = CCT::from_trace_list(traces);
+        println!("{}", Dot::new(&manifest.g));
+        let manifest_file = Path::new(settings.get("manifest_file").unwrap());
+        if manifest_file.exists() {
+            println!("The manifest file {:?} exists. Overwrite? [y/N]", manifest_file);
+            let mut s = String::new();
+            stdin().read_line(&mut s).unwrap();
+            if s.chars().nth(0).unwrap() != 'y' {
+                return
+            }
+            println!("Overwriting");
         }
-    };
+        manifest.to_file(manifest_file);
+    }
 }
 
 pub fn get_trace(trace_id: &str) {
-    let trace = OSProfilerDAG::from_base_id(trace_id);
+    let settings = get_settings();
+    let reader = OSProfilerReader::from_settings(&settings);
+    let trace = reader.get_trace_from_base_id(trace_id);
     println!("{}", Dot::new(&trace.g));
 }
 
 pub fn get_crit(trace_id: &str) {
-    let trace = OSProfilerDAG::from_base_id(trace_id);
+    let settings = get_settings();
+    let reader = OSProfilerReader::from_settings(&settings);
+    let trace = reader.get_trace_from_base_id(trace_id);
     let crit = CriticalPath::from_trace(&trace);
     println!("{}", Dot::new(&crit.g.g));
 }
 
+fn get_settings() -> HashMap<String,String> {
+    let mut settings = Config::default();
+    settings.merge(File::with_name("Settings")).unwrap();
+    settings.try_into::<HashMap<String,String>>().unwrap()
+}
+
 use petgraph::graph::NodeIndex;
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct CCT {
     g: Graph<String, u32>, // Nodes indicate tracepoint id, edges don't matter
     entry_points: HashMap<String, NodeIndex>
@@ -85,6 +120,16 @@ impl CCT {
             }
         }
         cct
+    }
+
+    fn from_file(file: &Path) -> CCT {
+        let reader = std::fs::File::open(file).unwrap();
+        serde_json::from_reader(reader).unwrap()
+    }
+
+    fn to_file(&self, file: &Path) {
+        let writer = std::fs::File::create(file).unwrap();
+        serde_json::to_writer(writer, self).expect("Failed to manifest to cache");
     }
 
     fn add_to_manifest(&mut self, path: &CriticalPath) {
@@ -187,6 +232,7 @@ impl ManifestNode {
 
 impl Display for ManifestNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        const LINE_WIDTH: usize = 75;
         // Break the tracepoint id into multiple lines so that the graphs look prettier
         let mut result = String::with_capacity(self.tracepoint_id.len() + 10);
         let mut written = 0;
