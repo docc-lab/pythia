@@ -121,24 +121,19 @@ impl CCT {
                     if cur_span.tracepoint_id == self.g[cur_manifest_nidx.unwrap()] {
                         cur_manifest_nidx = parent_nidx;
                     } else {
-                        let nidx_to_move;
                         loop {
                             match parent_nidx {
                                 Some(nidx) => {
                                     if self.g[nidx] == cur_span.tracepoint_id {
-                                        nidx_to_move = nidx;
-                                        parent_nidx = self.find_parent(nidx);
                                         break;
                                     }
                                     parent_nidx = self.find_parent(nidx);
                                 },
                                 None => {
-                                    nidx_to_move = cur_manifest_nidx.unwrap();
-                                    break;
+                                    panic!("Couldn't find parent");
                                 }
                             }
                         }
-                        self.move_to_parent(nidx_to_move, parent_nidx);
                     }
                 }
             }
@@ -146,20 +141,6 @@ impl CCT {
                 Some(nidx) => nidx,
                 None => break
             };
-        }
-    }
-
-    fn move_to_parent(&mut self, node: NodeIndex, new_parent: Option<NodeIndex>) {
-        let cur_parent = self.find_parent(node);
-        match cur_parent {
-            Some(p) => {
-                let edge = self.g.find_edge(p, node).unwrap();
-                self.g.remove_edge(edge);
-            },
-            None => {}
-        }
-        if !new_parent.is_none() {
-            self.g.add_edge(new_parent.unwrap(), node, 1);
         }
     }
 
