@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use std::collections::HashMap;
 use std::cmp::Ordering;
 use std::fmt;
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -89,7 +90,10 @@ impl OSProfilerDAG {
     }
 
     fn fetch_from_cache(id: &Uuid) -> Option<OSProfilerDAG> {
-        match std::fs::File::open([TRACE_CACHE, &id.to_hyphenated().to_string(), ".json"].concat()) {
+        let mut cache_file = PathBuf::from(TRACE_CACHE);
+        cache_file.push(&id.to_hyphenated().to_string());
+        cache_file.set_extension("json");
+        match std::fs::File::open(cache_file) {
             Ok(file) => {
                 let result: OSProfilerDAG = serde_json::from_reader(file).unwrap();
                 Some(result)
@@ -100,7 +104,10 @@ impl OSProfilerDAG {
 
     fn store_to_cache(&self) {
         std::fs::create_dir_all(TRACE_CACHE).expect("Failed to create trace cache");
-        let writer = std::fs::File::create([TRACE_CACHE, &self.base_id.to_hyphenated().to_string(), ".json"].concat()).unwrap();
+        let mut cache_file = PathBuf::from(TRACE_CACHE);
+        cache_file.push(&self.base_id.to_hyphenated().to_string());
+        cache_file.set_extension("json");
+        let writer = std::fs::File::create(cache_file).unwrap();
         serde_json::to_writer(writer, self).expect("Failed to write trace to cache");
     }
 
