@@ -14,7 +14,7 @@ pub mod controller;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::io::stdin;
 
 use petgraph::{Graph, dot::Dot, Direction};
@@ -43,7 +43,9 @@ pub fn disable_all() {
 
 pub fn enable_skeleton() {
     let settings = get_settings();
-    let manifest = CCT::from_file(Path::new(settings.get("manifest_file").unwrap()));
+    let mut manifest_file = PathBuf::from(settings.get("pythia_cache").unwrap());
+    manifest_file.push("manifest.json");
+    let manifest = CCT::from_file(manifest_file.as_path());
 }
 
 pub fn get_manifest(manfile: &str) {
@@ -66,7 +68,8 @@ pub fn get_manifest(manfile: &str) {
     } else if manifest_method == "CCT" {
         let manifest = CCT::from_trace_list(traces);
         println!("{}", Dot::new(&manifest.g));
-        let manifest_file = Path::new(settings.get("manifest_file").unwrap());
+        let mut manifest_file = PathBuf::from(settings.get("pythia_cache").unwrap());
+        manifest_file.push("manifest.json");
         if manifest_file.exists() {
             println!("The manifest file {:?} exists. Overwrite? [y/N]", manifest_file);
             let mut s = String::new();
@@ -76,7 +79,7 @@ pub fn get_manifest(manfile: &str) {
             }
             println!("Overwriting");
         }
-        manifest.to_file(manifest_file);
+        manifest.to_file(manifest_file.as_path());
     }
 }
 
