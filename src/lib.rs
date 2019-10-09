@@ -41,11 +41,22 @@ pub fn disable_all() {
     controller.diable_all();
 }
 
+pub fn enable_all() {
+    let settings = get_settings();
+    let controller = OSProfilerController::from_settings(&settings);
+    controller.enable_all();
+}
+
 pub fn enable_skeleton() {
     let settings = get_settings();
     let mut manifest_file = PathBuf::from(settings.get("pythia_cache").unwrap());
     manifest_file.push("manifest.json");
     let manifest = CCT::from_file(manifest_file.as_path());
+    let controller = OSProfilerController::from_settings(&settings);
+    controller.diable_all();
+    let to_enable = manifest.entry_points.keys().map(|a| a.to_string()).collect();
+    controller.enable(&to_enable);
+    println!("Enabled following tracepoints: {:?}", to_enable);
 }
 
 pub fn get_manifest(manfile: &str) {

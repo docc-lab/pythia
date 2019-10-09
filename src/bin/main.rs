@@ -8,6 +8,7 @@ use pythia::{
     get_trace,
     make_decision,
     disable_all,
+    enable_all,
     enable_skeleton,
 };
 
@@ -25,6 +26,7 @@ fn main() {
                 .index(1)))
         .subcommand(SubCommand::with_name("diagnose"))
         .subcommand(SubCommand::with_name("disable_all"))
+        .subcommand(SubCommand::with_name("enable_all"))
         .subcommand(SubCommand::with_name("enable_skeleton"))
         .get_matches();
     match matches.subcommand() {
@@ -36,6 +38,7 @@ fn main() {
         },
         ("diagnose", Some(_)) => { make_decision(); },
         ("disable_all", Some(_)) => { disable_all(); },
+        ("enable_all", Some(_)) => { enable_all(); },
         ("enable_skeleton", Some(_)) => { enable_skeleton(); },
         _ => panic!("Must provide a subcommand, see --help for commands")
     };
