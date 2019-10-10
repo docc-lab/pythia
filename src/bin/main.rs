@@ -24,7 +24,10 @@ fn main() {
             .arg(Arg::with_name("trace_id")
                 .required(true)
                 .index(1)))
-        .subcommand(SubCommand::with_name("diagnose"))
+        .subcommand(SubCommand::with_name("diagnose")
+            .arg(Arg::with_name("epoch_file")
+                .required(true)
+                .index(1)))
         .subcommand(SubCommand::with_name("disable_all"))
         .subcommand(SubCommand::with_name("enable_all"))
         .subcommand(SubCommand::with_name("enable_skeleton"))
@@ -36,7 +39,9 @@ fn main() {
         ("get_trace", Some(matches)) => {
             get_trace(matches.value_of("trace_id").unwrap());
         },
-        ("diagnose", Some(_)) => { make_decision(); },
+        ("diagnose", Some(matches)) => {
+            make_decision(matches.value_of("epoch_file").unwrap());
+        },
         ("disable_all", Some(_)) => { disable_all(); },
         ("enable_all", Some(_)) => { enable_all(); },
         ("enable_skeleton", Some(_)) => { enable_skeleton(); },

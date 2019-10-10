@@ -43,6 +43,20 @@ impl OSProfilerReader {
 
     }
 
+    pub fn read_trace_file(&self, file: &str) -> Vec<OSProfilerDAG> {
+        let trace_ids = std::fs::read_to_string(file).unwrap();
+        let mut traces = Vec::new();
+        for id in trace_ids.split('\n') {
+            if id.len() <= 1 {
+                continue;
+            }
+            println!("Working on {:?}", id);
+            let trace = self.get_trace_from_base_id(id);
+            traces.push(trace);
+        }
+        traces
+    }
+
     pub fn get_trace_from_base_id(&self, id: &str) -> OSProfilerDAG {
         match Uuid::parse_str(id) {
             Ok(uuid) => {

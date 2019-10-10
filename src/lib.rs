@@ -30,9 +30,14 @@ use controller::OSProfilerController;
 
 
 /// Make a single instrumentation decision.
-pub fn make_decision() {
+pub fn make_decision(epoch_file: &str) {
     let settings = get_settings();
     let controller = OSProfilerController::from_settings(&settings);
+    let mut manifest_file = PathBuf::from(settings.get("pythia_cache").unwrap());
+    manifest_file.push("manifest.json");
+    let manifest = CCT::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    let reader = OSProfilerReader::from_settings(&settings);
+    let traces = reader.read_trace_file(epoch_file);
 }
 
 pub fn disable_all() {
@@ -51,7 +56,7 @@ pub fn enable_skeleton() {
     let settings = get_settings();
     let mut manifest_file = PathBuf::from(settings.get("pythia_cache").unwrap());
     manifest_file.push("manifest.json");
-    let manifest = CCT::from_file(manifest_file.as_path());
+    let manifest = CCT::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
     let to_enable = manifest.entry_points.keys().map(|a| a.to_string()).collect();
@@ -61,17 +66,8 @@ pub fn enable_skeleton() {
 
 pub fn get_manifest(manfile: &str) {
     let settings = get_settings();
-    let trace_ids = std::fs::read_to_string(manfile).unwrap();
-    let mut traces = Vec::new();
     let reader = OSProfilerReader::from_settings(&settings);
-    for id in trace_ids.split('\n') {
-        if id.len() <= 1 {
-            continue;
-        }
-        println!("Working on {:?}", id);
-        let trace = reader.get_trace_from_base_id(id);
-        traces.push(trace);
-    }
+    let traces = reader.read_trace_file(manfile);
     let manifest_method = settings.get("manifest_method").unwrap();
     if manifest_method == "Poset" {
         // let manifest = Poset::from_trace_list(traces);
@@ -136,9 +132,12 @@ impl CCT {
         cct
     }
 
-    fn from_file(file: &Path) -> CCT {
-        let reader = std::fs::File::open(file).unwrap();
-        serde_json::from_reader(reader).unwrap()
+    fn from_file(file: &Path) -> Option<CCT> {
+        let reader = match std::fs::File::open(file) {
+            Ok(x) => x,
+            Err(_) => return None
+        };
+        Some(serde_json::from_reader(reader).unwrap())
     }
 
     fn to_file(&self, file: &Path) {
