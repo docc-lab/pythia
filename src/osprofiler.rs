@@ -34,11 +34,9 @@ pub struct OSProfilerDAG {
 
 impl OSProfilerReader {
     pub fn from_settings(settings: &HashMap<String,String>) -> OSProfilerReader {
-        let mut pythia_cache = PathBuf::from(settings.get("pythia_cache").unwrap());
-        pythia_cache.push("traces");
         OSProfilerReader {
             redis_url: settings.get("redis_url").unwrap().to_string(),
-            trace_cache: pythia_cache
+            trace_cache: PathBuf::from(settings.get("trace_cache").unwrap())
         }
 
     }

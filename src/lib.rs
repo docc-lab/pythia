@@ -33,8 +33,7 @@ use controller::OSProfilerController;
 pub fn make_decision(epoch_file: &str) {
     let settings = get_settings();
     let controller = OSProfilerController::from_settings(&settings);
-    let mut manifest_file = PathBuf::from(settings.get("pythia_cache").unwrap());
-    manifest_file.push("manifest.json");
+    let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
     let manifest = CCT::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let reader = OSProfilerReader::from_settings(&settings);
     let traces = reader.read_trace_file(epoch_file);
@@ -75,8 +74,7 @@ pub fn get_manifest(manfile: &str) {
     } else if manifest_method == "CCT" {
         let manifest = CCT::from_trace_list(traces);
         println!("{}", Dot::new(&manifest.g));
-        let mut manifest_file = PathBuf::from(settings.get("pythia_cache").unwrap());
-        manifest_file.push("manifest.json");
+        let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
         if manifest_file.exists() {
             println!("The manifest file {:?} exists. Overwrite? [y/N]", manifest_file);
             let mut s = String::new();
@@ -108,7 +106,14 @@ pub fn get_crit(trace_id: &str) {
 fn get_settings() -> HashMap<String,String> {
     let mut settings = Config::default();
     settings.merge(File::with_name("Settings")).unwrap();
-    settings.try_into::<HashMap<String,String>>().unwrap()
+    let mut results = settings.try_into::<HashMap<String,String>>().unwrap();
+    let mut manifest_file = PathBuf::from(results.get("pythia_cache").unwrap());
+    manifest_file.push("manifest.json");
+    results.insert("manifest_file".to_string(), manifest_file.to_string_lossy().to_string());
+    let mut trace_cache = PathBuf::from(results.get("pythia_cache").unwrap());
+    trace_cache.push("traces");
+    results.insert("trace_cache".to_string(), trace_cache.to_string_lossy().to_string());
+    results
 }
 
 use petgraph::graph::NodeIndex;
