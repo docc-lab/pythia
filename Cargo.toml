@@ -13,3 +13,4 @@ chrono = { version = "0.4", features = ["serde"] }
 petgraph = { version = "0.4.13", features = ["serde-1"] }
 clap = "*"
 config = "*"
+rust-crypto = "*"

@@ -3,6 +3,8 @@ use std::time::Duration;
 
 use uuid::Uuid;
 use petgraph::{dot::Dot, Direction, graph::NodeIndex};
+use crypto::digest::Digest;
+use crypto::sha2::Sha256;
 
 use trace::Event;
 use trace::EventEnum;
@@ -17,7 +19,8 @@ pub struct CriticalPath {
     pub start_node: NodeIndex,
     pub end_node: NodeIndex,
     duration: Duration,
-    pub is_hypothetical: bool
+    pub is_hypothetical: bool,
+    hash: Option<String>
 }
 
 impl CriticalPath {
@@ -27,7 +30,8 @@ impl CriticalPath {
             g: OSProfilerDAG::new(),
             start_node: NodeIndex::end(),
             end_node: NodeIndex::end(),
-            is_hypothetical: false
+            is_hypothetical: false,
+            hash: None
         };
         let mut cur_node = dag.end_node;
         let mut end_nidx = path.g.g.add_node(dag.g[cur_node].clone());
@@ -58,7 +62,8 @@ impl CriticalPath {
                 start_node: NodeIndex::end(),
                 end_node: NodeIndex::end(),
                 duration: Duration::new(0, 0),
-                is_hypothetical: true
+                is_hypothetical: true,
+                hash: None
             };
             let cur_node = end_node;
             let end_nidx = path.g.g.add_node(dag.g[cur_node].clone());
@@ -69,6 +74,19 @@ impl CriticalPath {
             i.add_synthetic_nodes(dag);
         }
         result
+    }
+
+    fn calculate_hash(&mut self) {
+        let mut hasher = Sha256::new();
+        let mut cur_node = self.start_node;
+        loop {
+            hasher.input_str(&self.g.g[cur_node].span.tracepoint_id);
+            cur_node = match self.next_node(cur_node) {
+                Some(node) => node,
+                None => break
+            };
+        }
+        self.hash = Some(hasher.result_str());
     }
 
     fn possible_paths_helper(dag: &OSProfilerDAG, cur_node: NodeIndex, end_nidx: NodeIndex,

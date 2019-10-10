@@ -5,12 +5,14 @@ extern crate uuid;
 extern crate chrono;
 extern crate petgraph;
 extern crate config;
+extern crate crypto;
 
 pub mod trace;
 pub mod osprofiler;
 pub mod critical;
 pub mod controller;
 pub mod cct;
+pub mod grouping;
 
 use std::collections::HashMap;
 use std::fmt;
@@ -27,16 +29,20 @@ use osprofiler::OSProfilerReader;
 use critical::CriticalPath;
 use controller::OSProfilerController;
 use cct::CCT;
+use grouping::Group;
 
 
 /// Make a single instrumentation decision.
 pub fn make_decision(epoch_file: &str) {
     let settings = get_settings();
-    let controller = OSProfilerController::from_settings(&settings);
-    let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-    let manifest = CCT::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    // let controller = OSProfilerController::from_settings(&settings);
+    // let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
+    // let manifest = CCT::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let reader = OSProfilerReader::from_settings(&settings);
     let traces = reader.read_trace_file(epoch_file);
+    let critical_paths = traces.iter().map(|t| {CriticalPath::from_trace(t)}).collect();
+    let groups = Group::from_critical_paths(critical_paths);
+    println!("Group is: {:?}", groups);
 }
 
 pub fn disable_all() {
