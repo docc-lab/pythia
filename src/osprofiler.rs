@@ -118,16 +118,15 @@ impl OSProfilerReader {
 }
 
 impl OSProfilerDAG {
-    pub fn new() -> OSProfilerDAG {
+    pub fn new(base_id: Uuid) -> OSProfilerDAG {
         let dag = StableGraph::<DAGNode, DAGEdge>::new();
         OSProfilerDAG {
-            g: dag, base_id: Uuid::nil(), start_node: NodeIndex::end(), end_node: NodeIndex::end()
+            g: dag, base_id: base_id, start_node: NodeIndex::end(), end_node: NodeIndex::end()
         }
     }
 
     fn from_event_list(id: Uuid, mut event_list: Vec<OSProfilerSpan>, reader: &OSProfilerReader) -> OSProfilerDAG {
-        let mut mydag = OSProfilerDAG::new();
-        mydag.base_id = id;
+        let mut mydag = OSProfilerDAG::new(id);
         mydag.add_events(&mut event_list, reader);
         mydag
     }

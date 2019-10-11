@@ -28,7 +28,7 @@ impl CriticalPath {
     pub fn from_trace(dag: &OSProfilerDAG) -> CriticalPath {
         let mut path = CriticalPath {
             duration: Duration::new(0, 0),
-            g: OSProfilerDAG::new(),
+            g: OSProfilerDAG::new(dag.base_id),
             start_node: NodeIndex::end(),
             end_node: NodeIndex::end(),
             is_hypothetical: false,
@@ -59,7 +59,7 @@ impl CriticalPath {
         let mut result = Vec::new();
         for end_node in dag.possible_end_nodes() {
             let mut path = CriticalPath {
-                g: OSProfilerDAG::new(),
+                g: OSProfilerDAG::new(dag.base_id),
                 start_node: NodeIndex::end(),
                 end_node: NodeIndex::end(),
                 duration: Duration::new(0, 0),
@@ -73,6 +73,7 @@ impl CriticalPath {
         }
         for i in &mut result {
             i.add_synthetic_nodes(dag);
+            i.filter_incomplete_spans();
         }
         result
     }

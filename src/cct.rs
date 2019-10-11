@@ -21,12 +21,21 @@ impl CCT {
     pub fn from_trace_list(list: Vec<OSProfilerDAG>) -> CCT {
         let mut cct = CCT{ g: Graph::<String, u32>::new(),
                            entry_points: HashMap::<String, NodeIndex>::new() };
+        println!("Creating manifest from {} traces", list.len());
+        let mut counter = 0;
+        let mut node_counter = 0;
+        let mut path_node_counter = 0;
         for trace in &list {
-            for mut path in CriticalPath::all_possible_paths(trace) {
-                path.filter_incomplete_spans();
+            node_counter += trace.g.node_count();
+            for path in CriticalPath::all_possible_paths(trace) {
+                path_node_counter += path.g.g.node_count();
                 cct.add_to_manifest(&path);
+                counter += 1;
             }
         }
+        println!("Used a total of {} paths", counter);
+        println!("Total {} nodes in traces", node_counter);
+        println!("Total {} nodes in paths", path_node_counter);
         cct
     }
 
@@ -49,6 +58,11 @@ impl CCT {
         let mut cur_manifest_nidx = None;
         loop {
             let cur_span = &path.g.g[cur_path_nidx].span;
+            if cur_span.tracepoint_id == "/opt/stack/neutron/neutron/agent/dhcp/agent.py:580:neutron.agent.dhcp.agent.DhcpAgent.port_create_end" {
+                if cur_manifest_nidx.is_none() {
+                    println!("At that node, trace_id: {}", path.g.base_id.to_hyphenated().to_string());
+                }
+            }
             match cur_span.variant {
                 EventEnum::Entry => {
                     let next_nidx = match cur_manifest_nidx {
