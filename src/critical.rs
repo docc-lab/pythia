@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -20,7 +21,7 @@ pub struct CriticalPath {
     pub end_node: NodeIndex,
     duration: Duration,
     pub is_hypothetical: bool,
-    hash: Option<String>
+    hash: RefCell<Option<String>>
 }
 
 impl CriticalPath {
@@ -31,7 +32,7 @@ impl CriticalPath {
             start_node: NodeIndex::end(),
             end_node: NodeIndex::end(),
             is_hypothetical: false,
-            hash: None
+            hash: RefCell::new(None)
         };
         let mut cur_node = dag.end_node;
         let mut end_nidx = path.g.g.add_node(dag.g[cur_node].clone());
@@ -63,7 +64,7 @@ impl CriticalPath {
                 end_node: NodeIndex::end(),
                 duration: Duration::new(0, 0),
                 is_hypothetical: true,
-                hash: None
+                hash: RefCell::new(None)
             };
             let cur_node = end_node;
             let end_nidx = path.g.g.add_node(dag.g[cur_node].clone());
@@ -76,7 +77,14 @@ impl CriticalPath {
         result
     }
 
-    fn calculate_hash(&mut self) {
+    pub fn hash(&self) -> String {
+        if self.hash.borrow().is_none() {
+            self.calculate_hash();
+        }
+        self.hash.borrow().as_ref().unwrap().clone()
+    }
+
+    fn calculate_hash(&self) {
         let mut hasher = Sha256::new();
         let mut cur_node = self.start_node;
         loop {
@@ -86,7 +94,7 @@ impl CriticalPath {
                 None => break
             };
         }
-        self.hash = Some(hasher.result_str());
+        *self.hash.borrow_mut() = Some(hasher.result_str());
     }
 
     fn possible_paths_helper(dag: &OSProfilerDAG, cur_node: NodeIndex, end_nidx: NodeIndex,

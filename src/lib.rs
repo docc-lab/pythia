@@ -42,7 +42,7 @@ pub fn make_decision(epoch_file: &str) {
     let traces = reader.read_trace_file(epoch_file);
     let critical_paths = traces.iter().map(|t| {CriticalPath::from_trace(t)}).collect();
     let groups = Group::from_critical_paths(critical_paths);
-    println!("Group is: {:?}", groups);
+    println!("Group is: {}", groups);
 }
 
 pub fn disable_all() {
