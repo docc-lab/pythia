@@ -222,20 +222,25 @@ impl OSProfilerDAG {
             assert!(start_time <= event.timestamp);
             let mut mynode = DAGNode::from_osp_span(event);
             mynode.span.tracepoint_id = event.get_tracepoint_id(&mut tracepoint_id_map);
-            match mynode.span.tracepoint_id.as_ref() {
-                "/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:655:openstackclient.compute.v2.server.CreateServer.take_action" => {
-                    assert!(self.request_type.is_none());
-                    self.request_type = Some(RequestType::ServerCreate);
-                },
-                "/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:1150:openstackclient.compute.v2.server.ListServer.take_action" => {
-                    assert!(self.request_type.is_none());
-                    self.request_type = Some(RequestType::ServerList);
-                },
-                "/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:999:openstackclient.compute.v2.server.DeleteServer.take_action" => {
-                    assert!(self.request_type.is_none());
-                    self.request_type = Some(RequestType::ServerDelete);
-                },
-                _ => {}
+            if mynode.span.variant == EventEnum::Entry {
+                match mynode.span.tracepoint_id.as_ref() {
+                    "/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:655:openstackclient.compute.v2.server.CreateServer.take_action" => {
+                        assert!(self.request_type.is_none());
+                        println!("Setting request type");
+                        self.request_type = Some(RequestType::ServerCreate);
+                    },
+                    "/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:1150:openstackclient.compute.v2.server.ListServer.take_action" => {
+                        assert!(self.request_type.is_none());
+                        println!("Setting request type");
+                        self.request_type = Some(RequestType::ServerList);
+                    },
+                    "/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:999:openstackclient.compute.v2.server.DeleteServer.take_action" => {
+                        assert!(self.request_type.is_none());
+                        println!("Setting request type");
+                        self.request_type = Some(RequestType::ServerDelete);
+                    },
+                    _ => {}
+                }
             }
             // Don't add asynch_wait into the DAGs
             nidx = match &event.variant {
