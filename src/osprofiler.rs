@@ -4,6 +4,7 @@
 use std::collections::HashSet;
 use std::collections::HashMap;
 use std::cmp::Ordering;
+use std::hash::Hash;
 use std::fmt;
 use std::path::PathBuf;
 
@@ -29,7 +30,8 @@ pub struct OSProfilerDAG {
     pub g: StableGraph<DAGNode, DAGEdge>,
     pub base_id: Uuid,
     pub start_node: NodeIndex,
-    pub end_node: NodeIndex
+    pub end_node: NodeIndex,
+    pub request_type: Option<RequestType>
 }
 
 impl OSProfilerReader {
@@ -56,7 +58,7 @@ impl OSProfilerReader {
     }
 
     pub fn get_trace_from_base_id(&self, id: &str) -> OSProfilerDAG {
-        match Uuid::parse_str(id) {
+        let result = match Uuid::parse_str(id) {
             Ok(uuid) => {
                 match self.fetch_from_cache(&uuid) {
                     Some(result) => {
@@ -74,7 +76,9 @@ impl OSProfilerReader {
             Err(_) => {
                 panic!("Malformed UUID received as base ID: {}", id);
             }
-        }
+        };
+        assert!(!result.request_type.is_none());
+        result
     }
 
     fn get_matches(&self, span_id: &Uuid) -> redis::RedisResult<Vec<OSProfilerSpan>> {
@@ -121,7 +125,11 @@ impl OSProfilerDAG {
     pub fn new(base_id: Uuid) -> OSProfilerDAG {
         let dag = StableGraph::<DAGNode, DAGEdge>::new();
         OSProfilerDAG {
-            g: dag, base_id: base_id, start_node: NodeIndex::end(), end_node: NodeIndex::end()
+            g: dag,
+            base_id: base_id,
+            start_node: NodeIndex::end(),
+            end_node: NodeIndex::end(),
+            request_type: None
         }
     }
 
@@ -214,6 +222,21 @@ impl OSProfilerDAG {
             assert!(start_time <= event.timestamp);
             let mut mynode = DAGNode::from_osp_span(event);
             mynode.span.tracepoint_id = event.get_tracepoint_id(&mut tracepoint_id_map);
+            match mynode.span.tracepoint_id.as_ref() {
+                "/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:655:openstackclient.compute.v2.server.CreateServer.take_action" => {
+                    assert!(self.request_type.is_none());
+                    self.request_type = Some(RequestType::ServerCreate);
+                },
+                "/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:1150:openstackclient.compute.v2.server.ListServer.take_action" => {
+                    assert!(self.request_type.is_none());
+                    self.request_type = Some(RequestType::ServerList);
+                },
+                "/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:999:openstackclient.compute.v2.server.DeleteServer.take_action" => {
+                    assert!(self.request_type.is_none());
+                    self.request_type = Some(RequestType::ServerDelete);
+                },
+                _ => {}
+            }
             // Don't add asynch_wait into the DAGs
             nidx = match &event.variant {
                 OSProfilerEnum::WaitAnnotation(variant) => {
@@ -449,6 +472,13 @@ impl OSProfilerSpan {
             }
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+pub enum RequestType {
+    ServerCreate,
+    ServerDelete,
+    ServerList
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]

@@ -14,6 +14,7 @@ pub mod critical;
 pub mod controller;
 pub mod cct;
 pub mod grouping;
+pub mod manifest;
 
 use std::collections::HashMap;
 use std::fmt;
@@ -31,6 +32,7 @@ use critical::CriticalPath;
 use controller::OSProfilerController;
 use cct::CCT;
 use grouping::Group;
+use manifest::Manifest;
 
 
 /// Make a single instrumentation decision.
@@ -82,8 +84,8 @@ pub fn get_manifest(manfile: &str) {
         // let manifest = Poset::from_trace_list(traces);
         // println!("{}", Dot::new(&manifest.g));
     } else if manifest_method == "CCT" {
-        let manifest = CCT::from_trace_list(traces);
-        println!("{}", Dot::new(&manifest.g));
+        let manifest = Manifest::from_trace_list(traces);
+        println!("{}", manifest);
         let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
         if manifest_file.exists() {
             println!("The manifest file {:?} exists. Overwrite? [y/N]", manifest_file);
