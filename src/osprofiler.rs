@@ -226,17 +226,14 @@ impl OSProfilerDAG {
                 match mynode.span.tracepoint_id.as_ref() {
                     "/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:655:openstackclient.compute.v2.server.CreateServer.take_action" => {
                         assert!(self.request_type.is_none());
-                        println!("Setting request type");
                         self.request_type = Some(RequestType::ServerCreate);
                     },
                     "/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:1150:openstackclient.compute.v2.server.ListServer.take_action" => {
                         assert!(self.request_type.is_none());
-                        println!("Setting request type");
                         self.request_type = Some(RequestType::ServerList);
                     },
                     "/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:999:openstackclient.compute.v2.server.DeleteServer.take_action" => {
                         assert!(self.request_type.is_none());
-                        println!("Setting request type");
                         self.request_type = Some(RequestType::ServerDelete);
                     },
                     _ => {}
