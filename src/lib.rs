@@ -6,6 +6,7 @@ extern crate chrono;
 extern crate petgraph;
 extern crate config;
 extern crate crypto;
+extern crate stats;
 
 pub mod trace;
 pub mod osprofiler;
@@ -41,8 +42,11 @@ pub fn make_decision(epoch_file: &str) {
     let reader = OSProfilerReader::from_settings(&settings);
     let traces = reader.read_trace_file(epoch_file);
     let critical_paths = traces.iter().map(|t| {CriticalPath::from_trace(t)}).collect();
-    let groups = Group::from_critical_paths(critical_paths);
-    println!("Group is: {}", groups);
+    let mut groups = Group::from_critical_paths(critical_paths);
+    groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap()); // descending order
+    for group in groups {
+        println!("Group is: {}", group);
+    }
 }
 
 pub fn disable_all() {

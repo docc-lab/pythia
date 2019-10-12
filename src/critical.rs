@@ -19,7 +19,7 @@ pub struct CriticalPath {
     pub g: OSProfilerDAG,
     pub start_node: NodeIndex,
     pub end_node: NodeIndex,
-    duration: Duration,
+    pub duration: Duration,
     pub is_hypothetical: bool,
     hash: RefCell<Option<String>>
 }
@@ -49,6 +49,9 @@ impl CriticalPath {
             end_nidx = start_nidx;
         }
         path.add_synthetic_nodes(dag);
+        path.duration = (
+            path.g.g[path.end_node].span.timestamp - path.g.g[path.start_node].span.timestamp)
+            .to_std().unwrap();
         path
     }
 
