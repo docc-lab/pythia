@@ -18,9 +18,21 @@ pub struct CCT {
 }
 
 impl CCT {
+    pub fn new() -> CCT {
+        CCT{
+            g: Graph::<String, u32>::new(),
+            entry_points: HashMap::<String, NodeIndex>::new()
+        }
+    }
+
+    pub fn add_trace(&mut self, trace: &OSProfilerDAG) {
+        for path in CriticalPath::all_possible_paths(trace) {
+            self.add_path_to_manifest(&path);
+        }
+    }
+
     pub fn from_trace_list(list: Vec<OSProfilerDAG>) -> CCT {
-        let mut cct = CCT{ g: Graph::<String, u32>::new(),
-                           entry_points: HashMap::<String, NodeIndex>::new() };
+        let mut cct = CCT::new();
         println!("Creating manifest from {} traces", list.len());
         let mut counter = 0;
         let mut node_counter = 0;
@@ -29,7 +41,7 @@ impl CCT {
             node_counter += trace.g.node_count();
             for path in CriticalPath::all_possible_paths(trace) {
                 path_node_counter += path.g.g.node_count();
-                cct.add_to_manifest(&path);
+                cct.add_path_to_manifest(&path);
                 counter += 1;
             }
         }
@@ -52,7 +64,7 @@ impl CCT {
         serde_json::to_writer(writer, self).expect("Failed to manifest to cache");
     }
 
-    fn add_to_manifest(&mut self, path: &CriticalPath) {
+    fn add_path_to_manifest(&mut self, path: &CriticalPath) {
         assert!(path.is_hypothetical);
         let mut cur_path_nidx = path.start_node;
         let mut cur_manifest_nidx = None;

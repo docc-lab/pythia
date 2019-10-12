@@ -476,7 +476,7 @@ impl OSProfilerSpan {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Copy, Eq, PartialEq, Hash, Clone)]
 pub enum RequestType {
     ServerCreate,
     ServerDelete,

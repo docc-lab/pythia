@@ -30,7 +30,6 @@ use trace::EventEnum;
 use osprofiler::OSProfilerReader;
 use critical::CriticalPath;
 use controller::OSProfilerController;
-use cct::CCT;
 use grouping::Group;
 use manifest::Manifest;
 
@@ -67,10 +66,10 @@ pub fn enable_skeleton() {
     let settings = get_settings();
     let mut manifest_file = PathBuf::from(settings.get("pythia_cache").unwrap());
     manifest_file.push("manifest.json");
-    let manifest = CCT::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    let manifest = Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
-    let to_enable = manifest.entry_points.keys().map(|a| a.to_string()).collect();
+    let to_enable = manifest.entry_points();
     controller.enable(&to_enable);
     println!("Enabled following tracepoints: {:?}", to_enable);
 }
