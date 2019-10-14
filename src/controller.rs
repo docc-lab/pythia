@@ -1,16 +1,16 @@
+use std::collections::HashMap;
+use std::fs::{read_dir, File};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
-use std::fs::{File, read_dir};
-use std::collections::HashMap;
 
 pub struct OSProfilerController {
-    manifest_root: PathBuf
+    manifest_root: PathBuf,
 }
 
 impl OSProfilerController {
-    pub fn from_settings(settings: &HashMap<String,String>) -> OSProfilerController {
-        OSProfilerController{
-            manifest_root: PathBuf::from(settings.get("manifest_root").unwrap())
+    pub fn from_settings(settings: &HashMap<String, String>) -> OSProfilerController {
+        OSProfilerController {
+            manifest_root: PathBuf::from(settings.get("manifest_root").unwrap()),
         }
     }
 

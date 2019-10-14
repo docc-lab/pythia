@@ -1,27 +1,25 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use petgraph::{Graph, Direction};
 use petgraph::graph::NodeIndex;
+use petgraph::{Direction, Graph};
 use serde::{Deserialize, Serialize};
 
-use trace::EventEnum;
-use osprofiler::OSProfilerDAG;
 use critical::CriticalPath;
-
-
+use osprofiler::OSProfilerDAG;
+use trace::EventEnum;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CCT {
     pub g: Graph<String, u32>, // Nodes indicate tracepoint id, edges don't matter
-    pub entry_points: HashMap<String, NodeIndex>
+    pub entry_points: HashMap<String, NodeIndex>,
 }
 
 impl CCT {
     pub fn new() -> CCT {
-        CCT{
+        CCT {
             g: Graph::<String, u32>::new(),
-            entry_points: HashMap::<String, NodeIndex>::new()
+            entry_points: HashMap::<String, NodeIndex>::new(),
         }
     }
 
@@ -54,7 +52,7 @@ impl CCT {
     pub fn from_file(file: &Path) -> Option<CCT> {
         let reader = match std::fs::File::open(file) {
             Ok(x) => x,
-            Err(_) => return None
+            Err(_) => return None,
         };
         Some(serde_json::from_reader(reader).unwrap())
     }
@@ -78,26 +76,25 @@ impl CCT {
             match cur_span.variant {
                 EventEnum::Entry => {
                     let next_nidx = match cur_manifest_nidx {
-                        Some(nidx) => {
-                            self.add_child_if_necessary(nidx, &cur_span.tracepoint_id)
-                        },
-                        None => {
-                            match self.entry_points.get(&cur_span.tracepoint_id) {
-                                Some(nidx) => *nidx,
-                                None => {
-                                    let new_nidx = self.g.add_node(cur_span.tracepoint_id.clone());
-                                    self.entry_points.insert(cur_span.tracepoint_id.clone(), new_nidx);
-                                    new_nidx
-                                }
+                        Some(nidx) => self.add_child_if_necessary(nidx, &cur_span.tracepoint_id),
+                        None => match self.entry_points.get(&cur_span.tracepoint_id) {
+                            Some(nidx) => *nidx,
+                            None => {
+                                let new_nidx = self.g.add_node(cur_span.tracepoint_id.clone());
+                                self.entry_points
+                                    .insert(cur_span.tracepoint_id.clone(), new_nidx);
+                                new_nidx
                             }
-                        }
+                        },
                     };
                     cur_manifest_nidx = Some(next_nidx);
-                },
+                }
                 EventEnum::Annotation => {
                     self.add_child_if_necessary(
-                        cur_manifest_nidx.unwrap(), &cur_span.tracepoint_id);
-                },
+                        cur_manifest_nidx.unwrap(),
+                        &cur_span.tracepoint_id,
+                    );
+                }
                 EventEnum::Exit => {
                     let mut parent_nidx = self.find_parent(cur_manifest_nidx.unwrap());
                     if cur_span.tracepoint_id == self.g[cur_manifest_nidx.unwrap()] {
@@ -110,7 +107,7 @@ impl CCT {
                                         break;
                                     }
                                     parent_nidx = self.find_parent(nidx);
-                                },
+                                }
                                 None => {
                                     panic!("Couldn't find parent");
                                 }
@@ -121,7 +118,7 @@ impl CCT {
             }
             cur_path_nidx = match path.next_node(cur_path_nidx) {
                 Some(nidx) => nidx,
-                None => break
+                None => break,
             };
         }
     }
@@ -129,7 +126,7 @@ impl CCT {
     fn add_child_if_necessary(&mut self, parent: NodeIndex, node: &str) -> NodeIndex {
         match self.find_child(parent, node) {
             Some(child_nidx) => child_nidx,
-            None => self.add_child(parent, node)
+            None => self.add_child(parent, node),
         }
     }
 
@@ -147,7 +144,9 @@ impl CCT {
     }
 
     fn find_child(&mut self, parent: NodeIndex, node: &str) -> Option<NodeIndex> {
-        let mut matches = self.g.neighbors_directed(parent, Direction::Outgoing)
+        let mut matches = self
+            .g
+            .neighbors_directed(parent, Direction::Outgoing)
             .filter(|&a| self.g[a] == node);
         let result = matches.next();
         assert!(matches.next().is_none());

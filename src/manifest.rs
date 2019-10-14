@@ -1,19 +1,19 @@
-use std::fmt;
-use std::fmt::Display;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::fmt;
+use std::fmt::Display;
 use std::path::Path;
 
-use serde::{Deserialize, Serialize};
 use petgraph::dot::Dot;
+use serde::{Deserialize, Serialize};
 
 use cct::CCT;
-use osprofiler::RequestType;
 use osprofiler::OSProfilerDAG;
+use osprofiler::RequestType;
 
 #[derive(Serialize, Deserialize)]
 pub struct Manifest {
-    per_request_type: HashMap<RequestType,CCT>
+    per_request_type: HashMap<RequestType, CCT>,
 }
 
 impl Manifest {
@@ -21,7 +21,9 @@ impl Manifest {
         let mut map = HashMap::<RequestType, CCT>::new();
         for trace in traces {
             match map.get_mut(&trace.request_type.unwrap()) {
-                Some(cct) => {cct.add_trace(&trace);},
+                Some(cct) => {
+                    cct.add_trace(&trace);
+                }
                 None => {
                     let mut cct = CCT::new();
                     cct.add_trace(&trace);
@@ -29,7 +31,9 @@ impl Manifest {
                 }
             }
         }
-        Manifest {per_request_type: map}
+        Manifest {
+            per_request_type: map,
+        }
     }
 
     pub fn to_file(&self, file: &Path) {
@@ -40,7 +44,7 @@ impl Manifest {
     pub fn from_file(file: &Path) -> Option<Manifest> {
         let reader = match std::fs::File::open(file) {
             Ok(x) => x,
-            Err(_) => return None
+            Err(_) => return None,
         };
         Some(serde_json::from_reader(reader).unwrap())
     }

@@ -1,41 +1,40 @@
-extern crate redis;
-extern crate serde_json;
-extern crate serde;
-extern crate uuid;
 extern crate chrono;
-extern crate petgraph;
 extern crate config;
 extern crate crypto;
+extern crate petgraph;
+extern crate redis;
+extern crate serde;
+extern crate serde_json;
 extern crate stats;
+extern crate uuid;
 #[macro_use]
 extern crate lazy_static;
 
-pub mod trace;
-pub mod osprofiler;
-pub mod critical;
-pub mod controller;
 pub mod cct;
+pub mod controller;
+pub mod critical;
 pub mod grouping;
 pub mod manifest;
+pub mod osprofiler;
+pub mod trace;
 
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
-use std::path::PathBuf;
 use std::io::stdin;
+use std::path::PathBuf;
 
-use petgraph::dot::Dot;
 use config::{Config, File};
+use petgraph::dot::Dot;
 
-use trace::Event;
-use trace::EventEnum;
-use osprofiler::OSProfilerReader;
-use osprofiler::REQUEST_TYPE_MAP;
-use critical::CriticalPath;
 use controller::OSProfilerController;
+use critical::CriticalPath;
 use grouping::Group;
 use manifest::Manifest;
-
+use osprofiler::OSProfilerReader;
+use osprofiler::REQUEST_TYPE_MAP;
+use trace::Event;
+use trace::EventEnum;
 
 /// Make a single instrumentation decision.
 pub fn make_decision(epoch_file: &str) {
@@ -45,7 +44,7 @@ pub fn make_decision(epoch_file: &str) {
     // let manifest = CCT::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let reader = OSProfilerReader::from_settings(&settings);
     let traces = reader.read_trace_file(epoch_file);
-    let critical_paths = traces.iter().map(|t| {CriticalPath::from_trace(t)}).collect();
+    let critical_paths = traces.iter().map(|t| CriticalPath::from_trace(t)).collect();
     let mut groups = Group::from_critical_paths(critical_paths);
     groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap()); // descending order
     for group in &groups {
@@ -72,7 +71,8 @@ pub fn enable_skeleton() {
     let settings = get_settings();
     let mut manifest_file = PathBuf::from(settings.get("pythia_cache").unwrap());
     manifest_file.push("manifest.json");
-    let manifest = Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    let manifest =
+        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
     let mut to_enable = manifest.entry_points();
@@ -94,11 +94,14 @@ pub fn get_manifest(manfile: &str) {
         println!("{}", manifest);
         let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
         if manifest_file.exists() {
-            println!("The manifest file {:?} exists. Overwrite? [y/N]", manifest_file);
+            println!(
+                "The manifest file {:?} exists. Overwrite? [y/N]",
+                manifest_file
+            );
             let mut s = String::new();
             stdin().read_line(&mut s).unwrap();
             if s.chars().nth(0).unwrap() != 'y' {
-                return
+                return;
             }
             println!("Overwriting");
         }
@@ -121,28 +124,37 @@ pub fn get_crit(trace_id: &str) {
     println!("{}", Dot::new(&crit.g.g));
 }
 
-fn get_settings() -> HashMap<String,String> {
+fn get_settings() -> HashMap<String, String> {
     let mut settings = Config::default();
     settings.merge(File::with_name("Settings")).unwrap();
-    let mut results = settings.try_into::<HashMap<String,String>>().unwrap();
+    let mut results = settings.try_into::<HashMap<String, String>>().unwrap();
     let mut manifest_file = PathBuf::from(results.get("pythia_cache").unwrap());
     manifest_file.push("manifest.json");
-    results.insert("manifest_file".to_string(), manifest_file.to_string_lossy().to_string());
+    results.insert(
+        "manifest_file".to_string(),
+        manifest_file.to_string_lossy().to_string(),
+    );
     let mut trace_cache = PathBuf::from(results.get("pythia_cache").unwrap());
     trace_cache.push("traces");
-    results.insert("trace_cache".to_string(), trace_cache.to_string_lossy().to_string());
+    results.insert(
+        "trace_cache".to_string(),
+        trace_cache.to_string_lossy().to_string(),
+    );
     results
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 struct ManifestNode {
     pub tracepoint_id: String,
-    pub variant: EventEnum
+    pub variant: EventEnum,
 }
 
 impl ManifestNode {
     fn _from_event(span: &Event) -> ManifestNode {
-        ManifestNode { tracepoint_id: span.tracepoint_id.clone(), variant: span.variant }
+        ManifestNode {
+            tracepoint_id: span.tracepoint_id.clone(),
+            variant: span.variant,
+        }
     }
 }
 
@@ -164,7 +176,7 @@ impl Display for ManifestNode {
         match self.variant {
             EventEnum::Entry => result.push_str(": S"),
             EventEnum::Exit => result.push_str(": E"),
-            EventEnum::Annotation => result.push_str(": A")
+            EventEnum::Annotation => result.push_str(": A"),
         };
         write!(f, "{}", result)
     }
@@ -206,4 +218,3 @@ impl Display for ManifestNode {
 //         Poset{g: dag}
 //     }
 // }
-
