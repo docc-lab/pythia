@@ -7,6 +7,8 @@ extern crate petgraph;
 extern crate config;
 extern crate crypto;
 extern crate stats;
+#[macro_use]
+extern crate lazy_static;
 
 pub mod trace;
 pub mod osprofiler;
@@ -28,6 +30,7 @@ use config::{Config, File};
 use trace::Event;
 use trace::EventEnum;
 use osprofiler::OSProfilerReader;
+use osprofiler::REQUEST_TYPE_MAP;
 use critical::CriticalPath;
 use controller::OSProfilerController;
 use grouping::Group;
@@ -69,7 +72,8 @@ pub fn enable_skeleton() {
     let manifest = Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
-    let to_enable = manifest.entry_points();
+    let mut to_enable = manifest.entry_points();
+    to_enable.extend(REQUEST_TYPE_MAP.keys().into_iter().cloned());
     controller.enable(&to_enable);
     println!("Enabled following tracepoints: {:?}", to_enable);
 }

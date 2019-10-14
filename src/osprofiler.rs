@@ -1,5 +1,6 @@
 /// Stuff related to working with osprofiler
 ///
+///
 
 use std::collections::HashSet;
 use std::collections::HashMap;
@@ -223,20 +224,12 @@ impl OSProfilerDAG {
             let mut mynode = DAGNode::from_osp_span(event);
             mynode.span.tracepoint_id = event.get_tracepoint_id(&mut tracepoint_id_map);
             if mynode.span.variant == EventEnum::Entry {
-                match mynode.span.tracepoint_id.as_ref() {
-                    "/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:655:openstackclient.compute.v2.server.CreateServer.take_action" => {
+                match REQUEST_TYPE_MAP.get(&mynode.span.tracepoint_id) {
+                    Some(t) => {
                         assert!(self.request_type.is_none());
-                        self.request_type = Some(RequestType::ServerCreate);
+                        self.request_type = Some(*t);
                     },
-                    "/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:1150:openstackclient.compute.v2.server.ListServer.take_action" => {
-                        assert!(self.request_type.is_none());
-                        self.request_type = Some(RequestType::ServerList);
-                    },
-                    "/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:999:openstackclient.compute.v2.server.DeleteServer.take_action" => {
-                        assert!(self.request_type.is_none());
-                        self.request_type = Some(RequestType::ServerDelete);
-                    },
-                    _ => {}
+                    None => {}
                 }
             }
             // Don't add asynch_wait into the DAGs
@@ -629,4 +622,12 @@ where
     D: de::Deserializer<'de>,
 {
     d.deserialize_str(NaiveDateTimeVisitor)
+}
+
+lazy_static!{
+    pub static ref REQUEST_TYPE_MAP: HashMap<String,RequestType> = vec![
+        ("/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:655:openstackclient.compute.v2.server.CreateServer.take_action".to_string(), RequestType::ServerCreate),
+        ("/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:1150:openstackclient.compute.v2.server.ListServer.take_action".to_string(), RequestType::ServerList),
+        ("/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:999:openstackclient.compute.v2.server.DeleteServer.take_action".to_string(), RequestType::ServerDelete),
+    ].into_iter().to_owned().collect();
 }
