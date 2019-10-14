@@ -48,8 +48,11 @@ pub fn make_decision(epoch_file: &str) {
     let critical_paths = traces.iter().map(|t| {CriticalPath::from_trace(t)}).collect();
     let mut groups = Group::from_critical_paths(critical_paths);
     groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap()); // descending order
-    for group in groups {
+    for group in &groups {
         println!("Group is: {}", group);
+    }
+    for edge in groups[0].problem_edges() {
+        println!("{:?}", groups[0].g[edge]);
     }
 }
 

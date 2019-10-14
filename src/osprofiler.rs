@@ -26,15 +26,6 @@ pub struct OSProfilerReader {
     trace_cache: PathBuf,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct OSProfilerDAG {
-    pub g: StableGraph<DAGNode, DAGEdge>,
-    pub base_id: Uuid,
-    pub start_node: NodeIndex,
-    pub end_node: NodeIndex,
-    pub request_type: Option<RequestType>
-}
-
 impl OSProfilerReader {
     pub fn from_settings(settings: &HashMap<String,String>) -> OSProfilerReader {
         OSProfilerReader {
@@ -120,6 +111,15 @@ impl OSProfilerReader {
         let writer = std::fs::File::create(cache_file).unwrap();
         serde_json::to_writer(writer, dag).expect("Failed to write trace to cache");
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OSProfilerDAG {
+    pub g: StableGraph<DAGNode, DAGEdge>,
+    pub base_id: Uuid,
+    pub start_node: NodeIndex,
+    pub end_node: NodeIndex,
+    pub request_type: Option<RequestType>
 }
 
 impl OSProfilerDAG {
