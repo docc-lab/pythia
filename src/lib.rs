@@ -47,12 +47,19 @@ pub fn make_decision(epoch_file: &str) {
     let critical_paths = traces.iter().map(|t| CriticalPath::from_trace(t)).collect();
     let mut groups = Group::from_critical_paths(critical_paths);
     groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap()); // descending order
+    println!("\n\nGroups sorted by variance:\n");
     for group in &groups {
         println!("Group is: {}", group);
     }
+    println!("\n\nEdges sorted by variance:\n");
     for edge in groups[0].problem_edges() {
-        println!("{:?}", groups[0].g[edge]);
+        let endpoints = groups[0].g.edge_endpoints(edge).unwrap();
+        println!(
+            "({} -> {}): {:?}",
+            groups[0].g[endpoints.0], groups[0].g[endpoints.1], groups[0].g[edge]
+        );
     }
+    println!("\n\nChildren of highest variance edge\n");
 }
 
 pub fn disable_all() {

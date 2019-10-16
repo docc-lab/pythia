@@ -37,6 +37,17 @@ impl GroupNode {
     }
 }
 
+impl Display for GroupNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.tracepoint_id).ok();
+        match self.variant {
+            EventEnum::Annotation => Ok(()),
+            EventEnum::Entry => write!(f, " start"),
+            EventEnum::Exit => write!(f, " end"),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct GroupEdge {
     pub duration: Vec<Duration>,
