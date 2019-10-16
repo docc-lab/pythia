@@ -61,8 +61,11 @@ impl Manifest {
         result.drain().collect()
     }
 
-    pub fn make_decision(&self, group: &Group, edge: &EdgeIndex) -> Vec<&str> {
-        vec![]
+    pub fn search(&self, group: &Group, edge: EdgeIndex) -> Vec<&str> {
+        self.per_request_type
+            .get(&group.request_type)
+            .unwrap()
+            .search(group, edge)
     }
 }
 

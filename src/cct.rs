@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use petgraph::graph::NodeIndex;
+use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::{Direction, Graph};
 use serde::{Deserialize, Serialize};
 
 use critical::CriticalPath;
+use grouping::Group;
 use osprofiler::OSProfilerDAG;
 use trace::EventEnum;
 
@@ -47,6 +48,11 @@ impl CCT {
         println!("Total {} nodes in traces", node_counter);
         println!("Total {} nodes in paths", path_node_counter);
         cct
+    }
+
+    pub fn search(&self, group: &Group, edge: EdgeIndex) -> Vec<&str> {
+        let (source, target) = group.g.edge_endpoints(edge).unwrap();
+        vec![]
     }
 
     pub fn from_file(file: &Path) -> Option<CCT> {

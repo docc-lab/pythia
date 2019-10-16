@@ -10,6 +10,7 @@ use petgraph::Direction;
 use stats::variance;
 
 use critical::CriticalPath;
+use osprofiler::RequestType;
 use trace::Event;
 use trace::EventEnum;
 
@@ -18,6 +19,7 @@ pub struct Group {
     pub g: StableGraph<GroupNode, GroupEdge>,
     hash: String,
     start_node: NodeIndex,
+    pub request_type: RequestType,
     pub traces: Vec<CriticalPath>,
     pub variance: f64,
 }
@@ -105,6 +107,7 @@ impl Group {
             g: dag,
             start_node: start_node.unwrap(),
             hash: path.hash().to_string(),
+            request_type: path.request_type,
             traces: vec![path],
             variance: 0.0,
         }

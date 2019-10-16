@@ -62,9 +62,9 @@ pub fn make_decision(epoch_file: &str) {
             problem_group.g[endpoints.0], problem_group.g[endpoints.1], problem_group.g[*edge]
         );
     }
-    let problem_edge = &problem_edges[0];
+    let problem_edge = problem_edges[0];
     println!("\n\nNext tracepoints to enable:\n");
-    let tracepoints = manifest.make_decision(problem_group, problem_edge);
+    let tracepoints = manifest.search(problem_group, problem_edge);
     println!("{:?}", tracepoints);
 }
 

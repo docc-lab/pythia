@@ -8,6 +8,7 @@ use petgraph::{dot::Dot, graph::NodeIndex, Direction};
 use uuid::Uuid;
 
 use osprofiler::OSProfilerDAG;
+use osprofiler::RequestType;
 use trace::DAGEdge;
 use trace::DAGNode;
 use trace::EdgeType;
@@ -21,6 +22,7 @@ pub struct CriticalPath {
     pub end_node: NodeIndex,
     pub duration: Duration,
     pub is_hypothetical: bool,
+    pub request_type: RequestType,
     hash: RefCell<Option<String>>,
 }
 
@@ -33,6 +35,7 @@ impl CriticalPath {
             end_node: NodeIndex::end(),
             is_hypothetical: false,
             hash: RefCell::new(None),
+            request_type: dag.request_type.unwrap(),
         };
         let mut cur_node = dag.end_node;
         let mut end_nidx = path.g.g.add_node(dag.g[cur_node].clone());
@@ -77,6 +80,7 @@ impl CriticalPath {
                 duration: Duration::new(0, 0),
                 is_hypothetical: true,
                 hash: RefCell::new(None),
+                request_type: dag.request_type.unwrap(),
             };
             let cur_node = end_node;
             let end_nidx = path.g.g.add_node(dag.g[cur_node].clone());
