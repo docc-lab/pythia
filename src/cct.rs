@@ -66,6 +66,7 @@ impl CCT {
                 break;
             }
         }
+        println!("Common context for the search: {:?}", common_context);
         self.search_context(common_context)
     }
 
