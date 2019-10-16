@@ -68,6 +68,7 @@ pub fn make_decision(epoch_file: &str, dry_run: bool) {
     println!("{:?}", tracepoints);
     if !dry_run {
         controller.enable(&tracepoints);
+        println!("Enabled tracepoints.");
     }
 }
 
