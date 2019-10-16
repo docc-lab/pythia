@@ -37,7 +37,7 @@ use trace::Event;
 use trace::EventEnum;
 
 /// Make a single instrumentation decision.
-pub fn make_decision(epoch_file: &str) {
+pub fn make_decision(epoch_file: &str, dry_run: bool) {
     let settings = get_settings();
     let controller = OSProfilerController::from_settings(&settings);
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
@@ -66,7 +66,9 @@ pub fn make_decision(epoch_file: &str) {
     println!("\n\nNext tracepoints to enable:\n");
     let tracepoints = manifest.search(problem_group, problem_edge);
     println!("{:?}", tracepoints);
-    controller.enable(&tracepoints);
+    if !dry_run {
+        controller.enable(&tracepoints);
+    }
 }
 
 pub fn disable_all() {

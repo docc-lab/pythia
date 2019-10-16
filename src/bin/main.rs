@@ -11,37 +11,41 @@ fn main() {
         .author("Emre Ates <ates@bu.edu>")
         .subcommand(
             SubCommand::with_name("manifest")
-                .arg(Arg::with_name("manifest_file").required(true).index(1)),
+                .arg(Arg::with_name("manifest-file").required(true).index(1)),
         )
         .subcommand(
-            SubCommand::with_name("get_trace")
-                .arg(Arg::with_name("trace_id").required(true).index(1)),
+            SubCommand::with_name("get-trace")
+                .arg(Arg::with_name("trace-id").required(true).index(1)),
         )
         .subcommand(
             SubCommand::with_name("diagnose")
-                .arg(Arg::with_name("epoch_file").required(true).index(1)),
+                .arg(Arg::with_name("epoch-file").required(true).index(1))
+                .arg(Arg::with_name("dry-run").long("dry-run")),
         )
-        .subcommand(SubCommand::with_name("disable_all"))
-        .subcommand(SubCommand::with_name("enable_all"))
-        .subcommand(SubCommand::with_name("enable_skeleton"))
+        .subcommand(SubCommand::with_name("disable-all"))
+        .subcommand(SubCommand::with_name("enable-all"))
+        .subcommand(SubCommand::with_name("enable-skeleton"))
         .get_matches();
     match matches.subcommand() {
         ("manifest", Some(matches)) => {
-            get_manifest(matches.value_of("manifest_file").unwrap());
+            get_manifest(matches.value_of("manifest-file").unwrap());
         }
-        ("get_trace", Some(matches)) => {
-            get_trace(matches.value_of("trace_id").unwrap());
+        ("get-trace", Some(matches)) => {
+            get_trace(matches.value_of("trace-id").unwrap());
         }
         ("diagnose", Some(matches)) => {
-            make_decision(matches.value_of("epoch_file").unwrap());
+            make_decision(
+                matches.value_of("epoch-file").unwrap(),
+                matches.occurrences_of("dry-run") > 0,
+            );
         }
-        ("disable_all", Some(_)) => {
+        ("disable-all", Some(_)) => {
             disable_all();
         }
-        ("enable_all", Some(_)) => {
+        ("enable-all", Some(_)) => {
             enable_all();
         }
-        ("enable_skeleton", Some(_)) => {
+        ("enable-skeleton", Some(_)) => {
             enable_skeleton();
         }
         _ => panic!("Must provide a subcommand, see --help for commands"),
