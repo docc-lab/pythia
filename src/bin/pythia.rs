@@ -3,7 +3,9 @@ extern crate pythia;
 
 use clap::{App, Arg, SubCommand};
 
-use pythia::{disable_all, enable_all, enable_skeleton, get_manifest, get_trace, make_decision};
+use pythia::{
+    disable_all, enable_all, enable_skeleton, get_manifest, get_trace, make_decision, show_config,
+};
 
 fn main() {
     let matches = App::new("Pythia")
@@ -25,6 +27,7 @@ fn main() {
         .subcommand(SubCommand::with_name("disable-all"))
         .subcommand(SubCommand::with_name("enable-all"))
         .subcommand(SubCommand::with_name("enable-skeleton"))
+        .subcommand(SubCommand::with_name("show-config"))
         .get_matches();
     match matches.subcommand() {
         ("manifest", Some(matches)) => {
@@ -47,6 +50,9 @@ fn main() {
         }
         ("enable-skeleton", Some(_)) => {
             enable_skeleton();
+        }
+        ("show-config", Some(_)) => {
+            show_config();
         }
         _ => panic!("Must provide a subcommand, see --help for commands"),
     };

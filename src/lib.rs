@@ -24,7 +24,7 @@ use std::fmt::Display;
 use std::io::stdin;
 use std::path::PathBuf;
 
-use config::{Config, File};
+use config::{Config, File, FileFormat};
 use petgraph::dot::Dot;
 
 use controller::OSProfilerController;
@@ -140,9 +140,19 @@ pub fn get_crit(trace_id: &str) {
     println!("{}", Dot::new(&crit.g.g));
 }
 
+pub fn show_config() {
+    let settings = get_settings();
+    println!("{:?}", settings);
+}
+
 fn get_settings() -> HashMap<String, String> {
     let mut settings = Config::default();
-    settings.merge(File::with_name("Settings")).unwrap();
+    settings
+        .merge(File::new(
+            "/opt/stack/reconstruction/Settings.toml",
+            FileFormat::Toml,
+        ))
+        .unwrap();
     let mut results = settings.try_into::<HashMap<String, String>>().unwrap();
     let mut manifest_file = PathBuf::from(results.get("pythia_cache").unwrap());
     manifest_file.push("manifest.json");

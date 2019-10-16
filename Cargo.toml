@@ -2,7 +2,7 @@
 name = "pythia"
 version = "0.1.0"
 authors = ["Emre Ates <ates@bu.edu>"]
-default-run = "main"
+default-run = "pythia"
 
 [dependencies]
 redis = "*"
