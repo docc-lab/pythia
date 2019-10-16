@@ -51,17 +51,17 @@ impl Manifest {
         Some(serde_json::from_reader(reader).unwrap())
     }
 
-    pub fn entry_points(&self) -> Vec<String> {
+    pub fn entry_points(&self) -> Vec<&String> {
         let mut result = HashSet::new();
         for cct in self.per_request_type.values() {
             for (tracepoint, _) in &cct.entry_points {
-                result.insert(tracepoint.clone());
+                result.insert(tracepoint);
             }
         }
         result.drain().collect()
     }
 
-    pub fn search(&self, group: &Group, edge: EdgeIndex) -> Vec<&str> {
+    pub fn search<'a>(&'a self, group: &Group, edge: EdgeIndex) -> Vec<&'a String> {
         self.per_request_type
             .get(&group.request_type)
             .unwrap()

@@ -18,7 +18,7 @@ use trace::EventEnum;
 pub struct Group {
     pub g: StableGraph<GroupNode, GroupEdge>,
     hash: String,
-    start_node: NodeIndex,
+    pub start_node: NodeIndex,
     pub request_type: RequestType,
     pub traces: Vec<CriticalPath>,
     pub variance: f64,
@@ -171,7 +171,7 @@ impl Group {
         }
     }
 
-    fn next_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
+    pub fn next_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
         let mut matches = self.g.neighbors_directed(nidx, Direction::Outgoing);
         let result = matches.next();
         assert!(matches.next().is_none());

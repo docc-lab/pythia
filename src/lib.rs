@@ -39,7 +39,7 @@ use trace::EventEnum;
 /// Make a single instrumentation decision.
 pub fn make_decision(epoch_file: &str) {
     let settings = get_settings();
-    // let controller = OSProfilerController::from_settings(&settings);
+    let controller = OSProfilerController::from_settings(&settings);
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
@@ -66,6 +66,7 @@ pub fn make_decision(epoch_file: &str) {
     println!("\n\nNext tracepoints to enable:\n");
     let tracepoints = manifest.search(problem_group, problem_edge);
     println!("{:?}", tracepoints);
+    controller.enable(&tracepoints);
 }
 
 pub fn disable_all() {
@@ -89,7 +90,7 @@ pub fn enable_skeleton() {
     let controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
     let mut to_enable = manifest.entry_points();
-    to_enable.extend(REQUEST_TYPE_MAP.keys().into_iter().cloned());
+    to_enable.extend(REQUEST_TYPE_MAP.keys().into_iter());
     controller.enable(&to_enable);
     println!("Enabled following tracepoints: {:?}", to_enable);
 }

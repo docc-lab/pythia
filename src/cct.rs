@@ -50,9 +50,77 @@ impl CCT {
         cct
     }
 
-    pub fn search(&self, group: &Group, edge: EdgeIndex) -> Vec<&str> {
+    pub fn search<'a>(&'a self, group: &Group, edge: EdgeIndex) -> Vec<&'a String> {
         let (source, target) = group.g.edge_endpoints(edge).unwrap();
-        vec![]
+        let source_context = self.get_context(group, source);
+        let target_context = self.get_context(group, target);
+        let mut common_context = Vec::new();
+        let mut idx = 0;
+        loop {
+            if idx >= source_context.len() || idx >= target_context.len() {
+                break;
+            } else if source_context[idx] == target_context[idx] {
+                common_context.push(source_context[idx]);
+                idx += 1;
+            } else {
+                break;
+            }
+        }
+        self.search_context(common_context)
+    }
+
+    fn search_context<'a>(&'a self, context: Vec<&String>) -> Vec<&'a String> {
+        let mut nidx: Option<NodeIndex> = None;
+        for tracepoint in context {
+            nidx = match nidx {
+                None => {
+                    let result = self.entry_points.get(tracepoint);
+                    Some(*result.unwrap())
+                }
+                Some(nidx) => {
+                    let result: Vec<NodeIndex> = self
+                        .g
+                        .neighbors_directed(nidx, Direction::Outgoing)
+                        .filter(|a| self.g[*a] == *tracepoint)
+                        .collect();
+                    assert!(result.len() == 1);
+                    Some(result[0])
+                }
+            }
+        }
+        self.g
+            .neighbors_directed(nidx.unwrap(), Direction::Outgoing)
+            .map(|x| &self.g[x])
+            .collect()
+    }
+
+    fn get_context<'a>(&self, group: &'a Group, node: NodeIndex) -> Vec<&'a String> {
+        let mut result = Vec::new();
+        let mut nidx = group.start_node;
+        loop {
+            match group.g[nidx].variant {
+                EventEnum::Annotation => {
+                    if nidx == node {
+                        result.push(&group.g[nidx].tracepoint_id);
+                        break;
+                    }
+                }
+                EventEnum::Exit => {
+                    if nidx == node {
+                        break;
+                    }
+                    assert_eq!(*result.pop().unwrap(), group.g[nidx].tracepoint_id);
+                }
+                EventEnum::Entry => {
+                    result.push(&group.g[nidx].tracepoint_id);
+                    if nidx == node {
+                        break;
+                    }
+                }
+            }
+            nidx = group.next_node(nidx).unwrap();
+        }
+        result
     }
 
     pub fn from_file(file: &Path) -> Option<CCT> {

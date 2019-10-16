@@ -14,13 +14,13 @@ impl OSProfilerController {
         }
     }
 
-    pub fn enable(&self, points: &Vec<String>) {
+    pub fn enable(&self, points: &Vec<&String>) {
         for tracepoint in points {
             self.write_to_tracepoint(tracepoint, b"1");
         }
     }
 
-    pub fn disable(&self, points: &Vec<String>) {
+    pub fn disable(&self, points: &Vec<&String>) {
         for tracepoint in points {
             self.write_to_tracepoint(tracepoint, b"0");
         }
