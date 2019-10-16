@@ -40,8 +40,9 @@ use trace::EventEnum;
 pub fn make_decision(epoch_file: &str) {
     let settings = get_settings();
     // let controller = OSProfilerController::from_settings(&settings);
-    // let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-    // let manifest = CCT::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
+    let manifest =
+        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let reader = OSProfilerReader::from_settings(&settings);
     let traces = reader.read_trace_file(epoch_file);
     let critical_paths = traces.iter().map(|t| CriticalPath::from_trace(t)).collect();
@@ -51,15 +52,20 @@ pub fn make_decision(epoch_file: &str) {
     for group in &groups {
         println!("Group is: {}", group);
     }
+    let problem_group = &groups[0];
     println!("\n\nEdges sorted by variance:\n");
-    for edge in groups[0].problem_edges() {
-        let endpoints = groups[0].g.edge_endpoints(edge).unwrap();
+    let problem_edges = problem_group.problem_edges();
+    for edge in &problem_edges {
+        let endpoints = problem_group.g.edge_endpoints(*edge).unwrap();
         println!(
             "({} -> {}): {:?}",
-            groups[0].g[endpoints.0], groups[0].g[endpoints.1], groups[0].g[edge]
+            problem_group.g[endpoints.0], problem_group.g[endpoints.1], problem_group.g[*edge]
         );
     }
-    println!("\n\nChildren of highest variance edge\n");
+    let problem_edge = &problem_edges[0];
+    println!("\n\nNext tracepoints to enable:\n");
+    let tracepoints = manifest.make_decision(problem_group, problem_edge);
+    println!("{:?}", tracepoints);
 }
 
 pub fn disable_all() {

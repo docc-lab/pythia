@@ -5,9 +5,11 @@ use std::fmt::Display;
 use std::path::Path;
 
 use petgraph::dot::Dot;
+use petgraph::graph::EdgeIndex;
 use serde::{Deserialize, Serialize};
 
 use cct::CCT;
+use grouping::Group;
 use osprofiler::OSProfilerDAG;
 use osprofiler::RequestType;
 
@@ -57,6 +59,10 @@ impl Manifest {
             }
         }
         result.drain().collect()
+    }
+
+    pub fn make_decision(&self, group: &Group, edge: &EdgeIndex) -> Vec<&str> {
+        vec![]
     }
 }
 
