@@ -15,7 +15,7 @@ use osprofiler::RequestType;
 
 #[derive(Serialize, Deserialize)]
 pub struct Manifest {
-    per_request_type: HashMap<RequestType, CCT>,
+    pub per_request_type: HashMap<RequestType, CCT>,
 }
 
 impl Manifest {

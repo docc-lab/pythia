@@ -32,6 +32,7 @@ use critical::CriticalPath;
 use grouping::Group;
 use manifest::Manifest;
 use osprofiler::OSProfilerReader;
+use osprofiler::RequestType;
 use osprofiler::REQUEST_TYPE_MAP;
 use trace::Event;
 use trace::EventEnum;
@@ -58,7 +59,7 @@ pub fn make_decision(epoch_file: &str, dry_run: bool) {
     for edge in &problem_edges {
         let endpoints = problem_group.g.edge_endpoints(*edge).unwrap();
         println!(
-            "({} -> {}): {:?}",
+            "({} -> {}): {}",
             problem_group.g[endpoints.0], problem_group.g[endpoints.1], problem_group.g[*edge]
         );
     }
@@ -96,6 +97,52 @@ pub fn enable_skeleton() {
     to_enable.extend(REQUEST_TYPE_MAP.keys().into_iter());
     controller.enable(&to_enable);
     println!("Enabled following tracepoints: {:?}", to_enable);
+}
+
+pub fn show_manifest(request_type: &str) {
+    let settings = get_settings();
+    let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
+    let manifest =
+        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    match request_type {
+        "ServerCreate" => {
+            println!(
+                "{}",
+                Dot::new(
+                    &manifest
+                        .per_request_type
+                        .get(&RequestType::ServerCreate)
+                        .unwrap()
+                        .g
+                )
+            );
+        }
+        "ServerList" => {
+            println!(
+                "{}",
+                Dot::new(
+                    &manifest
+                        .per_request_type
+                        .get(&RequestType::ServerList)
+                        .unwrap()
+                        .g
+                )
+            );
+        }
+        "ServerDelete" => {
+            println!(
+                "{}",
+                Dot::new(
+                    &manifest
+                        .per_request_type
+                        .get(&RequestType::ServerDelete)
+                        .unwrap()
+                        .g
+                )
+            );
+        }
+        _ => panic!("Invalid request type"),
+    }
 }
 
 pub fn get_manifest(manfile: &str) {

@@ -55,6 +55,18 @@ pub struct GroupEdge {
     pub duration: Vec<Duration>,
 }
 
+impl Display for GroupEdge {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Edge({} elements, {:?} max, {:?} min)",
+            self.duration.len(),
+            self.duration.iter().max().unwrap(),
+            self.duration.iter().min().unwrap()
+        )
+    }
+}
+
 impl Group {
     pub fn from_critical_paths(paths: Vec<CriticalPath>) -> Vec<Group> {
         let mut hash_map = HashMap::<String, Group>::new();

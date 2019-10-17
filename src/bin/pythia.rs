@@ -4,7 +4,7 @@ extern crate pythia;
 use clap::{App, Arg, SubCommand};
 
 use pythia::{
-    disable_all, enable_all, enable_skeleton, get_manifest, get_trace, make_decision, show_config,
+    disable_all, enable_all, enable_skeleton, get_manifest, get_trace, make_decision, show_config, show_manifest
 };
 
 fn main() {
@@ -25,6 +25,8 @@ fn main() {
                 .arg(Arg::with_name("dry-run").long("dry-run")),
         )
         .subcommand(SubCommand::with_name("disable-all"))
+        .subcommand(SubCommand::with_name("show-manifest").arg(Arg::with_name("request-type").required(true).index(1))
+            )
         .subcommand(SubCommand::with_name("enable-all"))
         .subcommand(SubCommand::with_name("enable-skeleton"))
         .subcommand(SubCommand::with_name("show-config"))
@@ -32,6 +34,9 @@ fn main() {
     match matches.subcommand() {
         ("manifest", Some(matches)) => {
             get_manifest(matches.value_of("manifest-file").unwrap());
+        }
+        ("show-manifest", Some(matches)) => {
+            show_manifest(matches.value_of("request-type").unwrap());
         }
         ("get-trace", Some(matches)) => {
             get_trace(matches.value_of("trace-id").unwrap());
