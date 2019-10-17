@@ -79,9 +79,12 @@ impl OSProfilerReader {
             .collect();
         let mut result = Vec::new();
         for key in matches {
-            let dict_string: String = con.get(key)?;
+            let dict_string: String = con.get(&key)?;
             match parse_field(&dict_string) {
-                Ok(span) => result.push(span),
+                Ok(span) => {
+                    result.push(span);
+                    con.del(&key)?;
+                }
                 Err(e) => panic!("Problem while parsing {}: {}", dict_string, e),
             }
         }
