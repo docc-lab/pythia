@@ -5,6 +5,7 @@ use std::fmt::Display;
 use petgraph::dot::Dot;
 use petgraph::graph::EdgeIndex;
 use petgraph::graph::Graph;
+use petgraph::graph::NodeIndex;
 use petgraph::visit::IntoNodeReferences;
 use serde::{Deserialize, Serialize};
 
@@ -56,16 +57,51 @@ impl Display for ManifestNode {
 #[derive(Serialize, Deserialize)]
 pub struct Poset {
     g: Graph<ManifestNode, u32>, // Edge weights indicate number of occurance of an ordering.
+    node_index_map: HashMap<ManifestNode, NodeIndex>,
 }
 
 impl SearchSpace for Poset {
     fn new() -> Self {
         Poset {
             g: Graph::<ManifestNode, u32>::new(),
+            node_index_map: HashMap::new(),
         }
     }
 
-    fn add_trace(&mut self, dag: &OSProfilerDAG) {}
+    fn add_trace(&mut self, trace: &OSProfilerDAG) {
+        for nid in trace.g.node_references() {
+            let node = ManifestNode::from_event(&trace.g[nid.0].span);
+            match self.node_index_map.get(&node) {
+                Some(_) => {}
+                None => {
+                    self.node_index_map
+                        .insert(node.clone(), self.g.add_node(node));
+                }
+            }
+        }
+        for edge in trace.g.edge_indices() {
+            let source = *self
+                .node_index_map
+                .get(&ManifestNode::from_event(
+                    &trace.g[trace.g.edge_endpoints(edge).unwrap().0].span,
+                ))
+                .unwrap();
+            let target = *self
+                .node_index_map
+                .get(&ManifestNode::from_event(
+                    &trace.g[trace.g.edge_endpoints(edge).unwrap().1].span,
+                ))
+                .unwrap();
+            match self.g.find_edge(source, target) {
+                Some(idx) => {
+                    self.g[idx] += 1;
+                }
+                None => {
+                    self.g.add_edge(source, target, 1);
+                }
+            }
+        }
+    }
 
     fn get_entry_points(&self) -> Vec<&String> {
         Vec::new()
@@ -73,47 +109,6 @@ impl SearchSpace for Poset {
 
     fn search(&self, group: &Group, edge: EdgeIndex) -> Vec<&String> {
         Vec::new()
-    }
-}
-
-impl Poset {
-    fn from_trace_list(list: Vec<OSProfilerDAG>) -> Poset {
-        let mut dag = Graph::<ManifestNode, u32>::new();
-        let mut node_index_map = HashMap::new();
-        for trace in &list {
-            for nid in trace.g.node_references() {
-                let node = ManifestNode::from_event(&trace.g[nid.0].span);
-                match node_index_map.get(&node) {
-                    Some(_) => {}
-                    None => {
-                        node_index_map.insert(node.clone(), dag.add_node(node));
-                    }
-                }
-            }
-        }
-        for trace in &list {
-            for edge in trace.g.edge_indices() {
-                let source = *node_index_map
-                    .get(&ManifestNode::from_event(
-                        &trace.g[trace.g.edge_endpoints(edge).unwrap().0].span,
-                    ))
-                    .unwrap();
-                let target = *node_index_map
-                    .get(&ManifestNode::from_event(
-                        &trace.g[trace.g.edge_endpoints(edge).unwrap().1].span,
-                    ))
-                    .unwrap();
-                match dag.find_edge(source, target) {
-                    Some(idx) => {
-                        dag[idx] += 1;
-                    }
-                    None => {
-                        dag.add_edge(source, target, 1);
-                    }
-                }
-            }
-        }
-        Poset { g: dag }
     }
 }
 
