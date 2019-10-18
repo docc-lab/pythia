@@ -28,21 +28,25 @@ use petgraph::dot::Dot;
 
 use cct::CCT;
 use controller::OSProfilerController;
-use poset::Poset;
 use critical::CriticalPath;
 use grouping::Group;
 use manifest::Manifest;
 use osprofiler::OSProfilerReader;
 use osprofiler::RequestType;
 use osprofiler::REQUEST_TYPE_MAP;
+use poset::Poset;
 
 /// Make a single instrumentation decision.
 pub fn make_decision(epoch_file: &str, dry_run: bool) {
     let settings = get_settings();
     let controller = OSProfilerController::from_settings(&settings);
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-    let manifest = Manifest::<CCT>::from_file(manifest_file.as_path())
-        .expect("Couldn't read manifest from cache");
+    let manifest = match settings.get("manifest_method").unwrap().as_str() {
+        "CCT" => Manifest::<CCT>::from_file(manifest_file.as_path())
+            .expect("Couldn't read manifest from cache"),
+        // "Poset" => Manifest::<Poset>::from_file(manifest_file.as_path()),
+        _ => panic!("Unsupported manifest method"),
+    };
     let reader = OSProfilerReader::from_settings(&settings);
     let traces = reader.read_trace_file(epoch_file);
     let critical_paths = traces.iter().map(|t| CriticalPath::from_trace(t)).collect();
@@ -88,8 +92,12 @@ pub fn enable_skeleton() {
     let settings = get_settings();
     let mut manifest_file = PathBuf::from(settings.get("pythia_cache").unwrap());
     manifest_file.push("manifest.json");
-    let manifest = Manifest::<CCT>::from_file(manifest_file.as_path())
-        .expect("Couldn't read manifest from cache");
+    let manifest = match settings.get("manifest_method").unwrap().as_str() {
+        "CCT" => Manifest::<CCT>::from_file(manifest_file.as_path())
+            .expect("Couldn't read manifest from cache"),
+        // "Poset" => Manifest::<Poset>::from_file(manifest_file.as_path()),
+        _ => panic!("Unsupported manifest method"),
+    };
     let controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
     let mut to_enable = manifest.entry_points();
@@ -101,8 +109,12 @@ pub fn enable_skeleton() {
 pub fn show_manifest(request_type: &str) {
     let settings = get_settings();
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-    let manifest = Manifest::<CCT>::from_file(manifest_file.as_path())
-        .expect("Couldn't read manifest from cache");
+    let manifest = match settings.get("manifest_method").unwrap().as_str() {
+        "CCT" => Manifest::<CCT>::from_file(manifest_file.as_path())
+            .expect("Couldn't read manifest from cache"),
+        // "Poset" => Manifest::<Poset>::from_file(manifest_file.as_path()),
+        _ => panic!("Unsupported manifest method"),
+    };
     match request_type {
         "ServerCreate" => {
             println!(
@@ -193,7 +205,11 @@ fn get_settings() -> HashMap<String, String> {
         .unwrap();
     let mut results = settings.try_into::<HashMap<String, String>>().unwrap();
     let mut manifest_file = PathBuf::from(results.get("pythia_cache").unwrap());
-    manifest_file.push("manifest.json");
+    match results.get("manifest_method").unwrap().as_str() {
+        "CCT" => manifest_file.push("cct_manifest.json"),
+        "Poset" => manifest_file.push("poset_manifest.json"),
+        _ => panic!("Unsupported manifest method"),
+    }
     results.insert(
         "manifest_file".to_string(),
         manifest_file.to_string_lossy().to_string(),
