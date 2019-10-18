@@ -61,11 +61,18 @@ impl Manifest {
         result.drain().collect()
     }
 
-    pub fn search<'a>(&'a self, group: &Group, edge: EdgeIndex) -> Vec<&'a String> {
+    pub fn search<'a>(
+        &'a self,
+        group: &Group,
+        edge: EdgeIndex,
+    ) -> Vec<(&'a String, Option<RequestType>)> {
         self.per_request_type
             .get(&group.request_type)
             .unwrap()
             .search(group, edge)
+            .iter()
+            .map(|&a| (a, Some(group.request_type)))
+            .collect()
     }
 }
 

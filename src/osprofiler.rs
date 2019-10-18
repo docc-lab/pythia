@@ -556,6 +556,12 @@ pub enum RequestType {
     ServerList,
 }
 
+impl fmt::Display for RequestType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct OSProfilerSpan {
     pub trace_id: Uuid,

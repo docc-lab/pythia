@@ -95,7 +95,7 @@ pub fn enable_skeleton() {
     controller.diable_all();
     let mut to_enable = manifest.entry_points();
     to_enable.extend(REQUEST_TYPE_MAP.keys().into_iter());
-    controller.enable(&to_enable);
+    controller.enable(&to_enable.iter().map(|&a| (a, None)).collect());
     println!("Enabled following tracepoints: {:?}", to_enable);
 }
 
