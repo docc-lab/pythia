@@ -83,7 +83,6 @@ impl OSProfilerReader {
             match parse_field(&dict_string) {
                 Ok(span) => {
                     result.push(span);
-                    con.del(&key)?;
                 }
                 Err(e) => panic!("Problem while parsing {}: {}", dict_string, e),
             }
