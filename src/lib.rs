@@ -16,17 +16,17 @@ pub mod critical;
 pub mod grouping;
 pub mod manifest;
 pub mod osprofiler;
+pub mod poset;
 pub mod trace;
 
 use std::collections::HashMap;
-use std::fmt;
-use std::fmt::Display;
 use std::io::stdin;
 use std::path::PathBuf;
 
 use config::{Config, File, FileFormat};
 use petgraph::dot::Dot;
 
+use cct::CCT;
 use controller::OSProfilerController;
 use critical::CriticalPath;
 use grouping::Group;
@@ -34,16 +34,14 @@ use manifest::Manifest;
 use osprofiler::OSProfilerReader;
 use osprofiler::RequestType;
 use osprofiler::REQUEST_TYPE_MAP;
-use trace::Event;
-use trace::EventEnum;
 
 /// Make a single instrumentation decision.
 pub fn make_decision(epoch_file: &str, dry_run: bool) {
     let settings = get_settings();
     let controller = OSProfilerController::from_settings(&settings);
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-    let manifest =
-        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    let manifest = Manifest::<CCT>::from_file(manifest_file.as_path())
+        .expect("Couldn't read manifest from cache");
     let reader = OSProfilerReader::from_settings(&settings);
     let traces = reader.read_trace_file(epoch_file);
     let critical_paths = traces.iter().map(|t| CriticalPath::from_trace(t)).collect();
@@ -89,8 +87,8 @@ pub fn enable_skeleton() {
     let settings = get_settings();
     let mut manifest_file = PathBuf::from(settings.get("pythia_cache").unwrap());
     manifest_file.push("manifest.json");
-    let manifest =
-        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    let manifest = Manifest::<CCT>::from_file(manifest_file.as_path())
+        .expect("Couldn't read manifest from cache");
     let controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
     let mut to_enable = manifest.entry_points();
@@ -102,43 +100,34 @@ pub fn enable_skeleton() {
 pub fn show_manifest(request_type: &str) {
     let settings = get_settings();
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-    let manifest =
-        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    let manifest = Manifest::<CCT>::from_file(manifest_file.as_path())
+        .expect("Couldn't read manifest from cache");
     match request_type {
         "ServerCreate" => {
             println!(
                 "{}",
-                Dot::new(
-                    &manifest
-                        .per_request_type
-                        .get(&RequestType::ServerCreate)
-                        .unwrap()
-                        .g
-                )
+                manifest
+                    .per_request_type
+                    .get(&RequestType::ServerCreate)
+                    .unwrap()
             );
         }
         "ServerList" => {
             println!(
                 "{}",
-                Dot::new(
-                    &manifest
-                        .per_request_type
-                        .get(&RequestType::ServerList)
-                        .unwrap()
-                        .g
-                )
+                manifest
+                    .per_request_type
+                    .get(&RequestType::ServerList)
+                    .unwrap()
             );
         }
         "ServerDelete" => {
             println!(
                 "{}",
-                Dot::new(
-                    &manifest
-                        .per_request_type
-                        .get(&RequestType::ServerDelete)
-                        .unwrap()
-                        .g
-                )
+                manifest
+                    .per_request_type
+                    .get(&RequestType::ServerDelete)
+                    .unwrap()
             );
         }
         _ => panic!("Invalid request type"),
@@ -154,7 +143,7 @@ pub fn get_manifest(manfile: &str) {
         // let manifest = Poset::from_trace_list(traces);
         // println!("{}", Dot::new(&manifest.g));
     } else if manifest_method == "CCT" {
-        let manifest = Manifest::from_trace_list(traces);
+        let manifest = Manifest::<CCT>::from_trace_list(traces);
         println!("{}", manifest);
         let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
         if manifest_file.exists() {
@@ -216,79 +205,3 @@ fn get_settings() -> HashMap<String, String> {
     );
     results
 }
-
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
-struct ManifestNode {
-    pub tracepoint_id: String,
-    pub variant: EventEnum,
-}
-
-impl ManifestNode {
-    fn _from_event(span: &Event) -> ManifestNode {
-        ManifestNode {
-            tracepoint_id: span.tracepoint_id.clone(),
-            variant: span.variant,
-        }
-    }
-}
-
-impl Display for ManifestNode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        const LINE_WIDTH: usize = 75;
-        // Break the tracepoint id into multiple lines so that the graphs look prettier
-        let mut result = String::with_capacity(self.tracepoint_id.len() + 10);
-        let mut written = 0;
-        while written <= self.tracepoint_id.len() {
-            if written + LINE_WIDTH <= self.tracepoint_id.len() {
-                result.push_str(&self.tracepoint_id[written..written + LINE_WIDTH]);
-                result.push_str("-\n");
-            } else {
-                result.push_str(&self.tracepoint_id[written..self.tracepoint_id.len()]);
-            }
-            written += LINE_WIDTH;
-        }
-        match self.variant {
-            EventEnum::Entry => result.push_str(": S"),
-            EventEnum::Exit => result.push_str(": E"),
-            EventEnum::Annotation => result.push_str(": A"),
-        };
-        write!(f, "{}", result)
-    }
-}
-
-// struct Poset {
-//     g: Graph<ManifestNode, u32> // Edge weights indicate number of occurance of an ordering.
-// }
-
-// impl Poset {
-//     fn from_trace_list(list: Vec<OSProfilerDAG>) -> Poset {
-//         let mut dag = Graph::<ManifestNode, u32>::new();
-//         let mut node_index_map = HashMap::new();
-//         for trace in &list {
-//             for nid in trace.g.raw_nodes() {
-//                 let node = ManifestNode::from_event(&nid.weight.span);
-//                 match node_index_map.get(&node) {
-//                     Some(_) => {},
-//                     None => {
-//                         node_index_map.insert(node.clone(), dag.add_node(node));
-//                     }
-//                 }
-//             }
-//         }
-//         for trace in &list {
-//             for edge in trace.g.raw_edges() {
-//                 let source = *node_index_map.get(&ManifestNode::from_event(&trace.g[edge.source()].span)).unwrap();
-//                 let target = *node_index_map.get(&ManifestNode::from_event(&trace.g[edge.target()].span)).unwrap();
-//                 match dag.find_edge(source, target) {
-//                     Some(idx) => {
-//                         dag[idx] += 1;
-//                     },
-//                     None => {
-//                         dag.add_edge(source, target, 1);
-//                     }
-//                 }
-//             }
-//         }
-//         Poset{g: dag}
-//     }
-// }

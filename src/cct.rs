@@ -1,12 +1,16 @@
 use std::collections::HashMap;
+use std::fmt;
+use std::fmt::Display;
 use std::path::Path;
 
+use petgraph::dot::Dot;
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::{Direction, Graph};
 use serde::{Deserialize, Serialize};
 
 use critical::CriticalPath;
 use grouping::Group;
+use manifest::SearchSpace;
 use osprofiler::OSProfilerDAG;
 use trace::EventEnum;
 
@@ -16,20 +20,46 @@ pub struct CCT {
     pub entry_points: HashMap<String, NodeIndex>,
 }
 
-impl CCT {
-    pub fn new() -> CCT {
+impl SearchSpace for CCT {
+    fn new() -> CCT {
         CCT {
             g: Graph::<String, u32>::new(),
             entry_points: HashMap::<String, NodeIndex>::new(),
         }
     }
 
-    pub fn add_trace(&mut self, trace: &OSProfilerDAG) {
+    fn add_trace(&mut self, trace: &OSProfilerDAG) {
         for path in CriticalPath::all_possible_paths(trace) {
             self.add_path_to_manifest(&path);
         }
     }
 
+    fn get_entry_points(&self) -> Vec<&String> {
+        self.entry_points.keys().collect()
+    }
+
+    fn search<'a>(&'a self, group: &Group, edge: EdgeIndex) -> Vec<&'a String> {
+        let (source, target) = group.g.edge_endpoints(edge).unwrap();
+        let source_context = self.get_context(group, source);
+        let target_context = self.get_context(group, target);
+        let mut common_context = Vec::new();
+        let mut idx = 0;
+        loop {
+            if idx >= source_context.len() || idx >= target_context.len() {
+                break;
+            } else if source_context[idx] == target_context[idx] {
+                common_context.push(source_context[idx]);
+                idx += 1;
+            } else {
+                break;
+            }
+        }
+        println!("Common context for the search: {:?}", common_context);
+        self.search_context(common_context)
+    }
+}
+
+impl CCT {
     pub fn from_trace_list(list: Vec<OSProfilerDAG>) -> CCT {
         let mut cct = CCT::new();
         println!("Creating manifest from {} traces", list.len());
@@ -48,26 +78,6 @@ impl CCT {
         println!("Total {} nodes in traces", node_counter);
         println!("Total {} nodes in paths", path_node_counter);
         cct
-    }
-
-    pub fn search<'a>(&'a self, group: &Group, edge: EdgeIndex) -> Vec<&'a String> {
-        let (source, target) = group.g.edge_endpoints(edge).unwrap();
-        let source_context = self.get_context(group, source);
-        let target_context = self.get_context(group, target);
-        let mut common_context = Vec::new();
-        let mut idx = 0;
-        loop {
-            if idx >= source_context.len() || idx >= target_context.len() {
-                break;
-            } else if source_context[idx] == target_context[idx] {
-                common_context.push(source_context[idx]);
-                idx += 1;
-            } else {
-                break;
-            }
-        }
-        println!("Common context for the search: {:?}", common_context);
-        self.search_context(common_context)
     }
 
     fn search_context<'a>(&'a self, context: Vec<&String>) -> Vec<&'a String> {
@@ -226,5 +236,11 @@ impl CCT {
         let result = matches.next();
         assert!(matches.next().is_none());
         result
+    }
+}
+
+impl Display for CCT {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", Dot::new(&self.g))
     }
 }

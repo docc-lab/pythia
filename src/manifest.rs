@@ -4,30 +4,41 @@ use std::fmt;
 use std::fmt::Display;
 use std::path::Path;
 
-use petgraph::dot::Dot;
 use petgraph::graph::EdgeIndex;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use cct::CCT;
 use grouping::Group;
 use osprofiler::OSProfilerDAG;
 use osprofiler::RequestType;
 
-#[derive(Serialize, Deserialize)]
-pub struct Manifest {
-    pub per_request_type: HashMap<RequestType, CCT>,
+pub trait SearchSpace {
+    fn new() -> Self;
+    fn add_trace(&mut self, &OSProfilerDAG);
+    fn get_entry_points<'a>(&'a self) -> Vec<&'a String>;
+    fn search<'a>(&'a self, &Group, EdgeIndex) -> Vec<&'a String>;
 }
 
-impl Manifest {
-    pub fn from_trace_list(traces: Vec<OSProfilerDAG>) -> Manifest {
-        let mut map = HashMap::<RequestType, CCT>::new();
+#[derive(Serialize, Deserialize)]
+pub struct Manifest<M: SearchSpace> {
+    pub per_request_type: HashMap<RequestType, M>,
+}
+
+impl<M> Manifest<M>
+where
+    M: SearchSpace,
+    M: Serialize,
+    M: DeserializeOwned,
+{
+    pub fn from_trace_list(traces: Vec<OSProfilerDAG>) -> Manifest<M> {
+        let mut map = HashMap::<RequestType, M>::new();
         for trace in traces {
             match map.get_mut(&trace.request_type.unwrap()) {
                 Some(cct) => {
                     cct.add_trace(&trace);
                 }
                 None => {
-                    let mut cct = CCT::new();
+                    let mut cct = M::new();
                     cct.add_trace(&trace);
                     map.insert(trace.request_type.unwrap(), cct);
                 }
@@ -43,7 +54,7 @@ impl Manifest {
         serde_json::to_writer(writer, self).expect("Failed to manifest to cache");
     }
 
-    pub fn from_file(file: &Path) -> Option<Manifest> {
+    pub fn from_file(file: &Path) -> Option<Manifest<M>> {
         let reader = match std::fs::File::open(file) {
             Ok(x) => x,
             Err(_) => return None,
@@ -54,7 +65,7 @@ impl Manifest {
     pub fn entry_points(&self) -> Vec<&String> {
         let mut result = HashSet::new();
         for cct in self.per_request_type.values() {
-            for (tracepoint, _) in &cct.entry_points {
+            for tracepoint in cct.get_entry_points() {
                 result.insert(tracepoint);
             }
         }
@@ -76,11 +87,15 @@ impl Manifest {
     }
 }
 
-impl Display for Manifest {
+impl<M> Display for Manifest<M>
+where
+    M: Display,
+    M: SearchSpace,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Manifest:").unwrap();
         for (request_type, cct) in &self.per_request_type {
-            write!(f, "{:?} dot:\n{}", request_type, Dot::new(&cct.g)).unwrap();
+            write!(f, "{:?} dot:\n{}", request_type, cct).unwrap();
         }
         Ok(())
     }
