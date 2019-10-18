@@ -2,14 +2,19 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
 
+use petgraph::dot::Dot;
+use petgraph::graph::EdgeIndex;
 use petgraph::graph::Graph;
 use petgraph::visit::IntoNodeReferences;
+use serde::{Deserialize, Serialize};
 
+use grouping::Group;
+use manifest::SearchSpace;
 use osprofiler::OSProfilerDAG;
 use trace::Event;
 use trace::EventEnum;
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 struct ManifestNode {
     pub tracepoint_id: String,
     pub variant: EventEnum,
@@ -48,12 +53,31 @@ impl Display for ManifestNode {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Poset {
     g: Graph<ManifestNode, u32>, // Edge weights indicate number of occurance of an ordering.
 }
 
+impl SearchSpace for Poset {
+    fn new() -> Self {
+        Poset {
+            g: Graph::<ManifestNode, u32>::new(),
+        }
+    }
+
+    fn add_trace(&mut self, dag: &OSProfilerDAG) {}
+
+    fn get_entry_points(&self) -> Vec<&String> {
+        Vec::new()
+    }
+
+    fn search(&self, group: &Group, edge: EdgeIndex) -> Vec<&String> {
+        Vec::new()
+    }
+}
+
 impl Poset {
-    pub fn from_trace_list(list: Vec<OSProfilerDAG>) -> Poset {
+    fn from_trace_list(list: Vec<OSProfilerDAG>) -> Poset {
         let mut dag = Graph::<ManifestNode, u32>::new();
         let mut node_index_map = HashMap::new();
         for trace in &list {
@@ -90,5 +114,11 @@ impl Poset {
             }
         }
         Poset { g: dag }
+    }
+}
+
+impl Display for Poset {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", Dot::new(&self.g))
     }
 }

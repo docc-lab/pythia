@@ -28,6 +28,7 @@ use petgraph::dot::Dot;
 
 use cct::CCT;
 use controller::OSProfilerController;
+use poset::Poset;
 use critical::CriticalPath;
 use grouping::Group;
 use manifest::Manifest;
@@ -140,8 +141,8 @@ pub fn get_manifest(manfile: &str) {
     let traces = reader.read_trace_file(manfile);
     let manifest_method = settings.get("manifest_method").unwrap();
     if manifest_method == "Poset" {
-        // let manifest = Poset::from_trace_list(traces);
-        // println!("{}", Dot::new(&manifest.g));
+        let manifest = Manifest::<Poset>::from_trace_list(traces);
+        println!("{}", manifest);
     } else if manifest_method == "CCT" {
         let manifest = Manifest::<CCT>::from_trace_list(traces);
         println!("{}", manifest);
