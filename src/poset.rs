@@ -88,9 +88,14 @@ impl Poset {
     fn add_path(&mut self, path: &CriticalPath) {
         let mut cur_path_nidx = path.start_node;
         let new_node = PosetNode::from_event(&path.g.g[cur_path_nidx].span);
+        let mut merging = false;
         let mut cur_nidx = match self.entry_points.get(&new_node) {
-            Some(nidx) => *nidx,
+            Some(nidx) => {
+                merging = true;
+                *nidx
+            }
             None => {
+                merging = false;
                 let nidx = self.g.add_node(new_node.clone());
                 self.entry_points.insert(new_node, nidx);
                 nidx
@@ -107,11 +112,19 @@ impl Poset {
                 .neighbors_directed(cur_nidx, Direction::Outgoing)
                 .find(|&a| self.g[a] == new_node)
             {
-                Some(nidx) => nidx,
-                None => {
-                    let nidx = self.g.add_node(new_node.clone());
-                    self.entry_points.insert(new_node, nidx);
+                Some(nidx) => {
+                    merging = true;
                     nidx
+                }
+                None => {
+                    if merging {
+                        let (temp_merging, nidx) =
+                            self.fix_merge_conflict(path, new_node, next_path_nidx, cur_nidx);
+                        merging = temp_merging;
+                        nidx
+                    } else {
+                        self.g.add_node(new_node.clone())
+                    }
                 }
             };
             match self.g.find_edge(cur_nidx, next_nidx) {
@@ -125,6 +138,25 @@ impl Poset {
             cur_path_nidx = next_path_nidx;
             cur_nidx = next_nidx;
         }
+    }
+}
+
+impl Poset {
+    /// When adding a new path, if the new path or old path has extra nodes, find which one has
+    /// extra nodes and add shortcut edge to after the optional path.
+    ///
+    /// The remainder of the code adds an edge from cur_nidx to the nidx returned.
+    ///
+    /// Returns boolean indicating if we're still merging or started a new branch, and the new node
+    /// index.
+    fn fix_merge_conflict(
+        &mut self,
+        path: &CriticalPath,
+        new_node: PosetNode,
+        next_path_nidx: NodeIndex,
+        cur_nidx: NodeIndex,
+    ) -> (bool, NodeIndex) {
+        (false, NodeIndex::end())
     }
 }
 
