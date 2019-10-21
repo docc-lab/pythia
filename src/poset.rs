@@ -59,6 +59,7 @@ impl Display for PosetNode {
 pub struct Poset {
     g: Graph<PosetNode, u32>, // Edge weights indicate number of occurance of an ordering.
     entry_points: HashMap<PosetNode, NodeIndex>,
+    exit_points: HashMap<PosetNode, NodeIndex>,
 }
 
 impl SearchSpace for Poset {
@@ -66,6 +67,7 @@ impl SearchSpace for Poset {
         Poset {
             g: Graph::<PosetNode, u32>::new(),
             entry_points: HashMap::new(),
+            exit_points: HashMap::new(),
         }
     }
 
@@ -86,27 +88,32 @@ impl SearchSpace for Poset {
 
 impl Poset {
     fn add_path(&mut self, path: &CriticalPath) {
-        let mut cur_path_nidx = path.start_node;
+        let cur_path_nidx = path.start_node;
         let new_node = PosetNode::from_event(&path.g.g[cur_path_nidx].span);
-        let mut merging = false;
-        let mut cur_nidx = match self.entry_points.get(&new_node) {
-            Some(nidx) => {
-                merging = true;
-                *nidx
-            }
+        let (mut merging, mut cur_nidx) = match self.entry_points.get(&new_node) {
+            Some(nidx) => (true, *nidx),
             None => {
-                merging = false;
                 let nidx = self.g.add_node(new_node.clone());
                 self.entry_points.insert(new_node, nidx);
-                nidx
+                (false, nidx)
             }
         };
         loop {
-            let next_path_nidx = match path.next_node(cur_path_nidx) {
+            let cur_path_nidx = match path.next_node(cur_path_nidx) {
                 Some(nidx) => nidx,
-                None => break,
+                None => {
+                    match self.exit_points.get(&self.g[cur_nidx]) {
+                        Some(_) => {
+                            self.merge_endings(cur_nidx, path, cur_path_nidx);
+                        }
+                        None => {
+                            self.exit_points.insert(self.g[cur_nidx].clone(), cur_nidx);
+                        }
+                    }
+                    break;
+                }
             };
-            let new_node = PosetNode::from_event(&path.g.g[next_path_nidx].span);
+            let new_node = PosetNode::from_event(&path.g.g[cur_path_nidx].span);
             let next_nidx = match self
                 .g
                 .neighbors_directed(cur_nidx, Direction::Outgoing)
@@ -119,7 +126,7 @@ impl Poset {
                 None => {
                     if merging {
                         let (temp_merging, nidx) =
-                            self.fix_merge_conflict(path, new_node, next_path_nidx, cur_nidx);
+                            self.fix_merge_conflict(path, new_node, cur_path_nidx, cur_nidx);
                         merging = temp_merging;
                         nidx
                     } else {
@@ -135,7 +142,6 @@ impl Poset {
                     self.g.add_edge(cur_nidx, next_nidx, 1);
                 }
             }
-            cur_path_nidx = next_path_nidx;
             cur_nidx = next_nidx;
         }
     }
@@ -151,12 +157,70 @@ impl Poset {
     /// index.
     fn fix_merge_conflict(
         &mut self,
-        path: &CriticalPath,
+        _path: &CriticalPath,
         new_node: PosetNode,
-        next_path_nidx: NodeIndex,
-        cur_nidx: NodeIndex,
+        _next_path_nidx: NodeIndex,
+        _cur_nidx: NodeIndex,
     ) -> (bool, NodeIndex) {
-        (false, NodeIndex::end())
+        (false, self.g.add_node(new_node))
+    }
+
+    fn merge_endings(
+        &mut self,
+        added_nidx: NodeIndex,
+        path: &CriticalPath,
+        cur_path_nidx: NodeIndex,
+    ) {
+        let mut cur_orig_nidx = *self.exit_points.get(&self.g[added_nidx]).unwrap();
+        let mut cur_added_nidx = added_nidx;
+        loop {
+            let prev_path_nidx = match path.prev_node(cur_path_nidx) {
+                Some(nidx) => nidx,
+                None => break,
+            };
+            let prev_path_node = PosetNode::from_event(&path.g.g[prev_path_nidx].span);
+            let prev_added_nidx: NodeIndex = match self
+                .g
+                .neighbors_directed(cur_added_nidx, Direction::Incoming)
+                .find(|&y| self.g[y] == prev_path_node)
+            {
+                Some(nidx) => nidx,
+                None => panic!(
+                    "Couldn't find previous added nidx {} of cur_added_nidx {}, cur_path_node: {}, cur_orig_nidx: {}",
+                    prev_path_node,
+                    self.g[cur_added_nidx],
+                    PosetNode::from_event(&path.g.g[cur_path_nidx].span),
+                    self.g[cur_orig_nidx]
+                ),
+            };
+            self.merge_node(cur_added_nidx, cur_orig_nidx);
+            cur_added_nidx = prev_added_nidx;
+            cur_orig_nidx = match self
+                .g
+                .neighbors_directed(cur_orig_nidx, Direction::Incoming)
+                .find(|&y| self.g[y] == prev_path_node)
+            {
+                Some(nidx) => nidx,
+                None => break,
+            }
+        }
+    }
+
+    fn merge_node(&mut self, source: NodeIndex, target: NodeIndex) {
+        println!("Merging nodes");
+        for prev_neighbor in self
+            .g
+            .neighbors_directed(source, Direction::Incoming)
+            .collect::<Vec<NodeIndex>>()
+        {
+            let prev_target_neighbor = match self.g.neighbors_directed(target, Direction::Incoming).find(|&i| self.g[i] == self.g[prev_neighbor]) {
+                Some(nidx) => nidx,
+                None => panic!("Couldn't find neighbor {} of original node {} (source {}) even though we're trying to merge them", self.g[prev_neighbor], self.g[target], self.g[source])
+            };
+            let edge_idx = self.g.find_edge(prev_target_neighbor, target).unwrap();
+            self.g[edge_idx] += 1;
+        }
+        self.g.remove_node(source);
     }
 }
 
