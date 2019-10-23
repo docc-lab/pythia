@@ -14,6 +14,7 @@ pub mod cct;
 pub mod controller;
 pub mod critical;
 pub mod grouping;
+pub mod historic;
 pub mod manifest;
 pub mod osprofiler;
 pub mod poset;
@@ -30,6 +31,7 @@ use cct::CCT;
 use controller::OSProfilerController;
 use critical::CriticalPath;
 use grouping::Group;
+use historic::Historic;
 use manifest::Manifest;
 use osprofiler::OSProfilerReader;
 use osprofiler::RequestType;
@@ -154,6 +156,9 @@ pub fn get_manifest(manfile: &str) {
     let manifest_method = settings.get("manifest_method").unwrap();
     if manifest_method == "Poset" {
         let manifest = Manifest::<Poset>::from_trace_list(traces);
+        println!("{}", manifest);
+    } else if manifest_method == "Historic" {
+        let manifest = Manifest::<Historic>::from_trace_list(traces);
         println!("{}", manifest);
     } else if manifest_method == "CCT" {
         let manifest = Manifest::<CCT>::from_trace_list(traces);
