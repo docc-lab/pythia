@@ -189,9 +189,9 @@ fn get_settings() -> HashMap<String, String> {
     let mut results = settings.try_into::<HashMap<String, String>>().unwrap();
     let mut manifest_file = PathBuf::from(results.get("pythia_cache").unwrap());
     match results.get("manifest_method").unwrap().as_str() {
-        "CCT" => manifest_file.push("cct_manifest.json"),
-        "Poset" => manifest_file.push("poset_manifest.json"),
-        "Historic" => manifest_file.push("historic_manifest.json"),
+        "CCT" => manifest_file.push("cct_manifest"),
+        "Poset" => manifest_file.push("poset_manifest"),
+        "Historic" => manifest_file.push("historic_manifest"),
         _ => panic!("Unsupported manifest method"),
     }
     results.insert(

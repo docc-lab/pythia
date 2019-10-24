@@ -554,6 +554,17 @@ pub enum RequestType {
     ServerList,
 }
 
+impl RequestType {
+    pub fn from_str(typ: &str) -> RequestType {
+        match typ {
+            "ServerCreate" => RequestType::ServerCreate,
+            "ServerDelete" => RequestType::ServerDelete,
+            "ServerList" => RequestType::ServerList,
+            _ => panic!("Unknown request type {}", typ),
+        }
+    }
+}
+
 impl fmt::Display for RequestType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)

@@ -52,22 +52,35 @@ impl Manifest {
     }
 
     pub fn to_file(&self, file: &Path) {
+        std::fs::create_dir_all(file).ok();
         for (request_type, inner) in self.per_request_type.iter() {
             let mut newfile = PathBuf::from(file);
             newfile.push(request_type.to_string());
             newfile.set_extension("json");
             let writer = std::fs::File::create(newfile).unwrap();
-            serde_json::to_writer(writer, inner.as_ref()).expect("Failed to manifest to cache");
+            serde_json::to_writer(writer, inner).ok();
         }
     }
 
     pub fn from_file(manifest_type: &str, file: &Path) -> Option<Manifest> {
-        None
-        // let reader = match std::fs::File::open(file) {
-        //     Ok(x) => x,
-        //     Err(_) => return None,
-        // };
-        // Some(serde_json::from_reader(reader).unwrap())
+        let mut result = Manifest {
+            per_request_type: HashMap::new(),
+            manifest_type: String::from(manifest_type),
+        };
+        result.ingest_dir(file);
+        Some(result)
+    }
+
+    fn ingest_dir(&mut self, file: &Path) -> Result<()> {
+        for entry in std::fs::read_dir(file)? {
+            let entry = entry?;
+            let path = entry.path();
+            let reader = std::fs::File::open(path)?;
+            let request_type = RequestType::from_str(path.file_stem().unwrap().to_str().unwrap());
+            self.per_request_type
+                .insert(request_type, serde_json::from_reader(reader).unwrap());
+        }
+        Ok(())
     }
 
     pub fn entry_points(&self) -> Vec<&String> {
