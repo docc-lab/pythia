@@ -15,9 +15,9 @@ use serde::de;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use trace::Event;
-use trace::EventEnum;
-use trace::{DAGEdge, DAGNode, EdgeType};
+use crate::trace::Event;
+use crate::trace::EventEnum;
+use crate::trace::{DAGEdge, DAGNode, EdgeType};
 
 pub struct OSProfilerReader {
     redis_url: String,

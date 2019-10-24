@@ -3,7 +3,7 @@ use std::fs::{read_dir, File};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
-use osprofiler::RequestType;
+use crate::osprofiler::RequestType;
 
 pub struct OSProfilerController {
     manifest_root: PathBuf,

@@ -9,10 +9,10 @@ use petgraph::graph::EdgeIndex;
 use petgraph::visit::EdgeRef;
 use serde::{Deserialize, Serialize};
 
-use grouping::Group;
-use manifest::SearchSpace;
-use osprofiler::OSProfilerDAG;
-use poset::PosetNode;
+use crate::grouping::Group;
+use crate::searchspace::SearchSpace;
+use crate::osprofiler::OSProfilerDAG;
+use crate::poset::PosetNode;
 
 #[derive(Serialize, Deserialize)]
 struct Edge {
@@ -56,14 +56,8 @@ impl Display for Historic {
     }
 }
 
+#[typetag::serde]
 impl SearchSpace for Historic {
-    fn new() -> Self {
-        Historic {
-            edges: Vec::new(),
-            edge_map: HashMap::new(),
-        }
-    }
-
     fn add_trace(&mut self, trace: &OSProfilerDAG) {
         // Breadth-first search over all nodes, add outgoing edges to manifest
         let mut visited = HashSet::new();
@@ -102,3 +96,13 @@ impl SearchSpace for Historic {
         Vec::new()
     }
 }
+
+impl Default for Historic {
+    fn default() -> Self {
+        Historic {
+            edges: Vec::new(),
+            edge_map: HashMap::new(),
+        }
+    }
+}
+

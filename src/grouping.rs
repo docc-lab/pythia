@@ -9,10 +9,10 @@ use petgraph::stable_graph::StableGraph;
 use petgraph::Direction;
 use stats::variance;
 
-use critical::CriticalPath;
-use osprofiler::RequestType;
-use trace::Event;
-use trace::EventEnum;
+use crate::critical::CriticalPath;
+use crate::osprofiler::RequestType;
+use crate::trace::Event;
+use crate::trace::EventEnum;
 
 #[derive(Clone)]
 pub struct Group {

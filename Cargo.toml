@@ -3,6 +3,7 @@ name = "pythia"
 version = "0.1.0"
 authors = ["Emre Ates <ates@bu.edu>"]
 default-run = "pythia"
+edition = "2018"
 
 [dependencies]
 redis = "*"
@@ -17,3 +18,4 @@ rust-crypto = "*"
 streaming-stats = "*"
 lazy_static = "1.4.0"
 indexmap = "*"
+typetag = "0.1.4"

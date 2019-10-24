@@ -8,11 +8,11 @@ use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::{Direction, Graph};
 use serde::{Deserialize, Serialize};
 
-use critical::CriticalPath;
-use grouping::Group;
-use manifest::SearchSpace;
-use osprofiler::OSProfilerDAG;
-use trace::EventEnum;
+use crate::critical::CriticalPath;
+use crate::grouping::Group;
+use crate::searchspace::SearchSpace;
+use crate::osprofiler::OSProfilerDAG;
+use crate::trace::EventEnum;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CCT {
@@ -20,14 +20,8 @@ pub struct CCT {
     pub entry_points: HashMap<String, NodeIndex>,
 }
 
+#[typetag::serde]
 impl SearchSpace for CCT {
-    fn new() -> CCT {
-        CCT {
-            g: Graph::<String, u32>::new(),
-            entry_points: HashMap::<String, NodeIndex>::new(),
-        }
-    }
-
     fn add_trace(&mut self, trace: &OSProfilerDAG) {
         for path in CriticalPath::all_possible_paths(trace) {
             self.add_path_to_manifest(&path);
@@ -59,7 +53,23 @@ impl SearchSpace for CCT {
     }
 }
 
+impl Default for CCT {
+    fn default() -> Self {
+        CCT {
+            g: Graph::<String, u32>::new(),
+            entry_points: HashMap::<String, NodeIndex>::new(),
+        }
+    }
+}
+
 impl CCT {
+    pub fn new() -> CCT {
+        CCT {
+            g: Graph::<String, u32>::new(),
+            entry_points: HashMap::<String, NodeIndex>::new(),
+        }
+    }
+
     pub fn from_trace_list(list: Vec<OSProfilerDAG>) -> CCT {
         let mut cct = CCT::new();
         println!("Creating manifest from {} traces", list.len());

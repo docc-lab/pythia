@@ -9,12 +9,12 @@ use petgraph::stable_graph::StableGraph;
 use petgraph::Direction;
 use serde::{Deserialize, Serialize};
 
-use critical::CriticalPath;
-use grouping::Group;
-use manifest::SearchSpace;
-use osprofiler::OSProfilerDAG;
-use trace::Event;
-use trace::EventEnum;
+use crate::critical::CriticalPath;
+use crate::grouping::Group;
+use crate::searchspace::SearchSpace;
+use crate::osprofiler::OSProfilerDAG;
+use crate::trace::Event;
+use crate::trace::EventEnum;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PosetNode {
@@ -62,15 +62,8 @@ pub struct Poset {
     exit_points: HashMap<PosetNode, NodeIndex>,
 }
 
+#[typetag::serde]
 impl SearchSpace for Poset {
-    fn new() -> Self {
-        Poset {
-            g: StableGraph::<PosetNode, u32>::new(),
-            entry_points: HashMap::new(),
-            exit_points: HashMap::new(),
-        }
-    }
-
     fn add_trace(&mut self, trace: &OSProfilerDAG) {
         for path in &CriticalPath::all_possible_paths(trace) {
             self.add_path(path);
@@ -86,7 +79,25 @@ impl SearchSpace for Poset {
     }
 }
 
+impl Default for Poset {
+    fn default() -> Self {
+        Poset {
+            g: StableGraph::<PosetNode, u32>::new(),
+            entry_points: HashMap::new(),
+            exit_points: HashMap::new(),
+        }
+    }
+}
+
 impl Poset {
+    pub fn new() -> Self {
+        Poset {
+            g: StableGraph::<PosetNode, u32>::new(),
+            entry_points: HashMap::new(),
+            exit_points: HashMap::new(),
+        }
+    }
+
     fn add_path(&mut self, path: &CriticalPath) {
         let mut cur_path_nidx = path.start_node;
         let new_node = PosetNode::from_event(&path.g.g[cur_path_nidx].span);

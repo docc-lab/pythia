@@ -7,13 +7,13 @@ use crypto::sha2::Sha256;
 use petgraph::{dot::Dot, graph::NodeIndex, Direction};
 use uuid::Uuid;
 
-use osprofiler::OSProfilerDAG;
-use osprofiler::RequestType;
-use trace::DAGEdge;
-use trace::DAGNode;
-use trace::EdgeType;
-use trace::Event;
-use trace::EventEnum;
+use crate::osprofiler::OSProfilerDAG;
+use crate::osprofiler::RequestType;
+use crate::trace::DAGEdge;
+use crate::trace::DAGNode;
+use crate::trace::EdgeType;
+use crate::trace::Event;
+use crate::trace::EventEnum;
 
 #[derive(Debug, Clone)]
 pub struct CriticalPath {

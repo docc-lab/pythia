@@ -1,13 +1,3 @@
-extern crate chrono;
-extern crate indexmap;
-extern crate config;
-extern crate crypto;
-extern crate petgraph;
-extern crate redis;
-extern crate serde;
-extern crate serde_json;
-extern crate stats;
-extern crate uuid;
 #[macro_use]
 extern crate lazy_static;
 
@@ -19,6 +9,7 @@ pub mod historic;
 pub mod manifest;
 pub mod osprofiler;
 pub mod poset;
+pub mod searchspace;
 pub mod trace;
 
 use std::collections::HashMap;
@@ -28,28 +19,24 @@ use std::path::PathBuf;
 use config::{Config, File, FileFormat};
 use petgraph::dot::Dot;
 
-use cct::CCT;
-use controller::OSProfilerController;
-use critical::CriticalPath;
-use grouping::Group;
-use historic::Historic;
-use manifest::Manifest;
-use osprofiler::OSProfilerReader;
-use osprofiler::RequestType;
-use osprofiler::REQUEST_TYPE_MAP;
-use poset::Poset;
+use self::controller::OSProfilerController;
+use self::critical::CriticalPath;
+use self::grouping::Group;
+use self::manifest::Manifest;
+use self::osprofiler::OSProfilerReader;
+use self::osprofiler::RequestType;
+use self::osprofiler::REQUEST_TYPE_MAP;
 
 /// Make a single instrumentation decision.
 pub fn make_decision(epoch_file: &str, dry_run: bool) {
     let settings = get_settings();
     let controller = OSProfilerController::from_settings(&settings);
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-    let manifest = match settings.get("manifest_method").unwrap().as_str() {
-        "CCT" => Manifest::<CCT>::from_file(manifest_file.as_path())
-            .expect("Couldn't read manifest from cache"),
-        // "Poset" => Manifest::<Poset>::from_file(manifest_file.as_path()),
-        _ => panic!("Unsupported manifest method"),
-    };
+    let manifest = Manifest::from_file(
+        settings.get("manifest_method").unwrap(),
+        manifest_file.as_path(),
+    )
+    .expect("Couldn't read manifest from cache");
     let reader = OSProfilerReader::from_settings(&settings);
     let traces = reader.read_trace_file(epoch_file);
     let critical_paths = traces.iter().map(|t| CriticalPath::from_trace(t)).collect();
@@ -95,12 +82,11 @@ pub fn enable_skeleton() {
     let settings = get_settings();
     let mut manifest_file = PathBuf::from(settings.get("pythia_cache").unwrap());
     manifest_file.push("manifest.json");
-    let manifest = match settings.get("manifest_method").unwrap().as_str() {
-        "CCT" => Manifest::<CCT>::from_file(manifest_file.as_path())
-            .expect("Couldn't read manifest from cache"),
-        // "Poset" => Manifest::<Poset>::from_file(manifest_file.as_path()),
-        _ => panic!("Unsupported manifest method"),
-    };
+    let manifest = Manifest::from_file(
+        settings.get("manifest_method").unwrap(),
+        manifest_file.as_path(),
+    )
+    .expect("Couldn't read manifest from cache");
     let controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
     let mut to_enable = manifest.entry_points();
@@ -112,12 +98,11 @@ pub fn enable_skeleton() {
 pub fn show_manifest(request_type: &str) {
     let settings = get_settings();
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-    let manifest = match settings.get("manifest_method").unwrap().as_str() {
-        "CCT" => Manifest::<CCT>::from_file(manifest_file.as_path())
-            .expect("Couldn't read manifest from cache"),
-        // "Poset" => Manifest::<Poset>::from_file(manifest_file.as_path()),
-        _ => panic!("Unsupported manifest method"),
-    };
+    let manifest = Manifest::from_file(
+        settings.get("manifest_method").unwrap(),
+        manifest_file.as_path(),
+    )
+    .expect("Couldn't read manifest from cache");
     match request_type {
         "ServerCreate" => {
             println!(
@@ -155,30 +140,22 @@ pub fn get_manifest(manfile: &str) {
     let reader = OSProfilerReader::from_settings(&settings);
     let traces = reader.read_trace_file(manfile);
     let manifest_method = settings.get("manifest_method").unwrap();
-    if manifest_method == "Poset" {
-        let manifest = Manifest::<Poset>::from_trace_list(traces);
-        println!("{}", manifest);
-    } else if manifest_method == "Historic" {
-        let manifest = Manifest::<Historic>::from_trace_list(traces);
-        println!("{}", manifest);
-    } else if manifest_method == "CCT" {
-        let manifest = Manifest::<CCT>::from_trace_list(traces);
-        println!("{}", manifest);
-        let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-        if manifest_file.exists() {
-            println!(
-                "The manifest file {:?} exists. Overwrite? [y/N]",
-                manifest_file
-            );
-            let mut s = String::new();
-            stdin().read_line(&mut s).unwrap();
-            if s.chars().nth(0).unwrap() != 'y' {
-                return;
-            }
-            println!("Overwriting");
+    let manifest = Manifest::from_trace_list(manifest_method, traces);
+    println!("{}", manifest);
+    let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
+    if manifest_file.exists() {
+        println!(
+            "The manifest file {:?} exists. Overwrite? [y/N]",
+            manifest_file
+        );
+        let mut s = String::new();
+        stdin().read_line(&mut s).unwrap();
+        if s.chars().nth(0).unwrap() != 'y' {
+            return;
         }
-        manifest.to_file(manifest_file.as_path());
+        println!("Overwriting");
     }
+    manifest.to_file(manifest_file.as_path());
 }
 
 pub fn get_trace(trace_id: &str) {
