@@ -94,8 +94,8 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Manifest:").unwrap();
-        for (request_type, cct) in &self.per_request_type {
-            write!(f, "{:?} dot:\n{}", request_type, cct).unwrap();
+        for (request_type, inner) in &self.per_request_type {
+            write!(f, "{:?} manifest:\n{}", request_type, inner).unwrap();
         }
         Ok(())
     }

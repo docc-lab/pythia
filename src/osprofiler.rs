@@ -1,8 +1,7 @@
-use std::cmp::Ordering;
-use std::collections::HashMap;
 /// Stuff related to working with osprofiler
 ///
-///
+use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 use std::hash::Hash;

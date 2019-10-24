@@ -1,4 +1,5 @@
 extern crate chrono;
+extern crate indexmap;
 extern crate config;
 extern crate crypto;
 extern crate petgraph;
@@ -213,6 +214,7 @@ fn get_settings() -> HashMap<String, String> {
     match results.get("manifest_method").unwrap().as_str() {
         "CCT" => manifest_file.push("cct_manifest.json"),
         "Poset" => manifest_file.push("poset_manifest.json"),
+        "Historic" => manifest_file.push("historic_manifest.json"),
         _ => panic!("Unsupported manifest method"),
     }
     results.insert(

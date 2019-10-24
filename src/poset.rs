@@ -40,7 +40,7 @@ impl Display for PosetNode {
         while written <= self.tracepoint_id.len() {
             if written + LINE_WIDTH <= self.tracepoint_id.len() {
                 result.push_str(&self.tracepoint_id[written..written + LINE_WIDTH]);
-                result.push_str("-\n");
+            // result.push_str("-\n");
             } else {
                 result.push_str(&self.tracepoint_id[written..self.tracepoint_id.len()]);
             }
