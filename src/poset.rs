@@ -17,13 +17,13 @@ use trace::Event;
 use trace::EventEnum;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-struct PosetNode {
+pub struct PosetNode {
     pub tracepoint_id: String,
     pub variant: EventEnum,
 }
 
 impl PosetNode {
-    fn from_event(span: &Event) -> PosetNode {
+    pub fn from_event(span: &Event) -> PosetNode {
         PosetNode {
             tracepoint_id: span.tracepoint_id.clone(),
             variant: span.variant,
