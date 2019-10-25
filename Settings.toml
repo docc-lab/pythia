@@ -3,4 +3,4 @@ manifest_root = "/opt/stack/manifest"
 
 redis_url = "redis://localhost:6379"
 
-manifest_method = "CCT" # can be CCT, Poset, Historic
+manifest_method = "Historic" # can be CCT, Poset, Historic

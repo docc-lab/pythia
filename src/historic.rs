@@ -8,11 +8,12 @@ use indexmap::set::IndexSet;
 use petgraph::graph::EdgeIndex;
 use petgraph::visit::EdgeRef;
 use serde::{Deserialize, Serialize};
+use serde::{Deserializer, Serializer};
 
 use crate::grouping::Group;
-use crate::searchspace::SearchSpace;
 use crate::osprofiler::OSProfilerDAG;
 use crate::poset::PosetNode;
+use crate::searchspace::SearchSpace;
 
 #[derive(Serialize, Deserialize)]
 struct Edge {
@@ -37,9 +38,43 @@ impl Edge {
     }
 }
 
+fn serialize_historic<S: Serializer>(
+    map: &HashMap<PosetNode, HashMap<PosetNode, usize>>,
+    s: S,
+) -> Result<S::Ok, S::Error> {
+    map.iter()
+        .map(|(a, b)| {
+            (
+                a.clone(),
+                b.iter()
+                    .map(|(x, y)| (x.clone(), y.clone()))
+                    .collect::<Vec<(_, _)>>(),
+            )
+        })
+        .collect::<Vec<(_, _)>>()
+        .serialize(s)
+}
+
+fn deserialize_historic<'de, D: Deserializer<'de>>(
+    d: D,
+) -> Result<HashMap<PosetNode, HashMap<PosetNode, usize>>, D::Error> {
+    let vec = <Vec<(PosetNode, Vec<(PosetNode, usize)>)>>::deserialize(d)?;
+    let mut map = HashMap::new();
+    for (k, v) in vec {
+        let mut inner = HashMap::new();
+        for (x, y) in v {
+            inner.insert(x, y);
+        }
+        map.insert(k, inner);
+    }
+    Ok(map)
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Historic {
     edges: Vec<Edge>,
+    #[serde(serialize_with = "serialize_historic")]
+    #[serde(deserialize_with = "deserialize_historic")]
     edge_map: HashMap<PosetNode, HashMap<PosetNode, usize>>,
 }
 
@@ -105,4 +140,3 @@ impl Default for Historic {
         }
     }
 }
-
