@@ -135,7 +135,7 @@ pub fn show_manifest(request_type: &str) {
     }
 }
 
-pub fn get_manifest(manfile: &str) {
+pub fn get_manifest(manfile: &str, overwrite: bool) {
     let settings = get_settings();
     let reader = OSProfilerReader::from_settings(&settings);
     let traces = reader.read_trace_file(manfile);
@@ -144,14 +144,16 @@ pub fn get_manifest(manfile: &str) {
     println!("{}", manifest);
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
     if manifest_file.exists() {
-        println!(
-            "The manifest file {:?} exists. Overwrite? [y/N]",
-            manifest_file
-        );
-        let mut s = String::new();
-        stdin().read_line(&mut s).unwrap();
-        if s.chars().nth(0).unwrap() != 'y' {
-            return;
+        if !overwrite {
+            println!(
+                "The manifest file {:?} exists. Overwrite? [y/N]",
+                manifest_file
+            );
+            let mut s = String::new();
+            stdin().read_line(&mut s).unwrap();
+            if s.chars().nth(0).unwrap() != 'y' {
+                return;
+            }
         }
         println!("Overwriting");
     }
