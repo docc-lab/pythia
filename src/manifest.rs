@@ -18,7 +18,6 @@ use crate::searchspace::SearchSpace;
 
 pub struct Manifest {
     pub per_request_type: HashMap<RequestType, Box<dyn SearchSpace>>,
-    manifest_type: String,
 }
 
 impl Manifest {
@@ -38,7 +37,6 @@ impl Manifest {
         }
         Manifest {
             per_request_type: map,
-            manifest_type: String::from(manifest_type),
         }
     }
 
@@ -62,21 +60,20 @@ impl Manifest {
         }
     }
 
-    pub fn from_file(manifest_type: &str, file: &Path) -> Option<Manifest> {
+    pub fn from_file(file: &Path) -> Option<Manifest> {
         let mut result = Manifest {
             per_request_type: HashMap::new(),
-            manifest_type: String::from(manifest_type),
         };
-        result.ingest_dir(file);
+        result.ingest_dir(file).ok();
         Some(result)
     }
 
-    fn ingest_dir(&mut self, file: &Path) -> Result<()> {
+    fn ingest_dir(&mut self, file: &Path) -> std::io::Result<()> {
         for entry in std::fs::read_dir(file)? {
             let entry = entry?;
             let path = entry.path();
-            let reader = std::fs::File::open(path)?;
             let request_type = RequestType::from_str(path.file_stem().unwrap().to_str().unwrap());
+            let reader = std::fs::File::open(path)?;
             self.per_request_type
                 .insert(request_type, serde_json::from_reader(reader).unwrap());
         }

@@ -32,11 +32,8 @@ pub fn make_decision(epoch_file: &str, dry_run: bool) {
     let settings = get_settings();
     let controller = OSProfilerController::from_settings(&settings);
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-    let manifest = Manifest::from_file(
-        settings.get("manifest_method").unwrap(),
-        manifest_file.as_path(),
-    )
-    .expect("Couldn't read manifest from cache");
+    let manifest =
+        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let reader = OSProfilerReader::from_settings(&settings);
     let traces = reader.read_trace_file(epoch_file);
     let critical_paths = traces.iter().map(|t| CriticalPath::from_trace(t)).collect();
@@ -82,11 +79,8 @@ pub fn enable_skeleton() {
     let settings = get_settings();
     let mut manifest_file = PathBuf::from(settings.get("pythia_cache").unwrap());
     manifest_file.push("manifest.json");
-    let manifest = Manifest::from_file(
-        settings.get("manifest_method").unwrap(),
-        manifest_file.as_path(),
-    )
-    .expect("Couldn't read manifest from cache");
+    let manifest =
+        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
     let mut to_enable = manifest.entry_points();
@@ -98,11 +92,8 @@ pub fn enable_skeleton() {
 pub fn show_manifest(request_type: &str) {
     let settings = get_settings();
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-    let manifest = Manifest::from_file(
-        settings.get("manifest_method").unwrap(),
-        manifest_file.as_path(),
-    )
-    .expect("Couldn't read manifest from cache");
+    let manifest =
+        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     match request_type {
         "ServerCreate" => {
             println!(
