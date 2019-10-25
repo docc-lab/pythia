@@ -16,6 +16,23 @@ impl OSProfilerController {
         }
     }
 
+    pub fn get_disabled<'a>(
+        &self,
+        points: &Vec<(&'a String, Option<RequestType>)>,
+    ) -> Vec<(&'a String, Option<RequestType>)> {
+        let mut result = Vec::new();
+        for point in points {
+            if self.is_disabled(point) {
+                result.push((point.0, point.1));
+            }
+        }
+        result
+    }
+
+    fn is_disabled(&self, point: &(&String, Option<RequestType>)) -> bool {
+        !self.read_tracepoint(point.0, &point.1)
+    }
+
     pub fn enable(&self, points: &Vec<(&String, Option<RequestType>)>) {
         for (tracepoint, request_type) in points {
             self.write_to_tracepoint(tracepoint, request_type, b"1");
@@ -46,6 +63,14 @@ impl OSProfilerController {
                 file.write_all(to_write).unwrap();
             }
         }
+    }
+
+    fn read_tracepoint(&self, tracepoint: &String, request_type: &Option<RequestType>) -> bool {
+        let contents = match std::fs::read_to_string(self.get_path(tracepoint, request_type)).ok() {
+            Some(x) => x,
+            None => return false,
+        };
+        contents.parse::<i32>().unwrap() == 1
     }
 
     fn write_to_tracepoint(

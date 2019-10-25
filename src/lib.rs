@@ -53,13 +53,22 @@ pub fn make_decision(epoch_file: &str, dry_run: bool) {
             problem_group.g[endpoints.0], problem_group.g[endpoints.1], problem_group.g[*edge]
         );
     }
-    let problem_edge = problem_edges[0];
-    println!("\n\nNext tracepoints to enable:\n");
-    let tracepoints = manifest.search(problem_group, problem_edge);
-    println!("{:?}", tracepoints);
-    if !dry_run {
-        controller.enable(&tracepoints);
-        println!("Enabled tracepoints.");
+    let mut converged = false;
+    let mut index = 0;
+    while !converged {
+        let problem_edge = problem_edges[index];
+        println!("\n\nTry {}: Next tracepoints to enable:\n", index);
+        let tracepoints = manifest.search(problem_group, problem_edge);
+        println!("{:?}", tracepoints);
+        let to_enable = controller.get_disabled(&tracepoints);
+        if to_enable.len() != 0 {
+            converged = true;
+        }
+        if !dry_run {
+            controller.enable(&to_enable);
+            println!("Enabled tracepoints.");
+        }
+        index += 1;
     }
 }
 
