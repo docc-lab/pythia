@@ -15,7 +15,7 @@ fn main() {
         .subcommand(
             SubCommand::with_name("manifest")
                 .arg(Arg::with_name("manifest-file").required(true).index(1))
-                .arg(Arg::with_name("overwrite").long("dry-run")),
+                .arg(Arg::with_name("overwrite").long("overwrite")),
         )
         .subcommand(
             SubCommand::with_name("get-trace")
