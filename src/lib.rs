@@ -86,8 +86,7 @@ pub fn enable_all() {
 
 pub fn enable_skeleton() {
     let settings = get_settings();
-    let mut manifest_file = PathBuf::from(settings.get("pythia_cache").unwrap());
-    manifest_file.push("manifest.json");
+    let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let controller = OSProfilerController::from_settings(&settings);

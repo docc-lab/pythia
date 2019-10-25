@@ -79,8 +79,13 @@ impl OSProfilerController {
         request_type: &Option<RequestType>,
         to_write: &[u8],
     ) {
-        let mut file = File::create(self.get_path(tracepoint, request_type)).unwrap();
-        file.write_all(to_write).unwrap();
+        let path = self.get_path(tracepoint, request_type);
+        match File::create(&path) {
+            Ok(mut f) => {
+                f.write_all(to_write).unwrap();
+            }
+            Err(e) => panic!("Problem creating file {:?}: {}", path, e),
+        }
     }
 
     fn get_path(&self, tracepoint: &String, request_type: &Option<RequestType>) -> PathBuf {
@@ -91,7 +96,12 @@ impl OSProfilerController {
             result.push(tracepoint);
         }
         match request_type {
-            Some(t) => result.push(":".to_owned() + &t.to_string()),
+            Some(t) => {
+                let mut newname = result.file_name().unwrap().to_os_string();
+                newname.push(":");
+                newname.push(t.to_string());
+                result.set_file_name(newname);
+            }
             None => {}
         }
         result
