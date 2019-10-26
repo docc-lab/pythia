@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
@@ -9,11 +10,13 @@ use petgraph::graph::EdgeIndex;
 use petgraph::visit::EdgeRef;
 use serde::{Deserialize, Serialize};
 use serde::{Deserializer, Serializer};
+use stats::variance;
 
 use crate::grouping::Group;
 use crate::osprofiler::OSProfilerDAG;
 use crate::poset::PosetNode;
 use crate::searchspace::SearchSpace;
+use crate::searchspace::SearchState;
 
 #[derive(Serialize, Deserialize)]
 struct Edge {
@@ -77,6 +80,8 @@ pub struct Historic {
     #[serde(serialize_with = "serialize_historic")]
     #[serde(deserialize_with = "deserialize_historic")]
     edge_map: HashMap<PosetNode, HashMap<PosetNode, usize>>,
+    #[serde(skip)]
+    tried_tracepoints: RefCell<HashSet<String>>,
 }
 
 impl Display for Historic {
@@ -128,14 +133,51 @@ impl SearchSpace for Historic {
             }
             visited.insert(nidx);
         }
+        self.edges.sort_by(|a, b| {
+            variance(b.latencies.iter().map(|x| x.as_nanos()))
+                .partial_cmp(&variance(a.latencies.iter().map(|x| x.as_nanos())))
+                .unwrap()
+        });
     }
 
     fn get_entry_points(&self) -> Vec<&String> {
         self.entry_points.iter().collect()
     }
 
-    fn search(&self, _group: &Group, _edge: EdgeIndex, _budget: usize) -> Vec<&String> {
-        Vec::new()
+    fn search(
+        &self,
+        _group: &Group,
+        _edge: EdgeIndex,
+        budget: usize,
+    ) -> (Vec<&String>, SearchState) {
+        if budget == 0 {
+            panic!("The historic method cannot be used without a budget");
+        }
+        let mut result = HashSet::new();
+        let mut index = 0;
+        let mut at_start = true;
+        let mut tried_tracepoints = self.tried_tracepoints.borrow_mut();
+        while result.len() < budget {
+            if index > self.edges.len() {
+                return (result.drain().collect(), SearchState::NextEdge);
+            }
+            let edge = &self.edges[index];
+            if at_start {
+                if tried_tracepoints.get(&edge.start.tracepoint_id).is_none() {
+                    tried_tracepoints.insert(edge.start.tracepoint_id.clone());
+                    result.insert(&edge.start.tracepoint_id);
+                }
+                at_start = false;
+            } else {
+                if tried_tracepoints.get(&edge.end.tracepoint_id).is_none() {
+                    tried_tracepoints.insert(edge.end.tracepoint_id.clone());
+                    result.insert(&edge.end.tracepoint_id);
+                }
+                at_start = true;
+                index += 1;
+            }
+        }
+        (result.drain().collect(), SearchState::DepletedBudget)
     }
 }
 
@@ -145,6 +187,7 @@ impl Default for Historic {
             edges: Vec::new(),
             edge_map: HashMap::new(),
             entry_points: HashSet::new(),
+            tried_tracepoints: RefCell::new(HashSet::new()),
         }
     }
 }

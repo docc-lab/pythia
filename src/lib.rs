@@ -26,6 +26,7 @@ use self::manifest::Manifest;
 use self::osprofiler::OSProfilerReader;
 use self::osprofiler::RequestType;
 use self::osprofiler::REQUEST_TYPE_MAP;
+use self::searchspace::SearchState;
 
 /// Make a single instrumentation decision.
 pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
@@ -59,7 +60,7 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
     while !converged {
         let problem_edge = problem_edges[index];
         println!("\n\nTry {}: Next tracepoints to enable:\n", index);
-        let tracepoints = manifest.search(problem_group, problem_edge, budget);
+        let (tracepoints, state) = manifest.search(problem_group, problem_edge, budget);
         println!("{:?}", tracepoints);
         let to_enable = controller.get_disabled(&tracepoints);
         if to_enable.len() != 0 {
@@ -71,12 +72,17 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
                     converged = true;
                 }
             }
+            if !dry_run {
+                controller.enable(&to_enable);
+                println!("Enabled tracepoints.");
+            }
         }
-        if !dry_run {
-            controller.enable(&to_enable);
-            println!("Enabled tracepoints.");
+        match state {
+            SearchState::NextEdge => {
+                index += 1;
+            }
+            SearchState::DepletedBudget => {}
         }
-        index += 1;
     }
 }
 

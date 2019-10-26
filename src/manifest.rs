@@ -15,6 +15,7 @@ use crate::osprofiler::OSProfilerDAG;
 use crate::osprofiler::RequestType;
 use crate::poset::Poset;
 use crate::searchspace::SearchSpace;
+use crate::searchspace::SearchState;
 
 pub struct Manifest {
     pub per_request_type: HashMap<RequestType, Box<dyn SearchSpace>>,
@@ -95,14 +96,19 @@ impl Manifest {
         group: &Group,
         edge: EdgeIndex,
         budget: usize,
-    ) -> Vec<(&'a String, Option<RequestType>)> {
-        self.per_request_type
+    ) -> (Vec<(&'a String, Option<RequestType>)>, SearchState) {
+        let (tracepoints, state) = self
+            .per_request_type
             .get(&group.request_type)
             .unwrap()
-            .search(group, edge, budget)
-            .iter()
-            .map(|&a| (a, Some(group.request_type)))
-            .collect()
+            .search(group, edge, budget);
+        (
+            tracepoints
+                .iter()
+                .map(|&a| (a, Some(group.request_type)))
+                .collect(),
+            state,
+        )
     }
 }
 

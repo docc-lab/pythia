@@ -58,9 +58,9 @@ fn main() {
             make_decision(
                 matches.value_of("epoch-file").unwrap(),
                 matches.occurrences_of("dry-run") > 0,
-                match matches.value_of("budget").unwrap().parse::<usize>() {
-                    Ok(i) => i,
-                    Err(_) => 0,
+                match matches.value_of("budget") {
+                    Some(x) => x.parse::<usize>().ok().unwrap(),
+                    None => 0,
                 },
             );
         }

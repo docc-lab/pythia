@@ -13,6 +13,7 @@ use crate::critical::CriticalPath;
 use crate::grouping::Group;
 use crate::osprofiler::OSProfilerDAG;
 use crate::searchspace::SearchSpace;
+use crate::searchspace::SearchState;
 use crate::trace::EventEnum;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -33,7 +34,12 @@ impl SearchSpace for CCT {
         self.entry_points.keys().collect()
     }
 
-    fn search<'a>(&'a self, group: &Group, edge: EdgeIndex, budget: usize) -> Vec<&'a String> {
+    fn search<'a>(
+        &'a self,
+        group: &Group,
+        edge: EdgeIndex,
+        budget: usize,
+    ) -> (Vec<&'a String>, SearchState) {
         let mut rng = &mut rand::thread_rng();
         let (source, target) = group.g.edge_endpoints(edge).unwrap();
         let source_context = self.get_context(group, source);
@@ -52,12 +58,18 @@ impl SearchSpace for CCT {
         }
         println!("Common context for the search: {:?}", common_context);
         if budget == 0 {
-            self.search_context(common_context)
+            (
+                self.search_context(common_context),
+                SearchState::DepletedBudget,
+            )
         } else {
-            self.search_context(common_context)
-                .choose_multiple(&mut rng, budget)
-                .cloned()
-                .collect()
+            (
+                self.search_context(common_context)
+                    .choose_multiple(&mut rng, budget)
+                    .cloned()
+                    .collect(),
+                SearchState::NextEdge,
+            )
         }
     }
 }

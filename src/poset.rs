@@ -11,8 +11,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::critical::CriticalPath;
 use crate::grouping::Group;
-use crate::searchspace::SearchSpace;
 use crate::osprofiler::OSProfilerDAG;
+use crate::searchspace::SearchSpace;
+use crate::searchspace::SearchState;
 use crate::trace::Event;
 use crate::trace::EventEnum;
 
@@ -74,8 +75,13 @@ impl SearchSpace for Poset {
         Vec::new()
     }
 
-    fn search(&self, _group: &Group, _edge: EdgeIndex, budget: usize) -> Vec<&String> {
-        Vec::new()
+    fn search(
+        &self,
+        _group: &Group,
+        _edge: EdgeIndex,
+        _budget: usize,
+    ) -> (Vec<&String>, SearchState) {
+        (Vec::new(), SearchState::NextEdge)
     }
 }
 
