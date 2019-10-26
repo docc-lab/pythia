@@ -9,5 +9,5 @@ use crate::osprofiler::OSProfilerDAG;
 pub trait SearchSpace: Display {
     fn add_trace(&mut self, trace: &OSProfilerDAG);
     fn get_entry_points(&self) -> Vec<&String>;
-    fn search(&self, group: &Group, edge: EdgeIndex) -> Vec<&String>;
+    fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> Vec<&String>;
 }

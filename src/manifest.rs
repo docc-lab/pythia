@@ -94,11 +94,12 @@ impl Manifest {
         &'a self,
         group: &Group,
         edge: EdgeIndex,
+        budget: usize,
     ) -> Vec<(&'a String, Option<RequestType>)> {
         self.per_request_type
             .get(&group.request_type)
             .unwrap()
-            .search(group, edge)
+            .search(group, edge, budget)
             .iter()
             .map(|&a| (a, Some(group.request_type)))
             .collect()

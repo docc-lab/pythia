@@ -28,8 +28,9 @@ use self::osprofiler::RequestType;
 use self::osprofiler::REQUEST_TYPE_MAP;
 
 /// Make a single instrumentation decision.
-pub fn make_decision(epoch_file: &str, dry_run: bool) {
+pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
     let settings = get_settings();
+    let mut budget = budget;
     let controller = OSProfilerController::from_settings(&settings);
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
     let manifest =
@@ -58,11 +59,18 @@ pub fn make_decision(epoch_file: &str, dry_run: bool) {
     while !converged {
         let problem_edge = problem_edges[index];
         println!("\n\nTry {}: Next tracepoints to enable:\n", index);
-        let tracepoints = manifest.search(problem_group, problem_edge);
+        let tracepoints = manifest.search(problem_group, problem_edge, budget);
         println!("{:?}", tracepoints);
         let to_enable = controller.get_disabled(&tracepoints);
         if to_enable.len() != 0 {
-            converged = true;
+            if budget == 0 {
+                converged = true;
+            } else {
+                budget -= to_enable.len();
+                if budget == 0 {
+                    converged = true;
+                }
+            }
         }
         if !dry_run {
             controller.enable(&to_enable);

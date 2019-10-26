@@ -24,6 +24,12 @@ fn main() {
         .subcommand(
             SubCommand::with_name("diagnose")
                 .arg(Arg::with_name("epoch-file").required(true).index(1))
+                .arg(
+                    Arg::with_name("budget")
+                        .long("budget")
+                        .short("b")
+                        .takes_value(true),
+                )
                 .arg(Arg::with_name("dry-run").long("dry-run")),
         )
         .subcommand(SubCommand::with_name("disable-all"))
@@ -52,6 +58,10 @@ fn main() {
             make_decision(
                 matches.value_of("epoch-file").unwrap(),
                 matches.occurrences_of("dry-run") > 0,
+                match matches.value_of("budget").unwrap().parse::<usize>() {
+                    Ok(i) => i,
+                    Err(_) => 0,
+                },
             );
         }
         ("disable-all", Some(_)) => {

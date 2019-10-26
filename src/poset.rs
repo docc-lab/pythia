@@ -74,7 +74,7 @@ impl SearchSpace for Poset {
         Vec::new()
     }
 
-    fn search(&self, _group: &Group, _edge: EdgeIndex) -> Vec<&String> {
+    fn search(&self, _group: &Group, _edge: EdgeIndex, budget: usize) -> Vec<&String> {
         Vec::new()
     }
 }
