@@ -73,6 +73,7 @@ fn deserialize_historic<'de, D: Deserializer<'de>>(
 #[derive(Serialize, Deserialize)]
 pub struct Historic {
     edges: Vec<Edge>,
+    entry_points: HashSet<String>,
     #[serde(serialize_with = "serialize_historic")]
     #[serde(deserialize_with = "deserialize_historic")]
     edge_map: HashMap<PosetNode, HashMap<PosetNode, usize>>,
@@ -98,6 +99,12 @@ impl SearchSpace for Historic {
         let mut visited = HashSet::new();
         let mut to_visit = IndexSet::new();
         to_visit.insert(trace.start_node);
+        self.entry_points
+            .insert(trace.g[trace.start_node].span.tracepoint_id.clone());
+        for nidx in trace.possible_end_nodes() {
+            self.entry_points
+                .insert(trace.g[nidx].span.tracepoint_id.clone());
+        }
         while let Some(nidx) = to_visit.pop() {
             let source = PosetNode::from_event(&trace.g[nidx].span);
             let inner_map = self
@@ -124,10 +131,10 @@ impl SearchSpace for Historic {
     }
 
     fn get_entry_points(&self) -> Vec<&String> {
-        Vec::new()
+        self.entry_points.iter().collect()
     }
 
-    fn search(&self, _group: &Group, _edge: EdgeIndex, budget: usize) -> Vec<&String> {
+    fn search(&self, _group: &Group, _edge: EdgeIndex, _budget: usize) -> Vec<&String> {
         Vec::new()
     }
 }
@@ -137,6 +144,7 @@ impl Default for Historic {
         Historic {
             edges: Vec::new(),
             edge_map: HashMap::new(),
+            entry_points: HashSet::new(),
         }
     }
 }
