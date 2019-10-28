@@ -425,7 +425,13 @@ impl OSProfilerDAG {
                             },
                             None => {
                                 // Parent has finished execution before child starts - shouldn't happen
-                                let parent_node = &self.g[*id_map.get(&event.parent_id).unwrap()];
+                                let parent_node = &self.g[match id_map.get(&event.parent_id) {
+                                    Some(&nidx) => nidx,
+                                    None => {
+                                        eprintln!("Warning: Parent of node {:?} not found. Silently ignoring this event", event);
+                                        continue;
+                                    }
+                                }];
                                 assert!(event.timestamp > parent_node.span.timestamp);
                                 panic!("Parent of node {:?} not found: {:?}", event, parent_node);
                             }
