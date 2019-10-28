@@ -203,7 +203,7 @@ impl OSProfilerDAG {
         event_list: &mut Vec<OSProfilerSpan>,
         reader: &OSProfilerReader,
     ) -> Option<NodeIndex> {
-        // Returns last added node
+        // Sorts events by timestamp
         event_list.sort_by(|a, b| {
             if a.timestamp == b.timestamp {
                 match a.variant {
@@ -359,18 +359,22 @@ impl OSProfilerDAG {
                             );
                         }
                         None => {
-                            let parent_node = id_map.get(&event.parent_id).unwrap();
-                            self.g.add_edge(
-                                *parent_node,
-                                nidx.unwrap(),
-                                DAGEdge {
-                                    duration: (event.timestamp
-                                        - self.g[*parent_node].span.timestamp)
-                                        .to_std()
-                                        .unwrap(),
-                                    variant: EdgeType::ChildOf,
-                                },
-                            );
+                            // If idx == 0, annotation is the first node and the edge is added in
+                            // add_async
+                            if idx != 0 {
+                                let parent_node = id_map.get(&event.parent_id).unwrap();
+                                self.g.add_edge(
+                                    *parent_node,
+                                    nidx.unwrap(),
+                                    DAGEdge {
+                                        duration: (event.timestamp
+                                            - self.g[*parent_node].span.timestamp)
+                                            .to_std()
+                                            .unwrap(),
+                                        variant: EdgeType::ChildOf,
+                                    },
+                                );
+                            }
                         }
                     }
                     asynch_traces.insert(myspan.info.child_id, nidx.unwrap());
