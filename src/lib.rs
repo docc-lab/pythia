@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate lazy_static;
 
-pub mod correlations;
 pub mod cct;
 pub mod controller;
 pub mod critical;
@@ -21,7 +20,6 @@ use config::{Config, File, FileFormat};
 use petgraph::dot::Dot;
 
 use self::controller::OSProfilerController;
-use self::correlations::get_key_value_pairs;
 use self::critical::CriticalPath;
 use self::grouping::Group;
 use self::manifest::Manifest;
@@ -185,8 +183,7 @@ pub fn get_trace(trace_id: &str) {
 pub fn show_key_value_pairs(trace_id: &str) {
     let settings = get_settings();
     let reader = OSProfilerReader::from_settings(&settings);
-    let trace = reader.get_trace_from_base_id(trace_id);
-    let pairs = get_key_value_pairs(&trace);
+    let pairs = reader.get_key_value_pairs(trace_id);
     println!("{:?}", pairs);
 }
 
