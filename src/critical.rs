@@ -5,6 +5,7 @@ use std::time::Duration;
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use petgraph::{dot::Dot, graph::NodeIndex, Direction};
+use petgraph::visit::EdgeRef;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -392,6 +393,22 @@ impl CriticalPath {
         let result = matches.next();
         assert!(matches.next().is_none());
         result
+    }
+
+    pub fn next_real_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
+        let mut result;
+        loop {
+            let mut matches = self.g.g.edges(nidx);
+            result = matches.next();
+            assert!(matches.next().is_none());
+            if result.is_none() {
+                return None;
+            }
+            if result.unwrap().weight().duration > Duration::new(0, 1) {
+                break;
+            }
+        }
+        Some(result.unwrap().target())
     }
 
     pub fn prev_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
