@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
 
@@ -72,7 +73,10 @@ impl SearchSpace for Poset {
     }
 
     fn get_entry_points(&self) -> Vec<&String> {
-        Vec::new()
+        let mut result = HashSet::new();
+        result.extend(self.entry_points.keys().map(|x| &x.tracepoint_id));
+        result.extend(self.exit_points.keys().map(|x| &x.tracepoint_id));
+        result.drain().collect()
     }
 
     fn search(
