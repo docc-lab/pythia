@@ -112,6 +112,7 @@ impl FlatSpace {
                 }
                 if cur_group_idx == target {
                     path_target = cur_path_idx;
+                    nodes_between -= 1;
                     break;
                 }
                 cur_group_idx = group.next_node(cur_group_idx).unwrap();
