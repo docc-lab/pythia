@@ -4,6 +4,7 @@ extern crate lazy_static;
 pub mod cct;
 pub mod controller;
 pub mod critical;
+pub mod flat;
 pub mod grouping;
 pub mod historic;
 pub mod manifest;
@@ -207,6 +208,7 @@ fn get_settings() -> HashMap<String, String> {
         "CCT" => manifest_file.push("cct_manifest"),
         "Poset" => manifest_file.push("poset_manifest"),
         "Historic" => manifest_file.push("historic_manifest"),
+        "Flat" => manifest_file.push("flat_manifest"),
         _ => panic!("Unsupported manifest method"),
     }
     results.insert(

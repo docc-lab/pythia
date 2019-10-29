@@ -9,6 +9,7 @@ use petgraph::graph::EdgeIndex;
 // use serde::Serialize;
 
 use crate::cct::CCT;
+use crate::flat::FlatSpace;
 use crate::grouping::Group;
 use crate::historic::Historic;
 use crate::osprofiler::OSProfilerDAG;
@@ -45,6 +46,7 @@ impl Manifest {
         match manifest_type {
             "CCT" => Box::new(CCT::default()),
             "Poset" => Box::new(Poset::default()),
+            "Flat" => Box::new(FlatSpace::default()),
             "Historic" => Box::new(Historic::default()),
             _ => panic!("Unsupported manifest method"),
         }

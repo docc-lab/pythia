@@ -8,6 +8,8 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::grouping::GroupNode;
+
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct Event {
     pub trace_id: Uuid,
@@ -44,6 +46,12 @@ impl Display for DAGNode {
             ),
             EventEnum::Exit => write!(f, "{} end", self.span.trace_id),
         }
+    }
+}
+
+impl PartialEq<GroupNode> for DAGNode {
+    fn eq(&self, other: &GroupNode) -> bool {
+        self.span.tracepoint_id == other.tracepoint_id && self.span.variant == other.variant
     }
 }
 

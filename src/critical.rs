@@ -5,6 +5,7 @@ use std::time::Duration;
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
 use petgraph::{dot::Dot, graph::NodeIndex, Direction};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::osprofiler::OSProfilerDAG;
@@ -15,7 +16,7 @@ use crate::trace::EdgeType;
 use crate::trace::Event;
 use crate::trace::EventEnum;
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CriticalPath {
     pub g: OSProfilerDAG,
     pub start_node: NodeIndex,

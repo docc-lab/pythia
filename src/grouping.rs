@@ -14,7 +14,7 @@ use crate::osprofiler::RequestType;
 use crate::trace::Event;
 use crate::trace::EventEnum;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Group {
     pub g: StableGraph<GroupNode, GroupEdge>,
     hash: String,
