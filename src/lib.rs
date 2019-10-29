@@ -66,7 +66,7 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
         match old_tracepoints {
             Some(list) => {
                 if list == tracepoints {
-                    panic!("It seems like we entered an infinite loop");
+                    println!("It seems like we entered an infinite loop");
                 }
             }
             None => {}

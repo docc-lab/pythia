@@ -66,12 +66,11 @@ impl SearchSpace for FlatSpace {
                     budget,
                 );
                 tried_groups.insert(current_hash.clone());
-                let state = if result.len() < budget {
-                    SearchState::NextEdge
+                if result.len() < budget {
+                    (result, SearchState::NextEdge)
                 } else {
-                    SearchState::DepletedBudget
-                };
-                (result, state)
+                    (result, SearchState::DepletedBudget)
+                }
             }
             _ => {
                 let mut result = Vec::new();
@@ -99,7 +98,11 @@ impl SearchSpace for FlatSpace {
                     split_count += 1;
                     tried_groups.drain();
                 }
-                (result, SearchState::DepletedBudget)
+                if split_count > budget {
+                    (result, SearchState::NextEdge)
+                } else {
+                    (result, SearchState::DepletedBudget)
+                }
             }
         };
     }
@@ -150,7 +153,7 @@ impl FlatSpace {
         }
         let mut gaps = Vec::new();
         if nodes_between <= n {
-            for _ in 0..n {
+            for _ in 0..nodes_between {
                 gaps.push(0);
             }
         } else {
