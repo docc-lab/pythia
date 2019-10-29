@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
@@ -18,6 +19,8 @@ pub struct FlatSpace {
     paths: HashMap<String, CriticalPath>, // key is the hash of the critical path
     entry_points: HashSet<String>,
     occurances: HashMap<String, usize>,
+    #[serde(skip)]
+    tried_groups: RefCell<HashSet<String>>,
 }
 
 #[typetag::serde]
@@ -45,15 +48,24 @@ impl SearchSpace for FlatSpace {
                 .unwrap()
                 .cmp(&self.occurances.get(a).unwrap())
         });
+        let mut tried_groups = self.tried_groups.borrow_mut();
         return match matching_hashes.len() {
             0 => panic!("No critical path matches the group {}", Dot::new(&group.g)),
             1 => {
+                let mut current_hash = matching_hashes[0];
+                for h in matching_hashes {
+                    if tried_groups.get(h).is_none() {
+                        current_hash = h;
+                        break;
+                    }
+                }
                 let result = self.split_group_by_n(
-                    self.paths.get(matching_hashes[0]).unwrap(),
+                    self.paths.get(current_hash).unwrap(),
                     group,
                     edge,
                     budget,
                 );
+                tried_groups.insert(current_hash.clone());
                 let state = if result.len() < budget {
                     SearchState::NextEdge
                 } else {
@@ -63,14 +75,29 @@ impl SearchSpace for FlatSpace {
             }
             _ => {
                 let mut result = Vec::new();
-                for i in matching_hashes {
-                    let tracepoints =
-                        self.split_group_by_n(self.paths.get(i).unwrap(), group, edge, 1);
-                    assert_eq!(tracepoints.len(), 1);
-                    result.push(tracepoints[0]);
+                let mut split_count = 1;
+                loop {
+                    for i in &matching_hashes {
+                        if !tried_groups.get(*i).is_none() {
+                            continue;
+                        }
+                        let mut tracepoints = self.split_group_by_n(
+                            self.paths.get(*i).unwrap(),
+                            group,
+                            edge,
+                            split_count,
+                        );
+                        tried_groups.insert(i.to_string());
+                        result.append(&mut tracepoints);
+                        if result.len() >= budget {
+                            break;
+                        }
+                    }
                     if result.len() >= budget {
                         break;
                     }
+                    split_count += 1;
+                    tried_groups.drain();
                 }
                 (result, SearchState::DepletedBudget)
             }
@@ -84,6 +111,7 @@ impl Default for FlatSpace {
             paths: HashMap::new(),
             entry_points: HashSet::new(),
             occurances: HashMap::new(),
+            tried_groups: RefCell::new(HashSet::new()),
         }
     }
 }
