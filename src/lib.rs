@@ -58,10 +58,19 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
     }
     let mut converged = false;
     let mut index = 0;
+    let mut old_tracepoints = None;
     while !converged {
         let problem_edge = problem_edges[index];
         println!("\n\nTry {}: Next tracepoints to enable:\n", index);
         let (tracepoints, state) = manifest.search(problem_group, problem_edge, budget);
+        match old_tracepoints {
+            Some(list) => {
+                if list == tracepoints {
+                    panic!("It seems like we entered an infinite loop");
+                }
+            }
+            None => {}
+        }
         println!("{:?}", tracepoints);
         let to_enable = controller.get_disabled(&tracepoints);
         if to_enable.len() != 0 {
@@ -84,6 +93,7 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
             }
             SearchState::DepletedBudget => {}
         }
+        old_tracepoints = Some(tracepoints);
     }
 }
 

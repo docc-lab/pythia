@@ -114,9 +114,9 @@ impl FlatSpace {
                     path_target = cur_path_idx;
                     break;
                 }
-                cur_path_idx = path.next_node(cur_path_idx).unwrap();
+                cur_group_idx = group.next_node(cur_group_idx).unwrap();
             }
-            cur_group_idx = group.next_node(cur_group_idx).unwrap();
+            cur_path_idx = path.next_node(cur_path_idx).unwrap();
             nodes_between += 1;
         }
         let mut gaps = Vec::new();
@@ -125,13 +125,9 @@ impl FlatSpace {
                 gaps.push(0);
             }
         } else {
-            let mut remaining = nodes_between;
-            for _ in 0..(n - 1) {
-                gaps.push(nodes_between / n);
-                remaining -= nodes_between / n;
-                remaining -= 1;
+            for _ in 0..n {
+                gaps.push(nodes_between / (n + 1));
             }
-            gaps.push(remaining);
         }
         cur_path_idx = path_source;
         for i in gaps {
@@ -152,12 +148,12 @@ impl FlatSpace {
         let mut cur_group_idx = group.start_node;
         loop {
             if path.g.g[cur_path_idx] == group.g[cur_group_idx] {
-                cur_path_idx = match path.next_real_node(cur_path_idx) {
+                cur_group_idx = match group.next_node(cur_group_idx) {
                     Some(nidx) => nidx,
                     None => return true,
                 }
             }
-            cur_group_idx = match group.next_node(cur_group_idx) {
+            cur_path_idx = match path.next_node(cur_path_idx) {
                 Some(nidx) => nidx,
                 None => return false,
             }
