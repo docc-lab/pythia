@@ -46,6 +46,108 @@ impl OSProfilerReader {
         traces
     }
 
+    pub fn get_key_value_pairs(&self, id: &str) -> HashMap<String, String> {
+        let base_id = Uuid::parse_str(id).ok().unwrap();
+        let mut event_list = self.get_matches(&base_id).unwrap();
+        sort_event_list(&mut event_list);
+        let mut tracepoint_id_map: HashMap<Uuid, String> = HashMap::new();
+        for event in event_list.iter_mut() {
+            event.tracepoint_id = event.get_tracepoint_id(&mut tracepoint_id_map);
+        }
+        let mut result = HashMap::new();
+        for event in &event_list {
+            result.insert(
+                format!("{}::project", event.tracepoint_id),
+                event.project.clone(),
+            );
+            result.insert(format!("{}::name", event.tracepoint_id), event.name.clone());
+            result.insert(
+                format!("{}::service", event.tracepoint_id),
+                event.service.clone(),
+            );
+            match &event.variant {
+                OSProfilerEnum::WaitAnnotation(a) => {
+                    result.insert(
+                        format!("{}::info::host", event.tracepoint_id),
+                        a.info.host.clone(),
+                    );
+                    result.insert(
+                        format!("{}::info::function::name", event.tracepoint_id),
+                        a.info.function.name.clone(),
+                    );
+                    result.insert(
+                        format!("{}::info::function::args", event.tracepoint_id),
+                        a.info.function.args.clone(),
+                    );
+                    result.insert(
+                        format!("{}::info::function::kwargs", event.tracepoint_id),
+                        a.info.function.kwargs.clone(),
+                    );
+                }
+                OSProfilerEnum::Annotation(a) => {
+                    result.insert(
+                        format!("{}::info::host", event.tracepoint_id),
+                        a.info.host.clone(),
+                    );
+                }
+                OSProfilerEnum::FunctionEntry(a) => {
+                    result.insert(
+                        format!("{}::info::host", event.tracepoint_id),
+                        a.info.host.clone(),
+                    );
+                    result.insert(
+                        format!("{}::info::function::name", event.tracepoint_id),
+                        a.info.function.name.clone(),
+                    );
+                    result.insert(
+                        format!("{}::info::function::args", event.tracepoint_id),
+                        a.info.function.args.clone(),
+                    );
+                    result.insert(
+                        format!("{}::info::function::kwargs", event.tracepoint_id),
+                        a.info.function.kwargs.clone(),
+                    );
+                }
+                OSProfilerEnum::FunctionExit(a) => {
+                    result.insert(
+                        format!("{}::info::host", event.tracepoint_id),
+                        a.info.host.clone(),
+                    );
+                    result.insert(
+                        format!("{}::info::function::result", event.tracepoint_id),
+                        a.info.function.result.clone(),
+                    );
+                }
+                OSProfilerEnum::RequestEntry(a) => {
+                    result.insert(
+                        format!("{}::info::request::path", event.tracepoint_id),
+                        a.info.request.path.clone(),
+                    );
+                    result.insert(
+                        format!("{}::info::request::scheme", event.tracepoint_id),
+                        a.info.request.scheme.clone(),
+                    );
+                    result.insert(
+                        format!("{}::info::request::method", event.tracepoint_id),
+                        a.info.request.method.clone(),
+                    );
+                    result.insert(
+                        format!("{}::info::request::query", event.tracepoint_id),
+                        a.info.request.query.clone(),
+                    );
+                }
+                OSProfilerEnum::RequestExit(a) => {
+                    result.insert(
+                        format!("{}::info::host", event.tracepoint_id),
+                        a.info.host.clone(),
+                    );
+                }
+            }
+            println!("{:?}", event);
+        }
+        result
+    }
+
     pub fn get_trace_from_base_id(&self, id: &str) -> OSProfilerDAG {
         let result = match Uuid::parse_str(id) {
             Ok(uuid) => match self.fetch_from_cache(&uuid) {
@@ -203,19 +305,7 @@ impl OSProfilerDAG {
         event_list: &mut Vec<OSProfilerSpan>,
         reader: &OSProfilerReader,
     ) -> Option<NodeIndex> {
-        // Sorts events by timestamp
-        event_list.sort_by(|a, b| {
-            if a.timestamp == b.timestamp {
-                match a.variant {
-                    OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {
-                        Ordering::Less
-                    }
-                    _ => Ordering::Greater,
-                }
-            } else {
-                a.timestamp.cmp(&b.timestamp)
-            }
-        });
+        sort_event_list(event_list);
         let base_id = event_list[0].base_id;
         let start_time = event_list[0].timestamp;
         let mut tracepoint_id_map: HashMap<Uuid, String> = HashMap::new();
@@ -335,7 +425,13 @@ impl OSProfilerDAG {
                             },
                             None => {
                                 // Parent has finished execution before child starts - shouldn't happen
-                                let parent_node = &self.g[*id_map.get(&event.parent_id).unwrap()];
+                                let parent_node = &self.g[match id_map.get(&event.parent_id) {
+                                    Some(&nidx) => nidx,
+                                    None => {
+                                        eprintln!("Warning: Parent of node {:?} not found. Silently ignoring this event", event);
+                                        continue;
+                                    }
+                                }];
                                 assert!(event.timestamp > parent_node.span.timestamp);
                                 panic!("Parent of node {:?} not found: {:?}", event, parent_node);
                             }
@@ -489,6 +585,22 @@ impl OSProfilerDAG {
         );
         last_node
     }
+}
+
+fn sort_event_list(event_list: &mut Vec<OSProfilerSpan>) {
+    // Sorts events by timestamp
+    event_list.sort_by(|a, b| {
+        if a.timestamp == b.timestamp {
+            match a.variant {
+                OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {
+                    Ordering::Less
+                }
+                _ => Ordering::Greater,
+            }
+        } else {
+            a.timestamp.cmp(&b.timestamp)
+        }
+    });
 }
 
 fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {

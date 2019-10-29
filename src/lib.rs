@@ -181,6 +181,13 @@ pub fn get_trace(trace_id: &str) {
     println!("{}", Dot::new(&trace.g));
 }
 
+pub fn show_key_value_pairs(trace_id: &str) {
+    let settings = get_settings();
+    let reader = OSProfilerReader::from_settings(&settings);
+    let pairs = reader.get_key_value_pairs(trace_id);
+    println!("{:?}", pairs);
+}
+
 pub fn get_crit(trace_id: &str) {
     let settings = get_settings();
     let reader = OSProfilerReader::from_settings(&settings);
