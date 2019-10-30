@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use crate::critical::CriticalPath;
 use crate::grouping::Group;
 use crate::osprofiler::OSProfilerDAG;
-use crate::searchspace::SearchSpace;
-use crate::searchspace::SearchState;
+use crate::search::SearchState;
+use crate::search::SearchStrategy;
 use crate::trace::Event;
 use crate::trace::EventEnum;
 
@@ -65,7 +65,7 @@ pub struct Poset {
 }
 
 #[typetag::serde]
-impl SearchSpace for Poset {
+impl SearchStrategy for Poset {
     fn add_trace(&mut self, trace: &OSProfilerDAG) {
         for path in &CriticalPath::all_possible_paths(trace) {
             self.add_path(path);
