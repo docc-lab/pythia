@@ -671,12 +671,12 @@ pub enum RequestType {
 }
 
 impl RequestType {
-    pub fn from_str(typ: &str) -> RequestType {
+    pub fn from_str(typ: &str) -> Result<RequestType, &str> {
         match typ {
-            "ServerCreate" => RequestType::ServerCreate,
-            "ServerDelete" => RequestType::ServerDelete,
-            "ServerList" => RequestType::ServerList,
-            _ => panic!("Unknown request type {}", typ),
+            "ServerCreate" => Ok(RequestType::ServerCreate),
+            "ServerDelete" => Ok(RequestType::ServerDelete),
+            "ServerList" => Ok(RequestType::ServerList),
+            _ => Err("Unknown request type"),
         }
     }
 }

@@ -55,7 +55,7 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
         if index == 0 || index > problem_edges.len() {
             index = 0;
             group_index += 1;
-            if group_index > groups.len() {
+            if group_index >= groups.len() {
                 panic!("Could not find any tracepoints to enable");
             }
             println!("\n\nEdges sorted by variance:\n");

@@ -75,7 +75,8 @@ impl Manifest {
         for entry in std::fs::read_dir(file)? {
             let entry = entry?;
             let path = entry.path();
-            let request_type = RequestType::from_str(path.file_stem().unwrap().to_str().unwrap());
+            let request_type =
+                RequestType::from_str(path.file_stem().unwrap().to_str().unwrap()).expect("Couldn't parse request type");
             let reader = std::fs::File::open(path)?;
             self.per_request_type
                 .insert(request_type, serde_json::from_reader(reader).unwrap());

@@ -45,10 +45,12 @@ impl OSProfilerController {
         }
     }
 
+    /// Also removes request-type-specific controllers
     pub fn diable_all(&self) {
         self.write_dir(self.manifest_root.as_path(), b"0");
     }
 
+    /// Also removes request-type-specific controllers
     pub fn enable_all(&self) {
         self.write_dir(self.manifest_root.as_path(), b"1");
     }
@@ -59,8 +61,21 @@ impl OSProfilerController {
             if path.is_dir() {
                 self.write_dir(&path, to_write);
             } else {
-                let mut file = File::create(path).unwrap();
-                file.write_all(to_write).unwrap();
+                if RequestType::from_str(
+                    path.file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                        .rsplit(":")
+                        .next()
+                        .unwrap(),
+                )
+                .is_ok()
+                {
+                    std::fs::remove_file(path).ok();
+                } else {
+                    let mut file = File::create(path).unwrap();
+                    file.write_all(to_write).unwrap();
+                }
             }
         }
     }
