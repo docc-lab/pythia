@@ -10,7 +10,7 @@ pub mod historic;
 pub mod manifest;
 pub mod osprofiler;
 pub mod poset;
-pub mod searchspace;
+pub mod search;
 pub mod trace;
 
 use std::collections::HashMap;
@@ -27,7 +27,7 @@ use self::manifest::Manifest;
 use self::osprofiler::OSProfilerReader;
 use self::osprofiler::RequestType;
 use self::osprofiler::REQUEST_TYPE_MAP;
-use self::searchspace::SearchState;
+use self::search::SearchState;
 
 /// Make a single instrumentation decision.
 pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {

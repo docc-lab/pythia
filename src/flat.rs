@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 use crate::critical::CriticalPath;
 use crate::grouping::Group;
 use crate::osprofiler::OSProfilerDAG;
-use crate::searchspace::SearchSpace;
-use crate::searchspace::SearchState;
+use crate::search::SearchStrategy;
+use crate::search::SearchState;
 
 #[derive(Serialize, Deserialize)]
 pub struct FlatSpace {
@@ -24,7 +24,7 @@ pub struct FlatSpace {
 }
 
 #[typetag::serde]
-impl SearchSpace for FlatSpace {
+impl SearchStrategy for FlatSpace {
     fn add_trace(&mut self, trace: &OSProfilerDAG) {
         for path in &CriticalPath::all_possible_paths(trace) {
             self.add_path(path);

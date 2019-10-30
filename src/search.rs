@@ -12,7 +12,7 @@ pub enum SearchState {
 }
 
 #[typetag::serde(tag = "type")]
-pub trait SearchSpace: Display {
+pub trait SearchStrategy: Display {
     fn add_trace(&mut self, trace: &OSProfilerDAG);
     fn get_entry_points(&self) -> Vec<&String>;
     fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> (Vec<&String>, SearchState);

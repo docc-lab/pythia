@@ -15,16 +15,16 @@ use crate::historic::Historic;
 use crate::osprofiler::OSProfilerDAG;
 use crate::osprofiler::RequestType;
 use crate::poset::Poset;
-use crate::searchspace::SearchSpace;
-use crate::searchspace::SearchState;
+use crate::search::SearchState;
+use crate::search::SearchStrategy;
 
 pub struct Manifest {
-    pub per_request_type: HashMap<RequestType, Box<dyn SearchSpace>>,
+    pub per_request_type: HashMap<RequestType, Box<dyn SearchStrategy>>,
 }
 
 impl Manifest {
     pub fn from_trace_list(manifest_type: &str, traces: Vec<OSProfilerDAG>) -> Manifest {
-        let mut map = HashMap::<RequestType, Box<dyn SearchSpace>>::new();
+        let mut map = HashMap::<RequestType, Box<dyn SearchStrategy>>::new();
         for trace in traces {
             match map.get_mut(&trace.request_type.unwrap()) {
                 Some(cct) => {
@@ -42,7 +42,7 @@ impl Manifest {
         }
     }
 
-    fn get_new_inner(manifest_type: &str) -> Box<dyn SearchSpace> {
+    fn get_new_inner(manifest_type: &str) -> Box<dyn SearchStrategy> {
         match manifest_type {
             "CCT" => Box::new(CCT::default()),
             "Poset" => Box::new(Poset::default()),
