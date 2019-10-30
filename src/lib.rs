@@ -48,62 +48,63 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
     }
     let mut group_index = 0;
     let mut converged = false;
-    let mut index = 0;
     let mut old_tracepoints = None;
     while !converged {
-        let mut problem_edges = Vec::new();
-        if index == 0 || index > problem_edges.len() {
-            index = 0;
-            group_index += 1;
-            if group_index >= groups.len() {
-                panic!("Could not find any tracepoints to enable");
-            }
-            println!("\n\nEdges sorted by variance:\n");
-            problem_edges = groups[group_index].problem_edges();
-            for edge in &problem_edges {
-                let endpoints = groups[group_index].g.edge_endpoints(*edge).unwrap();
-                println!(
-                    "({} -> {}): {}",
-                    groups[group_index].g[endpoints.0],
-                    groups[group_index].g[endpoints.1],
-                    groups[group_index].g[*edge]
-                );
-            }
+        if group_index >= groups.len() {
+            panic!("Could not find any tracepoints to enable");
         }
-        let problem_edge = problem_edges[index];
-        println!("\n\nTry {}: Next tracepoints to enable:\n", index);
-        let (tracepoints, state) = manifest.search(&groups[group_index], problem_edge, budget);
-        match old_tracepoints {
-            Some(list) => {
-                if list == tracepoints {
-                    println!("It seems like we entered an infinite loop");
+        println!("\n\nEdges sorted by variance:\n");
+        let problem_edges = groups[group_index].problem_edges();
+        for edge in &problem_edges {
+            let endpoints = groups[group_index].g.edge_endpoints(*edge).unwrap();
+            println!(
+                "({} -> {}): {}",
+                groups[group_index].g[endpoints.0],
+                groups[group_index].g[endpoints.1],
+                groups[group_index].g[*edge]
+            );
+        }
+        let mut index = 0;
+        while !converged {
+            if index >= problem_edges.len() {
+                break;
+            }
+            let problem_edge = problem_edges[index];
+            println!("\n\nTry {}: Next tracepoints to enable:\n", index);
+            let (tracepoints, state) = manifest.search(&groups[group_index], problem_edge, budget);
+            match old_tracepoints {
+                Some(list) => {
+                    if list == tracepoints {
+                        println!("It seems like we entered an infinite loop");
+                    }
                 }
+                None => {}
             }
-            None => {}
-        }
-        println!("{:?}", tracepoints);
-        let to_enable = controller.get_disabled(&tracepoints);
-        if to_enable.len() != 0 {
-            if budget == 0 {
-                converged = true;
-            } else {
-                budget -= to_enable.len();
+            println!("{:?}", tracepoints);
+            let to_enable = controller.get_disabled(&tracepoints);
+            if to_enable.len() != 0 {
                 if budget == 0 {
                     converged = true;
+                } else {
+                    budget -= to_enable.len();
+                    if budget == 0 {
+                        converged = true;
+                    }
+                }
+                if !dry_run {
+                    controller.enable(&to_enable);
+                    println!("Enabled tracepoints.");
                 }
             }
-            if !dry_run {
-                controller.enable(&to_enable);
-                println!("Enabled tracepoints.");
+            match state {
+                SearchState::NextEdge => {
+                    index += 1;
+                }
+                SearchState::DepletedBudget => {}
             }
+            old_tracepoints = Some(tracepoints);
         }
-        match state {
-            SearchState::NextEdge => {
-                index += 1;
-            }
-            SearchState::DepletedBudget => {}
-        }
-        old_tracepoints = Some(tracepoints);
+        group_index += 1;
     }
 }
 

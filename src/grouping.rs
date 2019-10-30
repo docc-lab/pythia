@@ -199,6 +199,12 @@ impl Group {
 
 impl Display for Group {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Group<{}, {:?}>", self.traces.len(), self.hash)
+        write!(
+            f,
+            "Group<{}: {}, {:?}>",
+            self.request_type,
+            self.traces.len(),
+            self.hash
+        )
     }
 }

@@ -4,8 +4,8 @@ extern crate pythia;
 use clap::{App, Arg, SubCommand};
 
 use pythia::{
-    disable_all, enable_all, enable_skeleton, get_manifest, get_trace, make_decision, show_config,
-    show_key_value_pairs, show_manifest,
+    disable_all, enable_all, enable_skeleton, get_crit, get_manifest, get_trace, make_decision,
+    show_config, show_key_value_pairs, show_manifest,
 };
 
 fn main() {
@@ -19,6 +19,10 @@ fn main() {
         )
         .subcommand(
             SubCommand::with_name("get-trace")
+                .arg(Arg::with_name("trace-id").required(true).index(1)),
+        )
+        .subcommand(
+            SubCommand::with_name("get-crit")
                 .arg(Arg::with_name("trace-id").required(true).index(1)),
         )
         .subcommand(
@@ -57,6 +61,9 @@ fn main() {
         }
         ("get-trace", Some(matches)) => {
             get_trace(matches.value_of("trace-id").unwrap());
+        }
+        ("get-crit", Some(matches)) => {
+            get_crit(matches.value_of("trace-id").unwrap());
         }
         ("key-value", Some(matches)) => {
             show_key_value_pairs(matches.value_of("trace-id").unwrap());

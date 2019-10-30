@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 use crate::critical::CriticalPath;
 use crate::grouping::Group;
 use crate::osprofiler::OSProfilerDAG;
-use crate::search::SearchStrategy;
 use crate::search::SearchState;
+use crate::search::SearchStrategy;
 
 #[derive(Serialize, Deserialize)]
 pub struct FlatSpace {
@@ -21,6 +21,8 @@ pub struct FlatSpace {
     occurances: HashMap<String, usize>,
     #[serde(skip)]
     tried_groups: RefCell<HashSet<String>>,
+    #[serde(skip)]
+    enabled_tracepoints: RefCell<HashSet<String>>,
 }
 
 #[typetag::serde]
@@ -36,6 +38,10 @@ impl SearchStrategy for FlatSpace {
     }
 
     fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> (Vec<&String>, SearchState) {
+        println!(
+            "Searching group {}, edge {:?}, budget {}",
+            group, edge, budget
+        );
         let mut matching_hashes = self
             .paths
             .iter()
@@ -59,12 +65,20 @@ impl SearchStrategy for FlatSpace {
                         break;
                     }
                 }
+                println!(
+                    "Trying group {}",
+                    Dot::new(&self.paths.get(current_hash).unwrap().g.g)
+                );
                 let result = self.split_group_by_n(
                     self.paths.get(current_hash).unwrap(),
                     group,
                     edge,
                     budget,
                 );
+                for i in &result {
+                    let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
+                    enabled_tracepoints.insert(i.to_string());
+                }
                 tried_groups.insert(current_hash.clone());
                 if result.len() < budget {
                     (result, SearchState::NextEdge)
@@ -97,9 +111,17 @@ impl SearchStrategy for FlatSpace {
                     }
                     split_count += 1;
                     if split_count > budget {
+                        for i in &result {
+                            let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
+                            enabled_tracepoints.insert(i.to_string());
+                        }
                         return (result, SearchState::NextEdge);
                     }
                     tried_groups.drain();
+                }
+                for i in &result {
+                    let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
+                    enabled_tracepoints.insert(i.to_string());
                 }
                 if split_count > budget {
                     (result, SearchState::NextEdge)
@@ -118,6 +140,7 @@ impl Default for FlatSpace {
             entry_points: HashSet::new(),
             occurances: HashMap::new(),
             tried_groups: RefCell::new(HashSet::new()),
+            enabled_tracepoints: RefCell::new(HashSet::new()),
         }
     }
 }
@@ -169,6 +192,14 @@ impl FlatSpace {
             for _ in 0..i {
                 cur_path_idx = path.next_node(cur_path_idx).unwrap();
                 assert_ne!(cur_path_idx, path_target);
+            }
+            if !self
+                .enabled_tracepoints
+                .borrow()
+                .get(&path.g.g[cur_path_idx].span.tracepoint_id)
+                .is_none()
+            {
+                cur_path_idx = path.next_node(cur_path_idx).unwrap();
             }
             result.push(&path.g.g[cur_path_idx].span.tracepoint_id);
             cur_path_idx = path.next_node(cur_path_idx).unwrap();
