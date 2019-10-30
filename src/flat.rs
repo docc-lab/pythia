@@ -187,7 +187,7 @@ impl FlatSpace {
                 gaps.push(nodes_between / (n + 1));
             }
         }
-        cur_path_idx = path_source;
+        cur_path_idx = path.next_node(path_source).unwrap();
         for i in gaps {
             for _ in 0..i {
                 cur_path_idx = path.next_node(cur_path_idx).unwrap();
@@ -200,10 +200,15 @@ impl FlatSpace {
                 .is_none()
             {
                 cur_path_idx = path.next_node(cur_path_idx).unwrap();
+                if cur_path_idx == path_target {
+                    cur_path_idx = path.prev_node(cur_path_idx).unwrap();
+                    cur_path_idx = path.prev_node(cur_path_idx).unwrap();
+                }
             }
             result.push(&path.g.g[cur_path_idx].span.tracepoint_id);
-            cur_path_idx = path.next_node(cur_path_idx).unwrap();
             assert_ne!(cur_path_idx, path_target);
+            assert_ne!(cur_path_idx, path_source);
+            cur_path_idx = path.next_node(cur_path_idx).unwrap();
         }
         result
     }
