@@ -46,23 +46,33 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
     for group in &groups {
         println!("Group is: {}", group);
     }
-    let problem_group = &groups[0];
-    println!("\n\nEdges sorted by variance:\n");
-    let problem_edges = problem_group.problem_edges();
-    for edge in &problem_edges {
-        let endpoints = problem_group.g.edge_endpoints(*edge).unwrap();
-        println!(
-            "({} -> {}): {}",
-            problem_group.g[endpoints.0], problem_group.g[endpoints.1], problem_group.g[*edge]
-        );
-    }
+    let mut group_index = 0;
     let mut converged = false;
     let mut index = 0;
     let mut old_tracepoints = None;
     while !converged {
+        let mut problem_edges = Vec::new();
+        if index == 0 || index > problem_edges.len() {
+            index = 0;
+            group_index += 1;
+            if group_index > groups.len() {
+                panic!("Could not find any tracepoints to enable");
+            }
+            println!("\n\nEdges sorted by variance:\n");
+            problem_edges = groups[group_index].problem_edges();
+            for edge in &problem_edges {
+                let endpoints = groups[group_index].g.edge_endpoints(*edge).unwrap();
+                println!(
+                    "({} -> {}): {}",
+                    groups[group_index].g[endpoints.0],
+                    groups[group_index].g[endpoints.1],
+                    groups[group_index].g[*edge]
+                );
+            }
+        }
         let problem_edge = problem_edges[index];
         println!("\n\nTry {}: Next tracepoints to enable:\n", index);
-        let (tracepoints, state) = manifest.search(problem_group, problem_edge, budget);
+        let (tracepoints, state) = manifest.search(&groups[group_index], problem_edge, budget);
         match old_tracepoints {
             Some(list) => {
                 if list == tracepoints {

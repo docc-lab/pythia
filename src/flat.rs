@@ -96,6 +96,9 @@ impl SearchSpace for FlatSpace {
                         break;
                     }
                     split_count += 1;
+                    if split_count > budget {
+                        return (result, SearchState::NextEdge);
+                    }
                     tried_groups.drain();
                 }
                 if split_count > budget {
