@@ -125,6 +125,7 @@ impl Group {
         }
     }
 
+    /// Returns all edges sorted by variance.
     pub fn problem_edges(&self) -> Vec<EdgeIndex> {
         let mut edge_variances = HashMap::<EdgeIndex, f64>::new();
         let mut cur_node = self.start_node;
