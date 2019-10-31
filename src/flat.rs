@@ -38,10 +38,6 @@ impl SearchStrategy for FlatSpace {
     }
 
     fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> (Vec<&String>, SearchState) {
-        println!(
-            "Searching group {}, edge {:?}, budget {}",
-            group, edge, budget
-        );
         let mut matching_hashes = self
             .paths
             .iter()
@@ -65,10 +61,6 @@ impl SearchStrategy for FlatSpace {
                         break;
                     }
                 }
-                println!(
-                    "Trying group {}",
-                    Dot::new(&self.paths.get(current_hash).unwrap().g.g)
-                );
                 let result = self.split_group_by_n(
                     self.paths.get(current_hash).unwrap(),
                     group,
@@ -81,6 +73,7 @@ impl SearchStrategy for FlatSpace {
                 }
                 tried_groups.insert(current_hash.clone());
                 if result.len() < budget {
+                    tried_groups.clear();
                     (result, SearchState::NextEdge)
                 } else {
                     (result, SearchState::DepletedBudget)
@@ -115,15 +108,16 @@ impl SearchStrategy for FlatSpace {
                             let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
                             enabled_tracepoints.insert(i.to_string());
                         }
+                        tried_groups.clear();
                         return (result, SearchState::NextEdge);
                     }
-                    tried_groups.drain();
                 }
                 for i in &result {
                     let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
                     enabled_tracepoints.insert(i.to_string());
                 }
                 if split_count > budget {
+                    tried_groups.clear();
                     (result, SearchState::NextEdge)
                 } else {
                     (result, SearchState::DepletedBudget)
