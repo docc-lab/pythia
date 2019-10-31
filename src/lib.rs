@@ -19,6 +19,7 @@ use std::path::PathBuf;
 
 use config::{Config, File, FileFormat};
 use petgraph::dot::Dot;
+use rand::seq::SliceRandom;
 
 use self::controller::OSProfilerController;
 use self::critical::CriticalPath;
@@ -33,6 +34,7 @@ use self::search::SearchState;
 pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
     let settings = get_settings();
     let mut budget = budget;
+    let mut rng = &mut rand::thread_rng();
     let controller = OSProfilerController::from_settings(&settings);
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
     let manifest =
@@ -81,9 +83,13 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
                 None => {}
             }
             println!("{:?}", tracepoints);
-            let to_enable = controller.get_disabled(&tracepoints);
+            let mut to_enable = controller.get_disabled(&tracepoints);
             if to_enable.len() != 0 {
                 if budget == 0 {
+                    converged = true;
+                } else if to_enable.len() > budget {
+                    to_enable = to_enable.choose_multiple(&mut rng, budget).cloned().collect();
+                    budget = 0;
                     converged = true;
                 } else {
                     budget -= to_enable.len();

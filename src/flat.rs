@@ -80,23 +80,25 @@ impl SearchStrategy for FlatSpace {
                 }
             }
             _ => {
-                let mut result = Vec::new();
+                let mut result = HashSet::new();
                 let mut split_count = 1;
                 loop {
                     for i in &matching_hashes {
                         if !tried_groups.get(*i).is_none() {
                             continue;
                         }
-                        let mut tracepoints = self.split_group_by_n(
+                        let tracepoints = self.split_group_by_n(
                             self.paths.get(*i).unwrap(),
                             group,
                             edge,
                             split_count,
                         );
                         tried_groups.insert(i.to_string());
-                        result.append(&mut tracepoints);
-                        if result.len() >= budget {
-                            break;
+                        for t in tracepoints {
+                            result.insert(t);
+                            if result.len() >= budget {
+                                break;
+                            }
                         }
                     }
                     if result.len() >= budget {
@@ -109,7 +111,7 @@ impl SearchStrategy for FlatSpace {
                             enabled_tracepoints.insert(i.to_string());
                         }
                         tried_groups.clear();
-                        return (result, SearchState::NextEdge);
+                        return (result.drain().collect(), SearchState::NextEdge);
                     }
                 }
                 for i in &result {
@@ -118,9 +120,9 @@ impl SearchStrategy for FlatSpace {
                 }
                 if split_count > budget {
                     tried_groups.clear();
-                    (result, SearchState::NextEdge)
+                    (result.drain().collect(), SearchState::NextEdge)
                 } else {
-                    (result, SearchState::DepletedBudget)
+                    (result.drain().collect(), SearchState::DepletedBudget)
                 }
             }
         };
