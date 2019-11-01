@@ -52,7 +52,10 @@ impl SearchStrategy for FlatSpace {
         });
         let mut tried_groups = self.tried_groups.borrow_mut();
         return match matching_hashes.len() {
-            0 => panic!("No critical path matches the group {}", Dot::new(&group.g)),
+            0 => {
+                println!("No critical path matches the group {}", Dot::new(&group.g));
+                return (Vec::new(), SearchState::NextEdge);
+            }
             1 => {
                 let mut current_hash = matching_hashes[0];
                 for h in matching_hashes {
@@ -213,18 +216,32 @@ impl FlatSpace {
     fn is_match(&self, group: &Group, path: &CriticalPath) -> bool {
         let mut cur_path_idx = path.start_node;
         let mut cur_group_idx = group.start_node;
+        let mut matches = 0;
+        let mut result;
         loop {
             if path.g.g[cur_path_idx] == group.g[cur_group_idx] {
+                matches += 1;
                 cur_group_idx = match group.next_node(cur_group_idx) {
                     Some(nidx) => nidx,
-                    None => return true,
+                    None => {
+                        result = true;
+                        break;
+                    }
                 }
             }
             cur_path_idx = match path.next_node(cur_path_idx) {
                 Some(nidx) => nidx,
-                None => return false,
+                None => {
+                    result = false;
+                    break;
+                }
             }
         }
+        println!("Match score: {}", matches);
+        if matches > 100 {
+            println!("Best match: {}", Dot::new(&path.g.g));
+        }
+        return result;
     }
 
     fn add_path(&mut self, path: &CriticalPath) {
