@@ -217,7 +217,7 @@ impl FlatSpace {
         let mut cur_path_idx = path.start_node;
         let mut cur_group_idx = group.start_node;
         let mut matches = 0;
-        let mut result;
+        let result;
         loop {
             if path.g.g[cur_path_idx] == group.g[cur_group_idx] {
                 matches += 1;
