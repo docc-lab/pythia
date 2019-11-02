@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
 use std::path::Path;
@@ -12,14 +14,16 @@ use serde::{Deserialize, Serialize};
 use crate::critical::CriticalPath;
 use crate::grouping::Group;
 use crate::osprofiler::OSProfilerDAG;
-use crate::search::SearchStrategy;
 use crate::search::SearchState;
+use crate::search::SearchStrategy;
 use crate::trace::EventEnum;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CCT {
     pub g: Graph<String, u32>, // Nodes indicate tracepoint id, edges don't matter
     pub entry_points: HashMap<String, NodeIndex>,
+    #[serde(skip)]
+    enabled_tracepoints: RefCell<HashSet<String>>,
 }
 
 #[typetag::serde]
@@ -57,20 +61,20 @@ impl SearchStrategy for CCT {
             }
         }
         println!("Common context for the search: {:?}", common_context);
-        if budget == 0 {
-            (
-                self.search_context(common_context),
-                SearchState::DepletedBudget,
-            )
+        let mut result = self.search_context(common_context);
+        let result_state = if result.len() > budget {
+            SearchState::DepletedBudget
         } else {
-            (
-                self.search_context(common_context)
-                    .choose_multiple(&mut rng, budget)
-                    .cloned()
-                    .collect(),
-                SearchState::NextEdge,
-            )
+            SearchState::NextEdge
+        };
+        if budget != 0 {
+            result = result.choose_multiple(&mut rng, budget).cloned().collect();
         }
+        for i in &result {
+            let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
+            enabled_tracepoints.insert(i.to_string());
+        }
+        (result, result_state)
     }
 }
 
@@ -79,6 +83,7 @@ impl Default for CCT {
         CCT {
             g: Graph::<String, u32>::new(),
             entry_points: HashMap::<String, NodeIndex>::new(),
+            enabled_tracepoints: RefCell::new(HashSet::new()),
         }
     }
 }
@@ -88,6 +93,7 @@ impl CCT {
         CCT {
             g: Graph::<String, u32>::new(),
             entry_points: HashMap::<String, NodeIndex>::new(),
+            enabled_tracepoints: RefCell::new(HashSet::new()),
         }
     }
 
@@ -133,6 +139,7 @@ impl CCT {
         self.g
             .neighbors_directed(nidx.unwrap(), Direction::Outgoing)
             .map(|x| &self.g[x])
+            .filter(|&a| self.enabled_tracepoints.borrow().get(a).is_none())
             .collect()
     }
 
