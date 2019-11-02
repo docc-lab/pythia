@@ -141,11 +141,15 @@ impl CCT {
                 }
             }
         }
-        self.g
-            .neighbors_directed(nidx.unwrap(), Direction::Outgoing)
-            .map(|x| &self.g[x])
-            .filter(|&a| self.enabled_tracepoints.borrow().get(a).is_none())
-            .collect()
+        match nidx {
+            None => Vec::new(),
+            Some(nidx) => self
+                .g
+                .neighbors_directed(nidx, Direction::Outgoing)
+                .map(|x| &self.g[x])
+                .filter(|&a| self.enabled_tracepoints.borrow().get(a).is_none())
+                .collect(),
+        }
     }
 
     fn get_context<'a>(&self, group: &'a Group, node: NodeIndex) -> Vec<&'a String> {
