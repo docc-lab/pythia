@@ -131,6 +131,11 @@ impl CCT {
                         .neighbors_directed(nidx, Direction::Outgoing)
                         .filter(|a| self.g[*a] == *tracepoint)
                         .collect();
+                    if result.len() == 0 {
+                        // We are at a child node, look at the parent for more trace points to
+                        // enable
+                        continue;
+                    }
                     assert!(result.len() == 1);
                     Some(result[0])
                 }
