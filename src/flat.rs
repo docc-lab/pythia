@@ -176,6 +176,9 @@ impl FlatSpace {
             cur_path_idx = path.next_node(cur_path_idx).unwrap();
             nodes_between += 1;
         }
+        if nodes_between == 0 {
+            println!("The matching nodes are consecutive");
+        }
         let mut gaps = Vec::new();
         if nodes_between <= n {
             for _ in 0..nodes_between {
@@ -202,7 +205,15 @@ impl FlatSpace {
                 if cur_path_idx == path_target {
                     cur_path_idx = path.prev_node(cur_path_idx).unwrap();
                     cur_path_idx = path.prev_node(cur_path_idx).unwrap();
+                    if cur_path_idx == path_source {
+                        println!("Couldn't find not enabled nodes in between");
+                        continue;
+                    }
                 }
+            }
+            if cur_path_idx == path_target {
+                println!("Already reached target node, breaking");
+                continue;
             }
             result.push(&path.g.g[cur_path_idx].span.tracepoint_id);
             assert_ne!(cur_path_idx, path_target);
@@ -238,9 +249,6 @@ impl FlatSpace {
             }
         }
         println!("Match score: {}", matches);
-        if matches > 100 {
-            println!("Best match: {}", Dot::new(&path.g.g));
-        }
         return result;
     }
 
