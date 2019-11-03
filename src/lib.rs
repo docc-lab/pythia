@@ -16,6 +16,7 @@ pub mod trace;
 use std::collections::HashMap;
 use std::io::stdin;
 use std::path::PathBuf;
+use std::time::Instant;
 
 use config::{Config, File, FileFormat};
 use petgraph::dot::Dot;
@@ -40,9 +41,16 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let reader = OSProfilerReader::from_settings(&settings);
+    let now = Instant::now();
     let traces = reader.read_trace_file(epoch_file);
+    eprintln!("Reading traces took {}", now.elapsed().as_micros());
     let critical_paths = traces.iter().map(|t| CriticalPath::from_trace(t)).collect();
+    let now = Instant::now();
     let mut groups = Group::from_critical_paths(critical_paths);
+    eprintln!(
+        "Extracting critical paths took {}",
+        now.elapsed().as_micros()
+    );
     groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap()); // descending order
     println!("\n\nGroups sorted by variance:\n");
     for group in &groups {
@@ -51,6 +59,7 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
     let mut group_index = 0;
     let mut converged = false;
     let mut old_tracepoints = None;
+    let now = Instant::now();
     while !converged {
         if group_index >= groups.len() {
             panic!("Could not find any tracepoints to enable");
@@ -88,7 +97,10 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
                 if budget == 0 {
                     converged = true;
                 } else if to_enable.len() > budget {
-                    to_enable = to_enable.choose_multiple(&mut rng, budget).cloned().collect();
+                    to_enable = to_enable
+                        .choose_multiple(&mut rng, budget)
+                        .cloned()
+                        .collect();
                     budget = 0;
                     converged = true;
                 } else {
@@ -112,6 +124,7 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
         }
         group_index += 1;
     }
+    eprintln!("Searching plus enabling took {}", now.elapsed().as_micros());
 }
 
 pub fn disable_all() {

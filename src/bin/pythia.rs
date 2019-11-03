@@ -2,6 +2,7 @@ extern crate clap;
 extern crate pythia;
 
 use clap::{App, Arg, SubCommand};
+use std::time::Instant;
 
 use pythia::{
     disable_all, enable_all, enable_skeleton, get_crit, get_manifest, get_trace, make_decision,
@@ -9,6 +10,7 @@ use pythia::{
 };
 
 fn main() {
+    let now = Instant::now();
     let matches = App::new("Pythia")
         .version("1.0")
         .author("Emre Ates <ates@bu.edu>")
@@ -92,4 +94,5 @@ fn main() {
         }
         _ => panic!("Must provide a subcommand, see --help for commands"),
     };
+    eprintln!("Overall Pythia took {}", now.elapsed().as_micros());
 }

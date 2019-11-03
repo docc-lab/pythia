@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
+use std::time::Instant;
 
 use petgraph::dot::Dot;
 use petgraph::graph::EdgeIndex;
@@ -38,6 +39,7 @@ impl SearchStrategy for FlatSpace {
     }
 
     fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> (Vec<&String>, SearchState) {
+        let now = Instant::now();
         let mut matching_hashes = self
             .paths
             .iter()
@@ -50,7 +52,14 @@ impl SearchStrategy for FlatSpace {
                 .unwrap()
                 .cmp(&self.occurances.get(a).unwrap())
         });
+        eprintln!(
+            "Finding {} matching groups took {}, group size {}",
+            self.paths.len(),
+            now.elapsed().as_micros(),
+            group.g.node_count()
+        );
         let mut tried_groups = self.tried_groups.borrow_mut();
+        let now = Instant::now();
         return match matching_hashes.len() {
             0 => {
                 println!("No critical path matches the group {}", Dot::new(&group.g));
@@ -75,6 +84,7 @@ impl SearchStrategy for FlatSpace {
                     enabled_tracepoints.insert(i.to_string());
                 }
                 tried_groups.insert(current_hash.clone());
+                eprintln!("Finding middle took {}", now.elapsed().as_micros(),);
                 if result.len() < budget {
                     tried_groups.clear();
                     (result, SearchState::NextEdge)
@@ -113,6 +123,7 @@ impl SearchStrategy for FlatSpace {
                             let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
                             enabled_tracepoints.insert(i.to_string());
                         }
+                        eprintln!("Finding middle took {}", now.elapsed().as_micros(),);
                         tried_groups.clear();
                         return (result.drain().collect(), SearchState::NextEdge);
                     }
@@ -121,6 +132,7 @@ impl SearchStrategy for FlatSpace {
                     let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
                     enabled_tracepoints.insert(i.to_string());
                 }
+                eprintln!("Finding middle took {}", now.elapsed().as_micros(),);
                 if split_count > budget {
                     tried_groups.clear();
                     (result.drain().collect(), SearchState::NextEdge)
