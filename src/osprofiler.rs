@@ -170,7 +170,9 @@ impl OSProfilerReader {
                 panic!("Malformed UUID received as base ID: {}", id);
             }
         };
-        assert!(!result.request_type.is_none());
+        if result.request_type.is_none() {
+            eprintln!("Warning: couldn't get type for request {}", id);
+        }
         result
     }
 
