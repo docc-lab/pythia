@@ -154,6 +154,9 @@ impl OSProfilerReader {
                 Some(result) => result,
                 None => {
                     let event_list = self.get_matches(&uuid).unwrap();
+                    if event_list.len() == 0 {
+                        panic!("No traces match the uuid {}", uuid);
+                    }
                     let dag = OSProfilerDAG::from_event_list(
                         Uuid::parse_str(id).unwrap(),
                         event_list,
