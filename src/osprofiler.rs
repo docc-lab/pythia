@@ -68,77 +68,77 @@ impl OSProfilerReader {
             match &event.variant {
                 OSProfilerEnum::WaitAnnotation(a) => {
                     result.insert(
-                        format!("{}::info::host", event.tracepoint_id),
+                        format!("{}::host", event.tracepoint_id),
                         a.info.host.clone(),
                     );
                     result.insert(
-                        format!("{}::info::function::name", event.tracepoint_id),
+                        format!("{}::function::name", event.tracepoint_id),
                         a.info.function.name.clone(),
                     );
                     result.insert(
-                        format!("{}::info::function::args", event.tracepoint_id),
+                        format!("{}::function::args", event.tracepoint_id),
                         a.info.function.args.clone(),
                     );
                     result.insert(
-                        format!("{}::info::function::kwargs", event.tracepoint_id),
+                        format!("{}::function::kwargs", event.tracepoint_id),
                         a.info.function.kwargs.clone(),
                     );
                 }
                 OSProfilerEnum::Annotation(a) => {
                     result.insert(
-                        format!("{}::info::host", event.tracepoint_id),
+                        format!("{}::host", event.tracepoint_id),
                         a.info.host.clone(),
                     );
                 }
                 OSProfilerEnum::FunctionEntry(a) => {
                     result.insert(
-                        format!("{}::info::host", event.tracepoint_id),
+                        format!("{}::host", event.tracepoint_id),
                         a.info.host.clone(),
                     );
                     result.insert(
-                        format!("{}::info::function::name", event.tracepoint_id),
+                        format!("{}::function::name", event.tracepoint_id),
                         a.info.function.name.clone(),
                     );
                     result.insert(
-                        format!("{}::info::function::args", event.tracepoint_id),
+                        format!("{}::function::args", event.tracepoint_id),
                         a.info.function.args.clone(),
                     );
                     result.insert(
-                        format!("{}::info::function::kwargs", event.tracepoint_id),
+                        format!("{}::function::kwargs", event.tracepoint_id),
                         a.info.function.kwargs.clone(),
                     );
                 }
                 OSProfilerEnum::FunctionExit(a) => {
                     result.insert(
-                        format!("{}::info::host", event.tracepoint_id),
+                        format!("{}::host", event.tracepoint_id),
                         a.info.host.clone(),
                     );
                     result.insert(
-                        format!("{}::info::function::result", event.tracepoint_id),
+                        format!("{}::function::result", event.tracepoint_id),
                         a.info.function.result.clone(),
                     );
                 }
                 OSProfilerEnum::RequestEntry(a) => {
                     result.insert(
-                        format!("{}::info::request::path", event.tracepoint_id),
+                        format!("{}::request::path", event.tracepoint_id),
                         a.info.request.path.clone(),
                     );
                     result.insert(
-                        format!("{}::info::request::scheme", event.tracepoint_id),
+                        format!("{}::request::scheme", event.tracepoint_id),
                         a.info.request.scheme.clone(),
                     );
                     result.insert(
-                        format!("{}::info::request::method", event.tracepoint_id),
+                        format!("{}::request::method", event.tracepoint_id),
                         a.info.request.method.clone(),
                     );
                     result.insert(
-                        format!("{}::info::request::query", event.tracepoint_id),
+                        format!("{}::request::query", event.tracepoint_id),
                         a.info.request.query.clone(),
                     );
                 }
                 OSProfilerEnum::RequestExit(a) => {
                     result.insert(
-                        format!("{}::info::host", event.tracepoint_id),
+                        format!("{}::host", event.tracepoint_id),
                         a.info.host.clone(),
                     );
                 }
