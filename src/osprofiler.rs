@@ -6,11 +6,14 @@ use std::collections::HashSet;
 use std::fmt;
 use std::hash::Hash;
 use std::path::PathBuf;
+use std::time::Duration;
+use std::time::Instant;
 
 use chrono::NaiveDateTime;
 use petgraph::Direction;
 use petgraph::{graph::NodeIndex, stable_graph::StableGraph};
 use redis::Commands;
+use redis::Connection;
 use serde::de;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -22,17 +25,22 @@ use crate::trace::{DAGEdge, DAGNode, EdgeType};
 pub struct OSProfilerReader {
     redis_url: String,
     trace_cache: PathBuf,
+    connection: Connection,
 }
 
 impl OSProfilerReader {
     pub fn from_settings(settings: &HashMap<String, String>) -> OSProfilerReader {
+        let redis_url = settings.get("redis_url").unwrap().to_string();
+        let client = redis::Client::open(&redis_url[..]).unwrap();
+        let mut con = client.get_connection().unwrap();
         OSProfilerReader {
-            redis_url: settings.get("redis_url").unwrap().to_string(),
+            redis_url: redis_url,
             trace_cache: PathBuf::from(settings.get("trace_cache").unwrap()),
+            connection: con,
         }
     }
 
-    pub fn read_trace_file(&self, file: &str) -> Vec<OSProfilerDAG> {
+    pub fn read_trace_file(&mut self, file: &str) -> Vec<OSProfilerDAG> {
         let trace_ids = std::fs::read_to_string(file).unwrap();
         let mut traces = Vec::new();
         for id in trace_ids.split('\n') {
@@ -46,7 +54,7 @@ impl OSProfilerReader {
         traces
     }
 
-    pub fn get_key_value_pairs(&self, id: &str) -> HashMap<String, String> {
+    pub fn get_key_value_pairs(&mut self, id: &str) -> HashMap<String, String> {
         let base_id = Uuid::parse_str(id).ok().unwrap();
         let mut event_list = self.get_matches(&base_id).unwrap();
         sort_event_list(&mut event_list);
@@ -148,7 +156,7 @@ impl OSProfilerReader {
         result
     }
 
-    pub fn get_trace_from_base_id(&self, id: &str) -> OSProfilerDAG {
+    pub fn get_trace_from_base_id(&mut self, id: &str) -> OSProfilerDAG {
         let result = match Uuid::parse_str(id) {
             Ok(uuid) => match self.fetch_from_cache(&uuid) {
                 Some(result) => result,
@@ -160,7 +168,7 @@ impl OSProfilerReader {
                     let dag = OSProfilerDAG::from_event_list(
                         Uuid::parse_str(id).unwrap(),
                         event_list,
-                        &self,
+                        self,
                     );
                     self.store_to_cache(&dag);
                     dag
@@ -176,16 +184,34 @@ impl OSProfilerReader {
         result
     }
 
-    fn get_matches(&self, span_id: &Uuid) -> redis::RedisResult<Vec<OSProfilerSpan>> {
+    pub fn listen(&mut self) -> redis::RedisResult<()> {
+        let now = Instant::now();
         let client = redis::Client::open(&self.redis_url[..])?;
-        let mut con = client.get_connection()?;
-        let matches: Vec<String> = con
-            .scan_match("osprofiler:".to_string() + &span_id.to_hyphenated().to_string() + "*")
-            .unwrap()
-            .collect();
+        let mut pubsub = self.connection.as_pubsub();
+        pubsub.subscribe("osprofiler");
+        loop {
+            let msg = pubsub.get_message()?;
+            let payload: String = msg.get_payload()?;
+            println!("Got: {}", payload);
+        }
+    }
+
+    fn get_matches(&mut self, span_id: &Uuid) -> redis::RedisResult<Vec<OSProfilerSpan>> {
+        let now = Instant::now();
+        let matches: Vec<String> = self
+            .connection
+            .keys("osprofiler:".to_string() + &span_id.to_hyphenated().to_string() + "*")
+            .unwrap();
+        eprintln!("Getting matches took {}", now.elapsed().as_micros());
+        if matches.len() == 0 {
+            return Ok(Vec::new());
+        }
+        let now = Instant::now();
+        let to_parse: Vec<String> = self.connection.get(matches).unwrap();
+        eprintln!("Getting entries took {}", now.elapsed().as_micros());
         let mut result = Vec::new();
-        for key in matches {
-            let dict_string: String = con.get(&key)?;
+        let parse_start = Instant::now();
+        for dict_string in to_parse {
             match parse_field(&dict_string) {
                 Ok(span) => {
                     result.push(span);
@@ -193,6 +219,7 @@ impl OSProfilerReader {
                 Err(e) => panic!("Problem while parsing {}: {}", dict_string, e),
             }
         }
+        eprintln!("Parsing took {}", parse_start.elapsed().as_micros(),);
         Ok(result)
     }
 
@@ -243,10 +270,10 @@ impl OSProfilerDAG {
     fn from_event_list(
         id: Uuid,
         mut event_list: Vec<OSProfilerSpan>,
-        reader: &OSProfilerReader,
+        mut reader: &mut OSProfilerReader,
     ) -> OSProfilerDAG {
         let mut mydag = OSProfilerDAG::new(id);
-        mydag.add_events(&mut event_list, reader);
+        mydag.add_events(&mut event_list, &mut reader);
         mydag
     }
 
@@ -308,7 +335,7 @@ impl OSProfilerDAG {
     fn add_events(
         &mut self,
         event_list: &mut Vec<OSProfilerSpan>,
-        reader: &OSProfilerReader,
+        mut reader: &mut OSProfilerReader,
     ) -> Option<NodeIndex> {
         sort_event_list(event_list);
         let base_id = event_list[0].base_id;
@@ -526,7 +553,7 @@ impl OSProfilerDAG {
             None => self.start_node,
         };
         for (trace_id, parent) in asynch_traces.iter() {
-            let last_node = self.add_asynch(trace_id, *parent, reader);
+            let last_node = self.add_asynch(trace_id, *parent, &mut reader);
             match &last_node {
                 Some(node) => {
                     if self.g[*node].span.timestamp > self.g[self.end_node].span.timestamp {
@@ -559,13 +586,13 @@ impl OSProfilerDAG {
         &mut self,
         trace_id: &Uuid,
         parent: NodeIndex,
-        reader: &OSProfilerReader,
+        mut reader: &mut OSProfilerReader,
     ) -> Option<NodeIndex> {
         let mut event_list = reader.get_matches(trace_id).unwrap();
         if event_list.len() == 0 {
             return None;
         }
-        let last_node = self.add_events(&mut event_list, reader);
+        let last_node = self.add_events(&mut event_list, &mut reader);
         let first_event = event_list
             .iter()
             .fold(None, |min, x| match min {

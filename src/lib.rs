@@ -40,7 +40,7 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
-    let reader = OSProfilerReader::from_settings(&settings);
+    let mut reader = OSProfilerReader::from_settings(&settings);
     let now = Instant::now();
     let traces = reader.read_trace_file(epoch_file);
     eprintln!("Reading traces took {}", now.elapsed().as_micros());
@@ -191,7 +191,7 @@ pub fn show_manifest(request_type: &str) {
 
 pub fn get_manifest(manfile: &str, overwrite: bool) {
     let settings = get_settings();
-    let reader = OSProfilerReader::from_settings(&settings);
+    let mut reader = OSProfilerReader::from_settings(&settings);
     let traces = reader.read_trace_file(manfile);
     let manifest_method = settings.get("manifest_method").unwrap();
     let manifest = Manifest::from_trace_list(manifest_method, traces);
@@ -214,23 +214,29 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
     manifest.to_file(manifest_file.as_path());
 }
 
+pub fn listen() {
+    let settings = get_settings();
+    let mut reader = OSProfilerReader::from_settings(&settings);
+    reader.listen();
+}
+
 pub fn get_trace(trace_id: &str) {
     let settings = get_settings();
-    let reader = OSProfilerReader::from_settings(&settings);
+    let mut reader = OSProfilerReader::from_settings(&settings);
     let trace = reader.get_trace_from_base_id(trace_id);
     println!("{}", Dot::new(&trace.g));
 }
 
 pub fn show_key_value_pairs(trace_id: &str) {
     let settings = get_settings();
-    let reader = OSProfilerReader::from_settings(&settings);
+    let mut reader = OSProfilerReader::from_settings(&settings);
     let pairs = reader.get_key_value_pairs(trace_id);
     println!("{:?}", pairs);
 }
 
 pub fn get_crit(trace_id: &str) {
     let settings = get_settings();
-    let reader = OSProfilerReader::from_settings(&settings);
+    let mut reader = OSProfilerReader::from_settings(&settings);
     let trace = reader.get_trace_from_base_id(trace_id);
     let crit = CriticalPath::from_trace(&trace);
     println!("{}", Dot::new(&crit.g.g));

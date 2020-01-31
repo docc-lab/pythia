@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use pythia::{
     disable_all, enable_all, enable_skeleton, get_crit, get_manifest, get_trace, make_decision,
-    show_config, show_key_value_pairs, show_manifest,
+    show_config, show_key_value_pairs, show_manifest, listen
 };
 
 fn main() {
@@ -50,6 +50,7 @@ fn main() {
         .subcommand(SubCommand::with_name("enable-all"))
         .subcommand(SubCommand::with_name("enable-skeleton"))
         .subcommand(SubCommand::with_name("show-config"))
+        .subcommand(SubCommand::with_name("listen"))
         .get_matches();
     match matches.subcommand() {
         ("manifest", Some(matches)) => {
@@ -91,6 +92,9 @@ fn main() {
         }
         ("show-config", Some(_)) => {
             show_config();
+        }
+        ("listen", Some(_)) => {
+            listen();
         }
         _ => panic!("Must provide a subcommand, see --help for commands"),
     };
