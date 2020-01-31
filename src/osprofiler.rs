@@ -169,17 +169,18 @@ impl OSProfilerReader {
     }
 
     fn get_matches(&mut self, span_id: &Uuid) -> redis::RedisResult<Vec<OSProfilerSpan>> {
-        let matches: Vec<String> = self
+        let to_parse: String = match self
             .connection
-            .keys("osprofiler:".to_string() + &span_id.to_hyphenated().to_string() + "*")
-            .unwrap();
-        if matches.len() == 0 {
-            return Ok(Vec::new());
-        }
-        let to_parse: Vec<String> = self.connection.get(matches).unwrap();
+            .get("osprofiler:".to_string() + &span_id.to_hyphenated().to_string())
+        {
+            Ok(to_parse) => to_parse,
+            Err(_) => {
+                return Ok(Vec::new());
+            }
+        };
         let mut result = Vec::new();
-        for dict_string in to_parse {
-            match parse_field(&dict_string) {
+        for dict_string in to_parse[1..to_parse.len() - 1].split("}{") {
+            match parse_field(&("{".to_string() + dict_string + "}")) {
                 Ok(span) => {
                     result.push(span);
                 }
