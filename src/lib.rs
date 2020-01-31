@@ -214,12 +214,6 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
     manifest.to_file(manifest_file.as_path());
 }
 
-pub fn listen() {
-    let settings = get_settings();
-    let mut reader = OSProfilerReader::from_settings(&settings);
-    reader.listen();
-}
-
 pub fn get_trace(trace_id: &str) {
     let settings = get_settings();
     let mut reader = OSProfilerReader::from_settings(&settings);

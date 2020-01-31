@@ -5,9 +5,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 use std::hash::Hash;
-use std::path::PathBuf;
-use std::time::Duration;
-use std::time::Instant;
 
 use chrono::NaiveDateTime;
 use petgraph::Direction;
@@ -23,8 +20,6 @@ use crate::trace::EventEnum;
 use crate::trace::{DAGEdge, DAGNode, EdgeType};
 
 pub struct OSProfilerReader {
-    redis_url: String,
-    trace_cache: PathBuf,
     connection: Connection,
 }
 
@@ -32,12 +27,8 @@ impl OSProfilerReader {
     pub fn from_settings(settings: &HashMap<String, String>) -> OSProfilerReader {
         let redis_url = settings.get("redis_url").unwrap().to_string();
         let client = redis::Client::open(&redis_url[..]).unwrap();
-        let mut con = client.get_connection().unwrap();
-        OSProfilerReader {
-            redis_url: redis_url,
-            trace_cache: PathBuf::from(settings.get("trace_cache").unwrap()),
-            connection: con,
-        }
+        let con = client.get_connection().unwrap();
+        OSProfilerReader { connection: con }
     }
 
     pub fn read_trace_file(&mut self, file: &str) -> Vec<OSProfilerDAG> {
@@ -158,22 +149,15 @@ impl OSProfilerReader {
 
     pub fn get_trace_from_base_id(&mut self, id: &str) -> OSProfilerDAG {
         let result = match Uuid::parse_str(id) {
-            Ok(uuid) => match self.fetch_from_cache(&uuid) {
-                Some(result) => result,
-                None => {
-                    let event_list = self.get_matches(&uuid).unwrap();
-                    if event_list.len() == 0 {
-                        panic!("No traces match the uuid {}", uuid);
-                    }
-                    let dag = OSProfilerDAG::from_event_list(
-                        Uuid::parse_str(id).unwrap(),
-                        event_list,
-                        self,
-                    );
-                    self.store_to_cache(&dag);
-                    dag
+            Ok(uuid) => {
+                let event_list = self.get_matches(&uuid).unwrap();
+                if event_list.len() == 0 {
+                    panic!("No traces match the uuid {}", uuid);
                 }
-            },
+                let dag =
+                    OSProfilerDAG::from_event_list(Uuid::parse_str(id).unwrap(), event_list, self);
+                dag
+            }
             Err(_) => {
                 panic!("Malformed UUID received as base ID: {}", id);
             }
@@ -184,33 +168,16 @@ impl OSProfilerReader {
         result
     }
 
-    pub fn listen(&mut self) -> redis::RedisResult<()> {
-        let now = Instant::now();
-        let client = redis::Client::open(&self.redis_url[..])?;
-        let mut pubsub = self.connection.as_pubsub();
-        pubsub.subscribe("osprofiler");
-        loop {
-            let msg = pubsub.get_message()?;
-            let payload: String = msg.get_payload()?;
-            println!("Got: {}", payload);
-        }
-    }
-
     fn get_matches(&mut self, span_id: &Uuid) -> redis::RedisResult<Vec<OSProfilerSpan>> {
-        let now = Instant::now();
         let matches: Vec<String> = self
             .connection
             .keys("osprofiler:".to_string() + &span_id.to_hyphenated().to_string() + "*")
             .unwrap();
-        eprintln!("Getting matches took {}", now.elapsed().as_micros());
         if matches.len() == 0 {
             return Ok(Vec::new());
         }
-        let now = Instant::now();
         let to_parse: Vec<String> = self.connection.get(matches).unwrap();
-        eprintln!("Getting entries took {}", now.elapsed().as_micros());
         let mut result = Vec::new();
-        let parse_start = Instant::now();
         for dict_string in to_parse {
             match parse_field(&dict_string) {
                 Ok(span) => {
@@ -219,30 +186,7 @@ impl OSProfilerReader {
                 Err(e) => panic!("Problem while parsing {}: {}", dict_string, e),
             }
         }
-        eprintln!("Parsing took {}", parse_start.elapsed().as_micros(),);
         Ok(result)
-    }
-
-    fn fetch_from_cache(&self, id: &Uuid) -> Option<OSProfilerDAG> {
-        let mut cache_file = self.trace_cache.clone();
-        cache_file.push(&id.to_hyphenated().to_string());
-        cache_file.set_extension("json");
-        match std::fs::File::open(cache_file) {
-            Ok(file) => {
-                let result: OSProfilerDAG = serde_json::from_reader(file).unwrap();
-                Some(result)
-            }
-            Err(_) => None,
-        }
-    }
-
-    fn store_to_cache(&self, dag: &OSProfilerDAG) {
-        std::fs::create_dir_all(self.trace_cache.as_path()).expect("Failed to create trace cache");
-        let mut cache_file = self.trace_cache.clone();
-        cache_file.push(&dag.base_id.to_hyphenated().to_string());
-        cache_file.set_extension("json");
-        let writer = std::fs::File::create(cache_file).unwrap();
-        serde_json::to_writer(writer, dag).expect("Failed to write trace to cache");
     }
 }
 
