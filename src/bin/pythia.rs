@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use pythia::{
     disable_all, enable_all, enable_skeleton, get_crit, get_manifest, get_trace, make_decision,
-    show_config, show_key_value_pairs, show_manifest
+    show_config, show_key_value_pairs, show_manifest,
 };
 
 fn main() {

@@ -241,7 +241,7 @@ pub fn show_config() {
     println!("{:?}", settings);
 }
 
-fn get_settings() -> HashMap<String, String> {
+pub fn get_settings() -> HashMap<String, String> {
     let mut settings = Config::default();
     settings
         .merge(File::new(

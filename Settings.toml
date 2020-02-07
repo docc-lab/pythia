@@ -1,3 +1,5 @@
+server_address = "127.0.0.1:3030"
+
 pythia_cache = "/opt/stack/pythia_cache"
 manifest_root = "/opt/stack/manifest"
 
