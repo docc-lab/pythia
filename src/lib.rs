@@ -222,10 +222,11 @@ pub fn get_trace(trace_id: &str) {
 }
 
 pub fn show_key_value_pairs(trace_id: &str) {
-    let settings = get_settings();
-    let mut reader = OSProfilerReader::from_settings(&settings);
-    let pairs = reader.get_key_value_pairs(trace_id);
-    println!("{:?}", pairs);
+    // let settings = get_settings();
+    // let mut reader = OSProfilerReader::from_settings(&settings);
+    // let pairs = reader.get_key_value_pairs(trace_id);
+    // println!("{:?}", pairs);
+    println!("{:?}", trace_id);
 }
 
 pub fn get_crit(trace_id: &str) {

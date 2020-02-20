@@ -45,6 +45,7 @@ impl OSProfilerReader {
         traces
     }
 
+    /*
     pub fn get_key_value_pairs(&mut self, id: &str) -> HashMap<String, String> {
         let base_id = Uuid::parse_str(id).ok().unwrap();
         let mut event_list = self.get_matches(&base_id).unwrap();
@@ -146,6 +147,7 @@ impl OSProfilerReader {
         }
         result
     }
+    */
 
     pub fn get_trace_from_base_id(&mut self, id: &str) -> OSProfilerDAG {
         let result = match Uuid::parse_str(id) {
@@ -452,7 +454,7 @@ impl OSProfilerDAG {
                     }
                     asynch_traces.insert(myspan.info.child_id, nidx.unwrap());
                 }
-                OSProfilerEnum::FunctionExit(_) | OSProfilerEnum::RequestExit(_) => {
+                OSProfilerEnum::Exit(_) => {
                     if nidx.is_none() {
                         add_next_to_waiters = true;
                     } else {
@@ -606,9 +608,7 @@ impl DAGNode {
                     OSProfilerEnum::FunctionEntry(_)
                     | OSProfilerEnum::RequestEntry(_)
                     | OSProfilerEnum::WaitAnnotation(_) => EventEnum::Entry,
-                    OSProfilerEnum::FunctionExit(_) | OSProfilerEnum::RequestExit(_) => {
-                        EventEnum::Exit
-                    }
+                    OSProfilerEnum::Exit(_) => EventEnum::Exit,
                     OSProfilerEnum::Annotation(_) => EventEnum::Annotation,
                 },
             },
@@ -633,9 +633,7 @@ impl OSProfilerSpan {
                 s.tracepoint_id.clone()
             }
             OSProfilerEnum::Annotation(s) => s.tracepoint_id.clone(),
-            OSProfilerEnum::RequestExit(_) | OSProfilerEnum::FunctionExit(_) => {
-                map.remove(&self.trace_id).unwrap()
-            }
+            OSProfilerEnum::Exit(_) => map.remove(&self.trace_id).unwrap(),
         }
     }
 }
@@ -684,11 +682,10 @@ pub struct OSProfilerSpan {
 #[serde(untagged)]
 pub enum OSProfilerEnum {
     WaitAnnotation(WaitAnnotationSpan),
-    FunctionEntry(FunctionEntrySpan),
-    FunctionExit(FunctionExitSpan),
-    RequestEntry(RequestEntrySpan),
     Annotation(AnnotationSpan),
-    RequestExit(RequestExitSpan),
+    FunctionEntry(FunctionEntrySpan),
+    RequestEntry(RequestEntrySpan),
+    Exit(ExitSpan),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -746,29 +743,13 @@ struct RequestEntryRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-pub struct RequestExitSpan {
-    info: RequestExitInfo,
+pub struct ExitSpan {
+    info: ExitInfo,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-struct RequestExitInfo {
+struct ExitInfo {
     host: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-pub struct FunctionExitSpan {
-    info: FunctionExitInfo,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-struct FunctionExitInfo {
-    function: FunctionExitFunction,
-    host: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-struct FunctionExitFunction {
-    result: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -789,8 +770,6 @@ struct FunctionEntryInfo {
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 struct FunctionEntryFunction {
     name: String,
-    args: String,
-    kwargs: String,
 }
 
 struct NaiveDateTimeVisitor;
