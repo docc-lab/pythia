@@ -217,7 +217,7 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
 pub fn get_trace(trace_id: &str) {
     let settings = get_settings();
     let mut reader = OSProfilerReader::from_settings(&settings);
-    let trace = reader.get_trace_from_base_id(trace_id);
+    let trace = reader.get_trace_from_base_id(trace_id).unwrap();
     println!("{}", Dot::new(&trace.g));
 }
 
@@ -232,7 +232,7 @@ pub fn show_key_value_pairs(trace_id: &str) {
 pub fn get_crit(trace_id: &str) {
     let settings = get_settings();
     let mut reader = OSProfilerReader::from_settings(&settings);
-    let trace = reader.get_trace_from_base_id(trace_id);
+    let trace = reader.get_trace_from_base_id(trace_id).unwrap();
     let crit = CriticalPath::from_trace(&trace);
     println!("{}", Dot::new(&crit.g.g));
 }

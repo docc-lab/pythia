@@ -39,7 +39,7 @@ impl OSProfilerReader {
                 continue;
             }
             println!("Working on {:?}", id);
-            let trace = self.get_trace_from_base_id(id);
+            let trace = self.get_trace_from_base_id(id).unwrap();
             traces.push(trace);
         }
         traces
@@ -149,12 +149,13 @@ impl OSProfilerReader {
     }
     */
 
-    pub fn get_trace_from_base_id(&mut self, id: &str) -> OSProfilerDAG {
+    pub fn get_trace_from_base_id(&mut self, id: &str) -> Option<OSProfilerDAG> {
         let result = match Uuid::parse_str(id) {
             Ok(uuid) => {
                 let event_list = self.get_matches(&uuid).unwrap();
                 if event_list.len() == 0 {
-                    panic!("No traces match the uuid {}", uuid);
+                    eprintln!("No traces match the uuid {}", uuid);
+                    return None;
                 }
                 let dag =
                     OSProfilerDAG::from_event_list(Uuid::parse_str(id).unwrap(), event_list, self);
@@ -167,7 +168,7 @@ impl OSProfilerReader {
         if result.request_type.is_none() {
             eprintln!("Warning: couldn't get type for request {}", id);
         }
-        result
+        Some(result)
     }
 
     fn get_matches(&mut self, span_id: &Uuid) -> redis::RedisResult<Vec<OSProfilerSpan>> {
