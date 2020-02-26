@@ -523,7 +523,9 @@ impl OSProfilerDAG {
                         None => {}
                     }
                 }
-                None => {}
+                None => {
+                    println!("Couldn't find trace for {}", trace_id);
+                }
             };
         }
         nidx
