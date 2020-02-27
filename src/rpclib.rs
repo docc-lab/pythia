@@ -14,7 +14,7 @@ pub trait PythiaClient {
     fn get_trace(&self, ids: Vec<String>) -> Result<Value>;
 }
 
-pub struct PythiaClientImpl {
+struct PythiaClientImpl {
     reader: Arc<Mutex<OSProfilerReader>>,
 }
 
