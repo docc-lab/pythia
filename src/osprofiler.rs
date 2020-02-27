@@ -15,6 +15,7 @@ use serde::de;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::rpclib::get_events_from_client;
 use crate::trace::Event;
 use crate::trace::EventEnum;
 use crate::trace::{DAGEdge, DAGNode, EdgeType};
@@ -48,7 +49,7 @@ impl OSProfilerReader {
     /*
     pub fn get_key_value_pairs(&mut self, id: &str) -> HashMap<String, String> {
         let base_id = Uuid::parse_str(id).ok().unwrap();
-        let mut event_list = self.get_matches(&base_id).unwrap();
+        let mut event_list = self.get_matches_(&base_id).unwrap();
         sort_event_list(&mut event_list);
         let mut tracepoint_id_map: HashMap<Uuid, String> = HashMap::new();
         for event in event_list.iter_mut() {
@@ -152,7 +153,7 @@ impl OSProfilerReader {
     pub fn get_trace_from_base_id(&mut self, id: &str) -> Option<OSProfilerDAG> {
         let result = match Uuid::parse_str(id) {
             Ok(uuid) => {
-                let event_list = self.get_matches(&uuid).unwrap();
+                let event_list = self.get_matches_(&uuid).unwrap();
                 if event_list.len() == 0 {
                     eprintln!("No traces match the uuid {}", uuid);
                     return None;
@@ -171,7 +172,14 @@ impl OSProfilerReader {
         Some(result)
     }
 
-    fn get_matches(&mut self, span_id: &Uuid) -> redis::RedisResult<Vec<OSProfilerSpan>> {
+    pub fn get_matches(&mut self, span_id: &str) -> Vec<OSProfilerSpan> {
+        match Uuid::parse_str(span_id) {
+            Ok(uuid) => self.get_matches_(&uuid).unwrap(),
+            Err(_) => panic!("Malformed UUID as base id: {}", span_id),
+        }
+    }
+
+    fn get_matches_(&mut self, span_id: &Uuid) -> redis::RedisResult<Vec<OSProfilerSpan>> {
         let to_parse: String = match self
             .connection
             .get("osprofiler:".to_string() + &span_id.to_hyphenated().to_string())
@@ -296,7 +304,7 @@ impl OSProfilerDAG {
         let mut children_per_parent = HashMap::<Uuid, Option<Uuid>>::new();
         children_per_parent.insert(event_list[0].base_id, None);
         // Map of asynchronous traces that start from this DAG -> parent node in DAG
-        let mut asynch_traces = HashMap::new();
+        let mut async_traces = HashMap::new();
         let mut waiters = HashMap::<Uuid, NodeIndex>::new();
         let mut wait_spans = HashSet::<Uuid>::new();
         let mut add_next_to_waiters = false;
@@ -453,7 +461,7 @@ impl OSProfilerDAG {
                             }
                         }
                     }
-                    asynch_traces.insert(myspan.info.child_id, nidx.unwrap());
+                    async_traces.insert(myspan.info.child_id, nidx.unwrap());
                 }
                 OSProfilerEnum::Exit(_) => {
                     if nidx.is_none() {
@@ -500,48 +508,78 @@ impl OSProfilerDAG {
             Some(nid) => nid,
             None => self.start_node,
         };
-        for (trace_id, parent) in asynch_traces.iter() {
-            let last_node = self.add_asynch(trace_id, *parent, &mut reader);
-            match &last_node {
-                Some(node) => {
-                    if self.g[*node].span.timestamp > self.g[self.end_node].span.timestamp {
-                        self.end_node = *node;
+        let mut complete_async_traces = Vec::<(Uuid, NodeIndex, Vec<OSProfilerSpan>)>::new();
+        for node in vec!["cp-1:3030"] {
+            let mut new_traces = get_events_from_client(
+                node,
+                async_traces
+                    .iter()
+                    .map(|(t, _)| t.to_hyphenated().to_string())
+                    .collect(),
+            );
+            let mut retrieved_traces = HashSet::new();
+            for (id, events) in new_traces.iter_mut() {
+                let id = Uuid::parse_str(id).unwrap();
+                match async_traces.get(&id) {
+                    Some(parent) => {
+                        complete_async_traces.push((id, parent.clone(), events.to_owned()));
+                        retrieved_traces.insert(id);
                     }
-                    match &waiters.get(trace_id) {
-                        Some(parent) => {
-                            self.g.add_edge(
-                                *node,
-                                **parent,
-                                DAGEdge {
-                                    duration: (self.g[**parent].span.timestamp
-                                        - self.g[*node].span.timestamp)
-                                        .to_std()
-                                        .unwrap(),
-                                    variant: EdgeType::FollowsFrom,
-                                },
-                            );
-                        }
-                        None => {}
+                    None => {}
+                };
+            }
+            let mut to_remove = Vec::new();
+            for &id in async_traces.keys() {
+                match retrieved_traces.get(&id) {
+                    Some(_) => {}
+                    None => {
+                        to_remove.push(id);
                     }
+                };
+            }
+            for id in to_remove {
+                async_traces.remove(&id);
+            }
+        }
+        for (&trace_id, parent) in async_traces.iter() {
+            let event_list = reader.get_matches_(&trace_id).unwrap();
+            if event_list.len() == 0 {
+                println!("Couldn't find trace for {}", trace_id);
+                continue;
+            }
+            complete_async_traces.push((trace_id, parent.clone(), event_list));
+        }
+        for (trace_id, parent, events) in complete_async_traces.iter() {
+            let last_node = self.add_asynch(parent, &mut (events.to_owned()), &mut reader);
+            if self.g[last_node].span.timestamp > self.g[self.end_node].span.timestamp {
+                self.end_node = last_node;
+            }
+            match &waiters.get(trace_id) {
+                Some(parent) => {
+                    self.g.add_edge(
+                        last_node,
+                        **parent,
+                        DAGEdge {
+                            duration: (self.g[**parent].span.timestamp
+                                - self.g[last_node].span.timestamp)
+                                .to_std()
+                                .unwrap(),
+                            variant: EdgeType::FollowsFrom,
+                        },
+                    );
                 }
-                None => {
-                    println!("Couldn't find trace for {}", trace_id);
-                }
-            };
+                None => {}
+            }
         }
         nidx
     }
 
     fn add_asynch(
         &mut self,
-        trace_id: &Uuid,
-        parent: NodeIndex,
+        parent: &NodeIndex,
+        mut event_list: &mut Vec<OSProfilerSpan>,
         mut reader: &mut OSProfilerReader,
-    ) -> Option<NodeIndex> {
-        let mut event_list = reader.get_matches(trace_id).unwrap();
-        if event_list.len() == 0 {
-            return None;
-        }
+    ) -> NodeIndex {
         let last_node = self.add_events(&mut event_list, &mut reader);
         let first_event = event_list
             .iter()
@@ -556,16 +594,16 @@ impl OSProfilerDAG {
             .find(|idx| self.g[*idx].span.trace_id == first_event.trace_id)
             .unwrap();
         self.g.add_edge(
-            parent,
+            *parent,
             first_node,
             DAGEdge {
-                duration: (first_event.timestamp - self.g[parent].span.timestamp)
+                duration: (first_event.timestamp - self.g[*parent].span.timestamp)
                     .to_std()
                     .unwrap(),
                 variant: EdgeType::FollowsFrom,
             },
         );
-        last_node
+        last_node.unwrap()
     }
 }
 

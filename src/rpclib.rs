@@ -10,12 +10,12 @@ use serde_json;
 use futures::future::Future;
 
 use crate::get_settings;
-use crate::osprofiler::{OSProfilerReader, OSProfilerDAG};
+use crate::osprofiler::{OSProfilerReader, OSProfilerSpan};
 
 #[rpc]
 pub trait PythiaAPI {
-    #[rpc(name = "get_trace")]
-    fn get_trace(&self, ids: Vec<String>) -> Result<Value>;
+    #[rpc(name = "get_events")]
+    fn get_events(&self, ids: Vec<String>) -> Result<Value>;
 }
 
 struct PythiaAPIImpl {
@@ -23,12 +23,12 @@ struct PythiaAPIImpl {
 }
 
 impl PythiaAPI for PythiaAPIImpl {
-    fn get_trace(&self, ids: Vec<String>) -> Result<Value> {
+    fn get_events(&self, ids: Vec<String>) -> Result<Value> {
         let mut result = serde_json::Map::new();
         for i in ids {
             result.insert(
                 i.to_string(),
-                serde_json::to_value(self.reader.lock().unwrap().get_trace_from_base_id(&i))
+                serde_json::to_value(self.reader.lock().unwrap().get_matches(&i))
                     .unwrap(),
             );
         }
@@ -62,14 +62,14 @@ impl From<RpcChannel> for PythiaClient {
 }
 
 impl PythiaClient {
-    fn get_trace(&self, ids: Vec<String>) -> impl Future<Item = Value, Error = RpcError> {
-        self.0.call_method("get_trace", "String", (ids,))
+    fn get_events(&self, ids: Vec<String>) -> impl Future<Item = Value, Error = RpcError> {
+        self.0.call_method("get_events", "String", (ids,))
     }
 }
 
-pub fn get_traces_from_client(traces: Vec<String>) -> HashMap<String, OSProfilerDAG> {
-    http::connect("cp-1:3030").and_then(|client: PythiaClient| {
-        client.get_trace(traces).wait().map(move |result| {
+pub fn get_events_from_client(client_uri: &str, traces: Vec<String>) -> HashMap<String, Vec<OSProfilerSpan>> {
+    http::connect(client_uri).and_then(|client: PythiaClient| {
+        client.get_events(traces).wait().map(move |result| {
             let traces = match result {
                 Value::Object(o) => o,
                 _ => panic!("Got something weird from request")
@@ -81,7 +81,7 @@ pub fn get_traces_from_client(traces: Vec<String>) -> HashMap<String, OSProfiler
                 }});
             str_traces.map(|(k, v)| {
                 (k, serde_json::from_str(&v).unwrap())
-            }).collect::<HashMap<String, OSProfilerDAG>>()
+            }).collect::<HashMap<String, Vec<OSProfilerSpan>>>()
         })
     }).map_err(|e| eprintln!("RPC Client error: {:?}", e)).wait().unwrap()
 }
