@@ -509,7 +509,10 @@ impl OSProfilerDAG {
             None => self.start_node,
         };
         let mut complete_async_traces = Vec::<(Uuid, NodeIndex, Vec<OSProfilerSpan>)>::new();
-        for node in vec!["cp-1:3030"] {
+        for node in vec!["http://cp-1:3030"] {
+            if async_traces.len() == 0 {
+                continue;
+            }
             let mut new_traces = get_events_from_client(
                 node,
                 async_traces
@@ -534,8 +537,7 @@ impl OSProfilerDAG {
                     Some(_) => {
                         to_remove.push(id);
                     }
-                    None => {
-                    }
+                    None => {}
                 };
             }
             for id in to_remove {
@@ -545,7 +547,7 @@ impl OSProfilerDAG {
         for (&trace_id, parent) in async_traces.iter() {
             let event_list = reader.get_matches_(&trace_id).unwrap();
             if event_list.len() == 0 {
-                println!("Couldn't find trace for {}", trace_id);
+                eprintln!("Couldn't find trace for {}", trace_id);
                 continue;
             }
             complete_async_traces.push((trace_id, parent.clone(), event_list));

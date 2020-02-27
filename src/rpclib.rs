@@ -75,7 +75,8 @@ pub fn get_events_from_client(
     traces: Vec<String>,
 ) -> HashMap<String, Vec<OSProfilerSpan>> {
     let (tx, mut rx) = futures::sync::mpsc::unbounded();
-    let run = http::connect("http://cp-1:3030")
+
+    let run = http::connect(client_uri)
         .and_then(|client: PythiaClient| {
             client.get_events(traces).and_then(move |result| {
                 drop(client);
@@ -84,12 +85,13 @@ pub fn get_events_from_client(
             })
         })
         .map_err(|e| eprintln!("RPC Client error: {:?}", e));
+
     rt::run(run);
     let mut final_result = HashMap::new();
+
     loop {
         match rx.poll() {
             Ok(Async::Ready(Some(v))) => {
-                println!("Got request result: {:?}", v);
                 let traces = match v {
                     Value::Object(o) => o,
                     _ => panic!("Got something weird from request"),
@@ -112,7 +114,6 @@ pub fn get_events_from_client(
                             .collect::<Vec<OSProfilerSpan>>(),
                     )
                 }));
-                // break;
             }
             Ok(Async::NotReady) => {}
             Ok(Async::Ready(None)) => {
@@ -122,23 +123,4 @@ pub fn get_events_from_client(
         }
     }
     final_result
-
-    // rt::run(rt::lazy(|| {
-    //     let client: PythiaClient = http::connect("cp-1:3030")
-    //         .map_err(|e| eprintln!("RPC Client error: {:?}", e))
-    //         .wait()
-    //         .unwrap();
-    //     let result = client.get_events(traces).wait().unwrap();
-    //     let traces = match result {
-    //         Value::Object(o) => o,
-    //         _ => panic!("Got something weird from request"),
-    //     };
-    //     let str_traces = traces.into_iter().map(|(k, v)| match v {
-    //         Value::String(s) => (k, s.to_string()),
-    //         _ => panic!("Got something weird within request"),
-    //     });
-    //     str_traces
-    //         .map(|(k, v)| (k, serde_json::from_str(&v).unwrap()))
-    //         .collect()
-    // }))
 }
