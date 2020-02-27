@@ -94,16 +94,30 @@ pub fn get_events_from_client(
                     Value::Object(o) => o,
                     _ => panic!("Got something weird from request"),
                 };
-                let str_traces = traces.into_iter().map(|(k, v)| match v {
-                    Value::String(s) => (k, s.to_string()),
+                let str_traces = traces.into_iter().filter_map(|(k, v)| match v {
+                    Value::Array(a) => {
+                        if a.len() == 0 {
+                            None
+                        } else {
+                            Some((k, a.iter().map(|x| x.to_string()).collect()))
+                        }
+                    }
                     _ => panic!("Got something weird within request: {:?}", v),
                 });
-                final_result
-                    .extend(str_traces.map(|(k, v)| (k, serde_json::from_str(&v).unwrap())));
+                final_result.extend(str_traces.map(|(k, v): (String, Vec<String>)| {
+                    (
+                        k,
+                        v.iter()
+                            .map(|x| serde_json::from_str(&x).unwrap())
+                            .collect::<Vec<OSProfilerSpan>>(),
+                    )
+                }));
                 // break;
             }
             Ok(Async::NotReady) => {}
-            Ok(Async::Ready(None)) => {break;}
+            Ok(Async::Ready(None)) => {
+                break;
+            }
             Err(e) => panic!("Got error from poll: {:?}", e),
         }
     }

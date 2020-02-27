@@ -531,9 +531,10 @@ impl OSProfilerDAG {
             let mut to_remove = Vec::new();
             for &id in async_traces.keys() {
                 match retrieved_traces.get(&id) {
-                    Some(_) => {}
-                    None => {
+                    Some(_) => {
                         to_remove.push(id);
+                    }
+                    None => {
                     }
                 };
             }
