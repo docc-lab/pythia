@@ -2,6 +2,9 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use futures::future::Future;
+use futures::stream::Stream;
+use futures::Async;
+use hyper::rt;
 use jsonrpc_client_transports::transports::http;
 use jsonrpc_core::{IoHandler, Result, Value};
 use jsonrpc_core_client::{RpcChannel, RpcError, TypedClient};
@@ -70,20 +73,50 @@ pub fn get_events_from_client(
     client_uri: &str,
     traces: Vec<String>,
 ) -> HashMap<String, Vec<OSProfilerSpan>> {
-    let client: PythiaClient = http::connect("cp-1:3030")
-        .map_err(|e| eprintln!("RPC Client error: {:?}", e))
-        .wait()
-        .unwrap();
-    let result = client.get_events(traces).wait().unwrap();
-    let traces = match result {
-        Value::Object(o) => o,
-        _ => panic!("Got something weird from request"),
-    };
-    let str_traces = traces.into_iter().map(|(k, v)| match v {
-        Value::String(s) => (k, s.to_string()),
-        _ => panic!("Got something weird within request"),
-    });
-    str_traces
-        .map(|(k, v)| (k, serde_json::from_str(&v).unwrap()))
-        .collect()
+    let (tx, mut rx) = futures::sync::mpsc::unbounded();
+    let run = http::connect("http://cp-1:3030")
+        .and_then(|client: PythiaClient| {
+            client.get_events(traces).and_then(move |result| {
+                drop(client);
+                let _ = tx.unbounded_send(result);
+                Ok(())
+            })
+        })
+        .map_err(|e| eprintln!("RPC Client error: {:?}", e));
+    rt::run(run);
+    let mut final_result = HashMap::new();
+    while let Ok(Async::Ready(Some(v))) = rx.poll() {
+        println!("Got request result: {:?}", v);
+        let traces = match v {
+            Value::Object(o) => o,
+            _ => panic!("Got something weird from request"),
+        };
+        let str_traces = traces.into_iter().map(|(k, v)| match v {
+            Value::String(s) => (k, s.to_string()),
+            _ => panic!("Got something weird within request: {:?}", v),
+        });
+        final_result.extend(
+            str_traces
+            .map(|(k, v)| (k, serde_json::from_str(&v).unwrap())));
+    }
+    final_result
+
+    // rt::run(rt::lazy(|| {
+    //     let client: PythiaClient = http::connect("cp-1:3030")
+    //         .map_err(|e| eprintln!("RPC Client error: {:?}", e))
+    //         .wait()
+    //         .unwrap();
+    //     let result = client.get_events(traces).wait().unwrap();
+    //     let traces = match result {
+    //         Value::Object(o) => o,
+    //         _ => panic!("Got something weird from request"),
+    //     };
+    //     let str_traces = traces.into_iter().map(|(k, v)| match v {
+    //         Value::String(s) => (k, s.to_string()),
+    //         _ => panic!("Got something weird within request"),
+    //     });
+    //     str_traces
+    //         .map(|(k, v)| (k, serde_json::from_str(&v).unwrap()))
+    //         .collect()
+    // }))
 }
