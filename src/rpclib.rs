@@ -1,13 +1,13 @@
-use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
-use jsonrpc_core::{Result, Value, IoHandler};
-use jsonrpc_core_client::{RpcChannel, RpcError, TypedClient};
+use futures::future::Future;
 use jsonrpc_client_transports::transports::http;
+use jsonrpc_core::{IoHandler, Result, Value};
+use jsonrpc_core_client::{RpcChannel, RpcError, TypedClient};
 use jsonrpc_derive::rpc;
 use jsonrpc_http_server::ServerBuilder;
 use serde_json;
-use futures::future::Future;
 
 use crate::get_settings;
 use crate::osprofiler::{OSProfilerReader, OSProfilerSpan};
@@ -28,8 +28,7 @@ impl PythiaAPI for PythiaAPIImpl {
         for i in ids {
             result.insert(
                 i.to_string(),
-                serde_json::to_value(self.reader.lock().unwrap().get_matches(&i))
-                    .unwrap(),
+                serde_json::to_value(self.reader.lock().unwrap().get_matches(&i)).unwrap(),
             );
         }
         Ok(Value::Object(result))
@@ -40,7 +39,7 @@ pub fn start_rpc_server() {
     let settings = get_settings();
     let reader = Arc::new(Mutex::new(OSProfilerReader::from_settings(&settings)));
     let mut io = IoHandler::new();
-    io.extend_with(PythiaAPIImpl{reader: reader}.to_delegate());
+    io.extend_with(PythiaAPIImpl { reader: reader }.to_delegate());
 
     let address: &String = settings.get("server_address").unwrap();
     println!("Starting the server at {}", address);
@@ -67,21 +66,24 @@ impl PythiaClient {
     }
 }
 
-pub fn get_events_from_client(client_uri: &str, traces: Vec<String>) -> HashMap<String, Vec<OSProfilerSpan>> {
-    http::connect(client_uri).and_then(|client: PythiaClient| {
-        client.get_events(traces).wait().map(move |result| {
-            let traces = match result {
-                Value::Object(o) => o,
-                _ => panic!("Got something weird from request")
-            };
-            let str_traces = traces.into_iter().map(|(k, v)| {
-                match v {
-                    Value::String(s) => (k, s.to_string()),
-                    _ => panic!("Got something weird within request")
-                }});
-            str_traces.map(|(k, v)| {
-                (k, serde_json::from_str(&v).unwrap())
-            }).collect::<HashMap<String, Vec<OSProfilerSpan>>>()
-        })
-    }).map_err(|e| eprintln!("RPC Client error: {:?}", e)).wait().unwrap()
+pub fn get_events_from_client(
+    client_uri: &str,
+    traces: Vec<String>,
+) -> HashMap<String, Vec<OSProfilerSpan>> {
+    let client: PythiaClient = http::connect("cp-1:3030")
+        .map_err(|e| eprintln!("RPC Client error: {:?}", e))
+        .wait()
+        .unwrap();
+    let result = client.get_events(traces).wait().unwrap();
+    let traces = match result {
+        Value::Object(o) => o,
+        _ => panic!("Got something weird from request"),
+    };
+    let str_traces = traces.into_iter().map(|(k, v)| match v {
+        Value::String(s) => (k, s.to_string()),
+        _ => panic!("Got something weird within request"),
+    });
+    str_traces
+        .map(|(k, v)| (k, serde_json::from_str(&v).unwrap()))
+        .collect()
 }
