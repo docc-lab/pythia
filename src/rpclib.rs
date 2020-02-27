@@ -27,6 +27,7 @@ struct PythiaAPIImpl {
 
 impl PythiaAPI for PythiaAPIImpl {
     fn get_events(&self, ids: Vec<String>) -> Result<Value> {
+        eprintln!("Got request for {:?}", ids);
         let mut result = serde_json::Map::new();
         for i in ids {
             result.insert(
