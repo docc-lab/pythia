@@ -2,28 +2,43 @@ extern crate pythia;
 
 use std::sync::{Arc, Mutex};
 
-use jsonrpc_core::*;
-use jsonrpc_http_server::*;
+use jsonrpc_core::{Result, Value, IoHandler};
+use jsonrpc_derive::rpc;
+use jsonrpc_http_server::ServerBuilder;
 use serde_json;
 
 use pythia::get_settings;
 use pythia::osprofiler::OSProfilerReader;
 
+#[rpc]
+pub trait PythiaClient {
+    #[rpc(name = "get_trace")]
+    fn get_trace(&self, ids: Vec<String>) -> Result<Value>;
+}
+
+pub struct PythiaClientImpl{
+    reader: Arc<Mutex<OSProfilerReader>>
+}
+
+impl PythiaClient for PythiaClientImpl {
+    fn get_trace(&self, ids: Vec<String>) -> Result<Value> {
+        let mut result = serde_json::Map::new();
+        for i in ids {
+            result.insert(
+                i.to_string(),
+                serde_json::to_value(self.reader.lock().unwrap().get_trace_from_base_id(&i)).unwrap(),
+            );
+        }
+        Ok(Value::Object(result))
+    }
+}
+
 fn main() {
     let settings = get_settings();
     let reader = Arc::new(Mutex::new(OSProfilerReader::from_settings(&settings)));
     let mut io = IoHandler::new();
-    io.add_method("get_trace", move |a: Params| {
-        let res: Vec<String> = a.parse().unwrap();
-        let mut result = serde_json::Map::new();
-        for i in res {
-            result.insert(
-                i.to_string(),
-                serde_json::to_value(reader.lock().unwrap().get_trace_from_base_id(&i)).unwrap(),
-            );
-        }
-        Ok(Value::Object(result))
-    });
+    io.extend_with(PythiaClientImpl{
+        reader: reader}.to_delegate());
 
     let address: &String = settings.get("server_address").unwrap();
     println!("Starting the server at {}", address);
