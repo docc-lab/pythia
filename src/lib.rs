@@ -12,6 +12,7 @@ pub mod osprofiler;
 pub mod poset;
 pub mod search;
 pub mod trace;
+pub mod rpclib;
 
 use std::collections::HashMap;
 use std::io::stdin;
