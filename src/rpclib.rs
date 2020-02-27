@@ -1,12 +1,11 @@
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
-use std::time::Duration;
 
 use jsonrpc_core::{Result, Value, IoHandler};
 use jsonrpc_core_client::{RpcChannel, RpcError, TypedClient};
 use jsonrpc_client_transports::transports::http;
 use jsonrpc_derive::rpc;
-use jsonrpc_http_server::{hyper, ServerBuilder};
+use jsonrpc_http_server::ServerBuilder;
 use serde_json;
 use futures::future::Future;
 
@@ -37,21 +36,6 @@ impl PythiaAPI for PythiaAPIImpl {
     }
 }
 
-#[derive(Clone)]
-struct PythiaClient(TypedClient);
-
-impl From<RpcChannel> for PythiaClient {
-    fn from(channel: RpcChannel) -> Self {
-        PythiaClient(channel.into())
-    }
-}
-
-impl PythiaClient {
-    fn get_trace(&self, ids: Vec<String>) -> impl Future<Item = Value, Error = RpcError> {
-        self.0.call_method("get_trace", "String", (ids,))
-    }
-}
-
 pub fn start_rpc_server() {
     let settings = get_settings();
     let reader = Arc::new(Mutex::new(OSProfilerReader::from_settings(&settings)));
@@ -68,28 +52,36 @@ pub fn start_rpc_server() {
     _server.wait();
 }
 
-pub fn get_traces_from_client(traces: Vec<String>) -> HashMap<String, OSProfilerDAG> {
-    let (tx, rx) = std::sync::mpsc::channel();
-    let run = http::connect("cp-1:3030")
-            .and_then(|client: PythiaClient| {
-                    client.get_trace(traces).and_then(move |result| {
-                            drop(client);
-                            let _ = tx.send(result);
-                            Ok(())
-                    })
-            })
-            .map_err(|e| eprintln!("RPC Client error: {:?}", e));
+#[derive(Clone)]
+struct PythiaClient(TypedClient);
 
-    hyper::rt::run(run);
-
-    match rx.recv_timeout(Duration::from_secs(3)).unwrap() {
-        Value::Object(o) => o.into_iter().map(|(k, v)| {
-            match v {
-            Value::String(s) => (k, s.to_string()),
-            _ => panic!("Got something weird within request")
-            }}).map(|(k, v)| {
-                (k, serde_json::from_str(&v).unwrap())}
-        ).collect(),
-        _ => panic!("Got something weird from request")
+impl From<RpcChannel> for PythiaClient {
+    fn from(channel: RpcChannel) -> Self {
+        PythiaClient(channel.into())
     }
+}
+
+impl PythiaClient {
+    fn get_trace(&self, ids: Vec<String>) -> impl Future<Item = Value, Error = RpcError> {
+        self.0.call_method("get_trace", "String", (ids,))
+    }
+}
+
+pub fn get_traces_from_client(traces: Vec<String>) -> HashMap<String, OSProfilerDAG> {
+    http::connect("cp-1:3030").and_then(|client: PythiaClient| {
+        client.get_trace(traces).wait().map(move |result| {
+            let traces = match result {
+                Value::Object(o) => o,
+                _ => panic!("Got something weird from request")
+            };
+            let str_traces = traces.into_iter().map(|(k, v)| {
+                match v {
+                    Value::String(s) => (k, s.to_string()),
+                    _ => panic!("Got something weird within request")
+                }});
+            str_traces.map(|(k, v)| {
+                (k, serde_json::from_str(&v).unwrap())
+            }).collect::<HashMap<String, OSProfilerDAG>>()
+        })
+    }).map_err(|e| eprintln!("RPC Client error: {:?}", e)).wait().unwrap()
 }
