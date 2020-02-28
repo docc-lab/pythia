@@ -677,7 +677,10 @@ impl OSProfilerSpan {
                 s.tracepoint_id.clone()
             }
             OSProfilerEnum::Annotation(s) => s.tracepoint_id.clone(),
-            OSProfilerEnum::Exit(_) => map.remove(&self.trace_id).unwrap(),
+            OSProfilerEnum::Exit(_) => match map.remove(&self.trace_id) {
+                Some(s) => s,
+                None => panic!("Couldn't find trace id for {:?}", self),
+            },
         }
     }
 }
