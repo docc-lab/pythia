@@ -86,14 +86,14 @@ pub fn get_events_from_client(client_uri: &str, trace_id: Uuid) -> Vec<OSProfile
             Ok(Async::Ready(Some(v))) => {
                 let traces = match v {
                     Value::Array(o) => o,
-                    _ => panic!("Got something weird from request"),
+                    _ => panic!("Got something weird from request {:?}", v),
                 };
                 final_result.extend(
                     traces
                         .iter()
                         .map(|x| match x {
                             Value::String(s) => s,
-                            _ => panic!("Got something weird from request"),
+                            _ => panic!("Got something weird from request {:?}", x),
                         })
                         .map(|x: &String| serde_json::from_str(x).unwrap())
                         .collect::<Vec<OSProfilerSpan>>(),

@@ -304,6 +304,9 @@ impl OSProfilerDAG {
         event_list: &mut Vec<OSProfilerSpan>,
         mut reader: &mut OSProfilerReader,
     ) -> Option<NodeIndex> {
+        if event_list.len() == 0 {
+            return None;
+        }
         sort_event_list(event_list);
         let base_id = event_list[0].base_id;
         let start_time = event_list[0].timestamp;
@@ -521,6 +524,10 @@ impl OSProfilerDAG {
         };
         for (trace_id, parent) in async_traces.iter() {
             let last_node = self.add_asynch(trace_id, *parent, &mut reader);
+            if last_node.is_none() {
+                continue;
+            }
+                let last_node = last_node.unwrap();
             if self.g[last_node].span.timestamp > self.g[self.end_node].span.timestamp {
                 self.end_node = last_node;
             }
@@ -549,8 +556,11 @@ impl OSProfilerDAG {
         trace_id: &Uuid,
         parent: NodeIndex,
         mut reader: &mut OSProfilerReader,
-    ) -> NodeIndex {
+    ) -> Option<NodeIndex> {
         let mut event_list = reader.get_all_matches(trace_id);
+        if event_list.len() == 0 {
+            return None;
+        }
         let last_node = self.add_events(&mut event_list, &mut reader);
         let first_event = event_list
             .iter()
@@ -574,7 +584,7 @@ impl OSProfilerDAG {
                 variant: EdgeType::FollowsFrom,
             },
         );
-        last_node.unwrap()
+        last_node
     }
 }
 
