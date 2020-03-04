@@ -32,7 +32,7 @@ impl Manifest {
                     space.add_trace(&trace);
                 }
                 None => {
-                    let mut space = SearchSpace::new();
+                    let mut space = SearchSpace::default();
                     space.add_trace(&trace);
                     map.insert(trace.request_type.unwrap(), space);
                 }

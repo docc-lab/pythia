@@ -4,8 +4,8 @@ use std::time::Duration;
 
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
-use petgraph::{dot::Dot, graph::NodeIndex, Direction};
 use petgraph::visit::EdgeRef;
+use petgraph::{dot::Dot, graph::NodeIndex, Direction};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
