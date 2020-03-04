@@ -153,7 +153,7 @@ impl OSProfilerReader {
     pub fn get_trace_from_base_id(&mut self, id: &str) -> Option<OSProfilerDAG> {
         let result = match Uuid::parse_str(id) {
             Ok(uuid) => {
-                let event_list = self.get_matches_(&uuid).unwrap();
+                let event_list = self.get_all_matches(&uuid);
                 if event_list.len() == 0 {
                     eprintln!("No traces match the uuid {}", uuid);
                     return None;
@@ -172,6 +172,16 @@ impl OSProfilerReader {
         Some(result)
     }
 
+    /// Get matching events from all redis instances
+    fn get_all_matches(&mut self, span_id: &Uuid) -> Vec<OSProfilerSpan> {
+        let mut event_list = self.get_matches_(&span_id).unwrap();
+        for node in vec!["http://cp-1:3030"] {
+            event_list.extend(get_events_from_client(node, span_id.clone()));
+        }
+        event_list
+    }
+
+    /// Public wrapper for get_matches_ that accepts string input and does not return RedisResult
     pub fn get_matches(&mut self, span_id: &str) -> Vec<OSProfilerSpan> {
         match Uuid::parse_str(span_id) {
             Ok(uuid) => self.get_matches_(&uuid).unwrap(),
@@ -179,6 +189,7 @@ impl OSProfilerReader {
         }
     }
 
+    /// Get matching events from local redis instance
     fn get_matches_(&mut self, span_id: &Uuid) -> redis::RedisResult<Vec<OSProfilerSpan>> {
         let to_parse: String = match self
             .connection
@@ -508,52 +519,8 @@ impl OSProfilerDAG {
             Some(nid) => nid,
             None => self.start_node,
         };
-        let mut complete_async_traces = Vec::<(Uuid, NodeIndex, Vec<OSProfilerSpan>)>::new();
-        for node in vec!["http://cp-1:3030"] {
-            if async_traces.len() == 0 {
-                continue;
-            }
-            let mut new_traces = get_events_from_client(
-                node,
-                async_traces
-                    .iter()
-                    .map(|(t, _)| t.to_hyphenated().to_string())
-                    .collect(),
-            );
-            let mut retrieved_traces = HashSet::new();
-            for (id, events) in new_traces.iter_mut() {
-                let id = Uuid::parse_str(id).unwrap();
-                match async_traces.get(&id) {
-                    Some(parent) => {
-                        complete_async_traces.push((id, parent.clone(), events.to_owned()));
-                        retrieved_traces.insert(id);
-                    }
-                    None => {}
-                };
-            }
-            let mut to_remove = Vec::new();
-            for &id in async_traces.keys() {
-                match retrieved_traces.get(&id) {
-                    Some(_) => {
-                        to_remove.push(id);
-                    }
-                    None => {}
-                };
-            }
-            for id in to_remove {
-                async_traces.remove(&id);
-            }
-        }
-        for (&trace_id, parent) in async_traces.iter() {
-            let event_list = reader.get_matches_(&trace_id).unwrap();
-            if event_list.len() == 0 {
-                eprintln!("Couldn't find trace for {}", trace_id);
-                continue;
-            }
-            complete_async_traces.push((trace_id, parent.clone(), event_list));
-        }
-        for (trace_id, parent, events) in complete_async_traces.iter() {
-            let last_node = self.add_asynch(parent, &mut (events.to_owned()), &mut reader);
+        for (trace_id, parent) in async_traces.iter() {
+            let last_node = self.add_asynch(trace_id, *parent, &mut reader);
             if self.g[last_node].span.timestamp > self.g[self.end_node].span.timestamp {
                 self.end_node = last_node;
             }
@@ -579,10 +546,11 @@ impl OSProfilerDAG {
 
     fn add_asynch(
         &mut self,
-        parent: &NodeIndex,
-        mut event_list: &mut Vec<OSProfilerSpan>,
+        trace_id: &Uuid,
+        parent: NodeIndex,
         mut reader: &mut OSProfilerReader,
     ) -> NodeIndex {
+        let mut event_list = reader.get_all_matches(trace_id);
         let last_node = self.add_events(&mut event_list, &mut reader);
         let first_event = event_list
             .iter()
@@ -597,10 +565,10 @@ impl OSProfilerDAG {
             .find(|idx| self.g[*idx].span.trace_id == first_event.trace_id)
             .unwrap();
         self.g.add_edge(
-            *parent,
+            parent,
             first_node,
             DAGEdge {
-                duration: (first_event.timestamp - self.g[*parent].span.timestamp)
+                duration: (first_event.timestamp - self.g[parent].span.timestamp)
                     .to_std()
                     .unwrap(),
                 variant: EdgeType::FollowsFrom,

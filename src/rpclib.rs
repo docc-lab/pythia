@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use futures::future::Future;
@@ -11,6 +10,7 @@ use jsonrpc_core_client::{RpcChannel, RpcError, TypedClient};
 use jsonrpc_derive::rpc;
 use jsonrpc_http_server::ServerBuilder;
 use serde_json;
+use uuid::Uuid;
 
 use crate::get_settings;
 use crate::osprofiler::{OSProfilerReader, OSProfilerSpan};
@@ -18,7 +18,7 @@ use crate::osprofiler::{OSProfilerReader, OSProfilerSpan};
 #[rpc]
 pub trait PythiaAPI {
     #[rpc(name = "get_events")]
-    fn get_events(&self, ids: Vec<String>) -> Result<Value>;
+    fn get_events(&self, trace_id: String) -> Result<Value>;
 }
 
 struct PythiaAPIImpl {
@@ -26,16 +26,9 @@ struct PythiaAPIImpl {
 }
 
 impl PythiaAPI for PythiaAPIImpl {
-    fn get_events(&self, ids: Vec<String>) -> Result<Value> {
-        eprintln!("Got request for {:?}", ids);
-        let mut result = serde_json::Map::new();
-        for i in ids {
-            result.insert(
-                i.to_string(),
-                serde_json::to_value(self.reader.lock().unwrap().get_matches(&i)).unwrap(),
-            );
-        }
-        Ok(Value::Object(result))
+    fn get_events(&self, trace_id: String) -> Result<Value> {
+        eprintln!("Got request for {:?}", trace_id);
+        Ok(serde_json::to_value(self.reader.lock().unwrap().get_matches(&trace_id)).unwrap())
     }
 }
 
@@ -65,55 +58,46 @@ impl From<RpcChannel> for PythiaClient {
 }
 
 impl PythiaClient {
-    fn get_events(&self, ids: Vec<String>) -> impl Future<Item = Value, Error = RpcError> {
-        self.0.call_method("get_events", "String", (ids,))
+    fn get_events(&self, trace_id: String) -> impl Future<Item = Value, Error = RpcError> {
+        self.0.call_method("get_events", "String", (trace_id,))
     }
 }
 
-pub fn get_events_from_client(
-    client_uri: &str,
-    traces: Vec<String>,
-) -> HashMap<String, Vec<OSProfilerSpan>> {
+pub fn get_events_from_client(client_uri: &str, trace_id: Uuid) -> Vec<OSProfilerSpan> {
     let (tx, mut rx) = futures::sync::mpsc::unbounded();
 
     let run = http::connect(client_uri)
-        .and_then(|client: PythiaClient| {
-            client.get_events(traces).and_then(move |result| {
-                drop(client);
-                let _ = tx.unbounded_send(result);
-                Ok(())
-            })
+        .and_then(move |client: PythiaClient| {
+            client
+                .get_events(trace_id.to_hyphenated().to_string())
+                .and_then(move |result| {
+                    drop(client);
+                    let _ = tx.unbounded_send(result);
+                    Ok(())
+                })
         })
         .map_err(|e| eprintln!("RPC Client error: {:?}", e));
 
     rt::run(run);
-    let mut final_result = HashMap::new();
+    let mut final_result = Vec::new();
 
     loop {
         match rx.poll() {
             Ok(Async::Ready(Some(v))) => {
                 let traces = match v {
-                    Value::Object(o) => o,
+                    Value::Array(o) => o,
                     _ => panic!("Got something weird from request"),
                 };
-                let str_traces = traces.into_iter().filter_map(|(k, v)| match v {
-                    Value::Array(a) => {
-                        if a.len() == 0 {
-                            None
-                        } else {
-                            Some((k, a.iter().map(|x| x.to_string()).collect()))
-                        }
-                    }
-                    _ => panic!("Got something weird within request: {:?}", v),
-                });
-                final_result.extend(str_traces.map(|(k, v): (String, Vec<String>)| {
-                    (
-                        k,
-                        v.iter()
-                            .map(|x| serde_json::from_str(&x).unwrap())
-                            .collect::<Vec<OSProfilerSpan>>(),
-                    )
-                }));
+                final_result.extend(
+                    traces
+                        .iter()
+                        .map(|x| match x {
+                            Value::String(s) => s,
+                            _ => panic!("Got something weird from request"),
+                        })
+                        .map(|x: &String| serde_json::from_str(x).unwrap())
+                        .collect::<Vec<OSProfilerSpan>>(),
+                );
             }
             Ok(Async::NotReady) => {}
             Ok(Async::Ready(None)) => {
