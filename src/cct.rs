@@ -16,6 +16,7 @@ use crate::grouping::Group;
 use crate::osprofiler::OSProfilerDAG;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
+use crate::searchspace::SearchSpace;
 use crate::trace::EventEnum;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -26,8 +27,7 @@ pub struct CCT {
     enabled_tracepoints: RefCell<HashSet<String>>,
 }
 
-#[typetag::serde]
-impl SearchStrategy for CCT {
+impl CCT{
     fn add_trace(&mut self, trace: &OSProfilerDAG) {
         for path in CriticalPath::all_possible_paths(trace) {
             self.add_path_to_manifest(&path);
@@ -37,9 +37,13 @@ impl SearchStrategy for CCT {
     fn get_entry_points(&self) -> Vec<&String> {
         self.entry_points.keys().collect()
     }
+}
 
+#[typetag::serde]
+impl SearchStrategy for CCT {
     fn search<'a>(
         &'a self,
+        space: &SearchSpace,
         group: &Group,
         edge: EdgeIndex,
         budget: usize,

@@ -15,8 +15,9 @@ use stats::variance;
 use crate::grouping::Group;
 use crate::osprofiler::OSProfilerDAG;
 use crate::poset::PosetNode;
-use crate::search::SearchStrategy;
 use crate::search::SearchState;
+use crate::search::SearchStrategy;
+use crate::searchspace::SearchSpace;
 
 #[derive(Serialize, Deserialize)]
 struct Edge {
@@ -97,8 +98,7 @@ impl Display for Historic {
     }
 }
 
-#[typetag::serde]
-impl SearchStrategy for Historic {
+impl Historic {
     fn add_trace(&mut self, trace: &OSProfilerDAG) {
         // Breadth-first search over all nodes, add outgoing edges to manifest
         let mut visited = HashSet::new();
@@ -143,9 +143,13 @@ impl SearchStrategy for Historic {
     fn get_entry_points(&self) -> Vec<&String> {
         self.entry_points.iter().collect()
     }
+}
 
+#[typetag::serde]
+impl SearchStrategy for Historic {
     fn search(
         &self,
+        space: &SearchSpace,
         _group: &Group,
         _edge: EdgeIndex,
         budget: usize,

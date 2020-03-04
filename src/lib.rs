@@ -10,9 +10,10 @@ pub mod historic;
 pub mod manifest;
 pub mod osprofiler;
 pub mod poset;
-pub mod search;
-pub mod trace;
 pub mod rpclib;
+pub mod search;
+pub mod searchspace;
+pub mod trace;
 
 use std::collections::HashMap;
 use std::io::stdin;
@@ -39,8 +40,9 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
     let mut rng = &mut rand::thread_rng();
     let controller = OSProfilerController::from_settings(&settings);
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-    let manifest =
-        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    let manifest_method = settings.get("manifest_method").unwrap();
+    let manifest = Manifest::from_file(manifest_method, manifest_file.as_path())
+        .expect("Couldn't read manifest from cache");
     let mut reader = OSProfilerReader::from_settings(&settings);
     let now = Instant::now();
     let traces = reader.read_trace_file(epoch_file);
@@ -143,8 +145,9 @@ pub fn enable_all() {
 pub fn enable_skeleton() {
     let settings = get_settings();
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-    let manifest =
-        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    let manifest_method = settings.get("manifest_method").unwrap();
+    let manifest = Manifest::from_file(manifest_method, manifest_file.as_path())
+        .expect("Couldn't read manifest from cache");
     let controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
     let mut to_enable = manifest.entry_points();
@@ -156,8 +159,9 @@ pub fn enable_skeleton() {
 pub fn show_manifest(request_type: &str) {
     let settings = get_settings();
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-    let manifest =
-        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    let manifest_method = settings.get("manifest_method").unwrap();
+    let manifest = Manifest::from_file(manifest_method, manifest_file.as_path())
+        .expect("Couldn't read manifest from cache");
     match request_type {
         "ServerCreate" => {
             println!(

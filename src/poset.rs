@@ -15,6 +15,7 @@ use crate::grouping::Group;
 use crate::osprofiler::OSProfilerDAG;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
+use crate::searchspace::SearchSpace;
 use crate::trace::Event;
 use crate::trace::EventEnum;
 
@@ -64,8 +65,7 @@ pub struct Poset {
     exit_points: HashMap<PosetNode, NodeIndex>,
 }
 
-#[typetag::serde]
-impl SearchStrategy for Poset {
+impl Poset {
     fn add_trace(&mut self, trace: &OSProfilerDAG) {
         for path in &CriticalPath::all_possible_paths(trace) {
             self.add_path(path);
@@ -78,9 +78,13 @@ impl SearchStrategy for Poset {
         result.extend(self.exit_points.keys().map(|x| &x.tracepoint_id));
         result.drain().collect()
     }
+}
 
+#[typetag::serde]
+impl SearchStrategy for Poset {
     fn search(
         &self,
+        space: &SearchSpace,
         _group: &Group,
         _edge: EdgeIndex,
         _budget: usize,

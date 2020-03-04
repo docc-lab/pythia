@@ -6,7 +6,6 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use petgraph::graph::EdgeIndex;
-// use serde::Serialize;
 
 use crate::cct::CCT;
 use crate::flat::FlatSpace;
@@ -17,38 +16,37 @@ use crate::osprofiler::RequestType;
 use crate::poset::Poset;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
+use crate::searchspace::SearchSpace;
 
 pub struct Manifest {
-    pub per_request_type: HashMap<RequestType, Box<dyn SearchStrategy>>,
+    pub per_request_type: HashMap<RequestType, SearchSpace>,
+    strategy: Box<dyn SearchStrategy>,
 }
 
 impl Manifest {
     pub fn from_trace_list(manifest_type: &str, traces: Vec<OSProfilerDAG>) -> Manifest {
-        let mut map = HashMap::<RequestType, Box<dyn SearchStrategy>>::new();
+        let mut map = HashMap::<RequestType, SearchSpace>::new();
         for trace in traces {
             match map.get_mut(&trace.request_type.unwrap()) {
-                Some(cct) => {
-                    cct.add_trace(&trace);
+                Some(space) => {
+                    space.add_trace(&trace);
                 }
                 None => {
-                    let mut cct = Self::get_new_inner(manifest_type);
-                    cct.add_trace(&trace);
-                    map.insert(trace.request_type.unwrap(), cct);
+                    let mut space = SearchSpace::new();
+                    space.add_trace(&trace);
+                    map.insert(trace.request_type.unwrap(), space);
                 }
             }
         }
         Manifest {
             per_request_type: map,
-        }
-    }
-
-    fn get_new_inner(manifest_type: &str) -> Box<dyn SearchStrategy> {
-        match manifest_type {
-            "CCT" => Box::new(CCT::default()),
-            "Poset" => Box::new(Poset::default()),
-            "Flat" => Box::new(FlatSpace::default()),
-            "Historic" => Box::new(Historic::default()),
-            _ => panic!("Unsupported manifest method"),
+            strategy: match manifest_type {
+                "CCT" => Box::new(CCT::default()),
+                "Poset" => Box::new(Poset::default()),
+                "Flat" => Box::new(FlatSpace::default()),
+                "Historic" => Box::new(Historic::default()),
+                _ => panic!("Unsupported manifest method"),
+            },
         }
     }
 
@@ -63,9 +61,16 @@ impl Manifest {
         }
     }
 
-    pub fn from_file(file: &Path) -> Option<Manifest> {
+    pub fn from_file(manifest_type: &str, file: &Path) -> Option<Manifest> {
         let mut result = Manifest {
             per_request_type: HashMap::new(),
+            strategy: match manifest_type {
+                "CCT" => Box::new(CCT::default()),
+                "Poset" => Box::new(Poset::default()),
+                "Flat" => Box::new(FlatSpace::default()),
+                "Historic" => Box::new(Historic::default()),
+                _ => panic!("Unsupported manifest method"),
+            },
         };
         result.ingest_dir(file).ok();
         Some(result)
@@ -75,8 +80,8 @@ impl Manifest {
         for entry in std::fs::read_dir(file)? {
             let entry = entry?;
             let path = entry.path();
-            let request_type =
-                RequestType::from_str(path.file_stem().unwrap().to_str().unwrap()).expect("Couldn't parse request type");
+            let request_type = RequestType::from_str(path.file_stem().unwrap().to_str().unwrap())
+                .expect("Couldn't parse request type");
             let reader = std::fs::File::open(path)?;
             self.per_request_type
                 .insert(request_type, serde_json::from_reader(reader).unwrap());
@@ -100,11 +105,12 @@ impl Manifest {
         edge: EdgeIndex,
         budget: usize,
     ) -> (Vec<(&'a String, Option<RequestType>)>, SearchState) {
-        let (tracepoints, state) = self
-            .per_request_type
-            .get(&group.request_type)
-            .unwrap()
-            .search(group, edge, budget);
+        let (tracepoints, state) = self.strategy.search(
+            self.per_request_type.get(&group.request_type).unwrap(),
+            group,
+            edge,
+            budget,
+        );
         (
             tracepoints
                 .iter()

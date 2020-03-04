@@ -3,7 +3,7 @@ use std::fmt::Display;
 use petgraph::graph::EdgeIndex;
 
 use crate::grouping::Group;
-use crate::osprofiler::OSProfilerDAG;
+use crate::searchspace::SearchSpace;
 
 #[derive(Clone, Copy)]
 pub enum SearchState {
@@ -13,7 +13,11 @@ pub enum SearchState {
 
 #[typetag::serde(tag = "type")]
 pub trait SearchStrategy: Display {
-    fn add_trace(&mut self, trace: &OSProfilerDAG);
-    fn get_entry_points(&self) -> Vec<&String>;
-    fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> (Vec<&String>, SearchState);
+    fn search(
+        &self,
+        space: &SearchSpace,
+        group: &Group,
+        edge: EdgeIndex,
+        budget: usize,
+    ) -> (Vec<&String>, SearchState);
 }

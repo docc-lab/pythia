@@ -14,6 +14,7 @@ use crate::grouping::Group;
 use crate::osprofiler::OSProfilerDAG;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
+use crate::searchspace::SearchSpace;
 
 #[derive(Serialize, Deserialize)]
 pub struct FlatSpace {
@@ -26,8 +27,7 @@ pub struct FlatSpace {
     enabled_tracepoints: RefCell<HashSet<String>>,
 }
 
-#[typetag::serde]
-impl SearchStrategy for FlatSpace {
+impl FlatSpace {
     fn add_trace(&mut self, trace: &OSProfilerDAG) {
         for path in &CriticalPath::all_possible_paths(trace) {
             self.add_path(path);
@@ -37,8 +37,17 @@ impl SearchStrategy for FlatSpace {
     fn get_entry_points(&self) -> Vec<&String> {
         self.entry_points.iter().collect()
     }
+}
 
-    fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> (Vec<&String>, SearchState) {
+#[typetag::serde]
+impl SearchStrategy for FlatSpace {
+    fn search(
+        &self,
+        space: &SearchSpace,
+        group: &Group,
+        edge: EdgeIndex,
+        budget: usize,
+    ) -> (Vec<&String>, SearchState) {
         let now = Instant::now();
         let mut matching_hashes = self
             .paths
