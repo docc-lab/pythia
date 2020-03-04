@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use futures::future::Future;
@@ -12,17 +13,21 @@ use jsonrpc_http_server::ServerBuilder;
 use serde_json;
 use uuid::Uuid;
 
+use crate::controller::OSProfilerController;
 use crate::get_settings;
-use crate::osprofiler::{OSProfilerReader, OSProfilerSpan};
+use crate::osprofiler::{OSProfilerReader, OSProfilerSpan, RequestType};
 
 #[rpc]
 pub trait PythiaAPI {
     #[rpc(name = "get_events")]
     fn get_events(&self, trace_id: String) -> Result<Value>;
+    #[rpc(name = "set_tracepoint")]
+    fn set_tracepoint(&self, settings: HashMap<(String, Option<RequestType>), [u8; 1]>);
 }
 
 struct PythiaAPIImpl {
     reader: Arc<Mutex<OSProfilerReader>>,
+    controller: Arc<Mutex<OSProfilerController>>,
 }
 
 impl PythiaAPI for PythiaAPIImpl {
@@ -30,13 +35,24 @@ impl PythiaAPI for PythiaAPIImpl {
         eprintln!("Got request for {:?}", trace_id);
         Ok(serde_json::to_value(self.reader.lock().unwrap().get_matches(&trace_id)).unwrap())
     }
+
+    fn set_tracepoint(&self, settings: HashMap<(String, Option<RequestType>), [u8; 1]>) {
+        self.controller.lock().unwrap().apply_settings(settings);
+    }
 }
 
 pub fn start_rpc_server() {
     let settings = get_settings();
     let reader = Arc::new(Mutex::new(OSProfilerReader::from_settings(&settings)));
+    let controller = Arc::new(Mutex::new(OSProfilerController::from_settings(&settings)));
     let mut io = IoHandler::new();
-    io.extend_with(PythiaAPIImpl { reader: reader }.to_delegate());
+    io.extend_with(
+        PythiaAPIImpl {
+            reader: reader,
+            controller: controller,
+        }
+        .to_delegate(),
+    );
 
     let address: &String = settings.get("server_address").unwrap();
     println!("Starting the server at {}", address);

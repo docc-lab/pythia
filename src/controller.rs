@@ -55,7 +55,13 @@ impl OSProfilerController {
         self.write_dir(self.manifest_root.as_path(), b"1");
     }
 
-    fn write_dir(&self, dir: &Path, to_write: &[u8]) {
+    pub fn apply_settings(&self, settings: HashMap<(String, Option<RequestType>), [u8; 1]>) {
+        for ((tracepoint, request_type), to_write) in settings.iter() {
+            self.write_to_tracepoint(tracepoint, request_type, to_write);
+        }
+    }
+
+    fn write_dir(&self, dir: &Path, to_write: &[u8; 1]) {
         for f in read_dir(dir).unwrap() {
             let path = f.unwrap().path();
             if path.is_dir() {
@@ -92,7 +98,7 @@ impl OSProfilerController {
         &self,
         tracepoint: &String,
         request_type: &Option<RequestType>,
-        to_write: &[u8],
+        to_write: &[u8; 1],
     ) {
         let path = self.get_path(tracepoint, request_type);
         match File::create(&path) {
