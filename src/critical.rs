@@ -98,26 +98,6 @@ impl CriticalPath {
         result
     }
 
-    pub fn hash(&self) -> String {
-        if self.hash.borrow().is_none() {
-            self.calculate_hash();
-        }
-        self.hash.borrow().as_ref().unwrap().clone()
-    }
-
-    fn calculate_hash(&self) {
-        let mut hasher = Sha256::new();
-        let mut cur_node = self.start_node;
-        loop {
-            hasher.input_str(&self.g.g[cur_node].span.tracepoint_id);
-            cur_node = match self.next_node(cur_node) {
-                Some(node) => node,
-                None => break,
-            };
-        }
-        *self.hash.borrow_mut() = Some(hasher.result_str());
-    }
-
     fn possible_paths_helper(
         dag: &OSProfilerDAG,
         cur_node: NodeIndex,
@@ -505,5 +485,43 @@ impl CriticalPath {
                 self.end_node = new_node;
             }
         }
+    }
+}
+
+pub trait HashablePath {
+    fn hash(&self) -> String {
+        if !self.has_hash() {
+            self.calculate_hash();
+        }
+        self.get_hash()
+    }
+
+    fn calculate_hash(&self);
+
+    fn has_hash(&self) -> bool;
+
+    fn get_hash(&self) -> String;
+}
+
+impl HashablePath for CriticalPath {
+    fn has_hash(&self) -> bool {
+        !self.hash.borrow().is_none()
+    }
+
+    fn get_hash(&self) -> String {
+        self.hash.borrow().as_ref().unwrap().clone()
+    }
+
+    fn calculate_hash(&self) {
+        let mut hasher = Sha256::new();
+        let mut cur_node = self.start_node;
+        loop {
+            hasher.input_str(&self.g.g[cur_node].span.tracepoint_id);
+            cur_node = match self.next_node(cur_node) {
+                Some(node) => node,
+                None => break,
+            };
+        }
+        *self.hash.borrow_mut() = Some(hasher.result_str());
     }
 }

@@ -10,6 +10,7 @@ use petgraph::Direction;
 use stats::variance;
 
 use crate::critical::CriticalPath;
+use crate::critical::HashablePath;
 use crate::osprofiler::RequestType;
 use crate::trace::Event;
 use crate::trace::EventEnum;

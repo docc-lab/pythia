@@ -10,6 +10,7 @@ use petgraph::graph::EdgeIndex;
 use serde::{Deserialize, Serialize};
 
 use crate::critical::CriticalPath;
+use crate::critical::HashablePath;
 use crate::grouping::Group;
 use crate::osprofiler::OSProfilerDAG;
 use crate::search::SearchState;
