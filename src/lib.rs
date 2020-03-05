@@ -219,11 +219,18 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
     manifest.to_file(manifest_file.as_path());
 }
 
-pub fn get_trace(trace_id: &str) {
+pub fn get_trace(trace_id: &str, to_file: bool) {
     let settings = get_settings();
     let mut reader = OSProfilerReader::from_settings(&settings);
     let trace = reader.get_trace_from_base_id(trace_id).unwrap();
     println!("{}", Dot::new(&trace.g));
+    if to_file {
+        let mut tracefile = dirs::home_dir().unwrap();
+        tracefile.push(trace_id);
+        tracefile.set_extension("json");
+        trace.to_file(tracefile.as_path());
+        eprintln!("Wrote trace to {}", tracefile.to_str().unwrap());
+    }
 }
 
 pub fn show_key_value_pairs(trace_id: &str) {

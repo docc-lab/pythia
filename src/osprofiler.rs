@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 use std::hash::Hash;
+use std::path::Path;
 
 use chrono::NaiveDateTime;
 use petgraph::Direction;
@@ -232,6 +233,11 @@ impl OSProfilerDAG {
             end_node: NodeIndex::end(),
             request_type: None,
         }
+    }
+
+    pub fn to_file(&self, file: &Path) {
+        let writer = std::fs::File::create(file).unwrap();
+        serde_json::to_writer(writer, self).ok();
     }
 
     fn from_event_list(
@@ -527,7 +533,7 @@ impl OSProfilerDAG {
             if last_node.is_none() {
                 continue;
             }
-                let last_node = last_node.unwrap();
+            let last_node = last_node.unwrap();
             if self.g[last_node].span.timestamp > self.g[self.end_node].span.timestamp {
                 self.end_node = last_node;
             }
