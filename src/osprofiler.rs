@@ -330,9 +330,12 @@ impl OSProfilerDAG {
         let mut add_next_to_waiters = false;
         let mut wait_for = Vec::<Uuid>::new();
         let mut nidx = None;
+        let mut prev_time = start_time;
         for (idx, event) in event_list.iter().enumerate() {
             assert!(event.base_id == base_id);
-            assert!(start_time <= event.timestamp);
+            assert!(prev_time <= event.timestamp);
+            println!("{}", event.timestamp);
+            prev_time = event.timestamp;
             let mut mynode = DAGNode::from_osp_span(event);
             mynode.span.tracepoint_id = event.get_tracepoint_id(&mut tracepoint_id_map);
             if mynode.span.variant == EventEnum::Entry {
@@ -436,7 +439,7 @@ impl OSProfilerDAG {
                                 let parent_node = &self.g[match id_map.get(&event.parent_id) {
                                     Some(&nidx) => nidx,
                                     None => {
-                                        eprintln!("Warning: Parent of node {:?} not found. Silently ignoring this event", event);
+                                        panic!("Warning: Parent of node {:?} not found. Silently ignoring this event", event);
                                         continue;
                                     }
                                 }];
@@ -612,6 +615,7 @@ fn sort_event_list(event_list: &mut Vec<OSProfilerSpan>) {
 
 fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
     let result: OSProfilerSpan = serde_json::from_str(field).unwrap();
+    eprintln!("Parsed {:?} into {:?}", field, result);
     if result.name == "asynch_request" || result.name == "asynch_wait" {
         return match result.variant {
             OSProfilerEnum::Annotation(_) => Ok(result),
@@ -816,7 +820,7 @@ impl<'de> de::Visitor<'de> for NaiveDateTimeVisitor {
     where
         E: de::Error,
     {
-        match NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S.%f") {
+        match NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.6f") {
             Ok(t) => Ok(t),
             Err(_) => Err(de::Error::invalid_value(de::Unexpected::Str(s), &self)),
         }
