@@ -806,7 +806,7 @@ struct FunctionEntryFunction {
 
 lazy_static! {
     pub static ref REQUEST_TYPE_MAP: HashMap<String,RequestType> = vec![
-        ("/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action".to_string(), RequestType::ServerCreate),
+        ("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action".to_string(), RequestType::ServerCreate),
         ("/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:1160:openstackclient.compute.v2.server.ListServer.take_action".to_string(), RequestType::ServerList),
         ("/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:1008:openstackclient.compute.v2.server.DeleteServer.take_action".to_string(), RequestType::ServerDelete),
     ].into_iter().to_owned().collect();
