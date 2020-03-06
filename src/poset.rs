@@ -17,12 +17,12 @@ use crate::search::SearchState;
 use crate::search::SearchStrategy;
 use crate::searchspace::SearchSpace;
 use crate::trace::Event;
-use crate::trace::EventEnum;
+use crate::trace::EventType;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PosetNode {
     pub tracepoint_id: String,
-    pub variant: EventEnum,
+    pub variant: EventType,
 }
 
 impl PosetNode {
@@ -50,9 +50,9 @@ impl Display for PosetNode {
             written += LINE_WIDTH;
         }
         match self.variant {
-            EventEnum::Entry => result.push_str(": S"),
-            EventEnum::Exit => result.push_str(": E"),
-            EventEnum::Annotation => result.push_str(": A"),
+            EventType::Entry => result.push_str(": S"),
+            EventType::Exit => result.push_str(": E"),
+            EventType::Annotation => result.push_str(": A"),
         };
         write!(f, "{}", result)
     }
@@ -114,7 +114,7 @@ impl Poset {
 
     fn add_path(&mut self, path: &CriticalPath) {
         let mut cur_path_nidx = path.start_node;
-        let new_node = PosetNode::from_event(&path.g.g[cur_path_nidx].span);
+        let new_node = PosetNode::from_event(&path.g.g[cur_path_nidx]);
         let (mut merging, mut cur_nidx) = match self.entry_points.get(&new_node) {
             Some(&nidx) => (true, nidx),
             None => {
@@ -138,7 +138,7 @@ impl Poset {
                     break;
                 }
             };
-            let new_node = PosetNode::from_event(&path.g.g[next_path_nidx].span);
+            let new_node = PosetNode::from_event(&path.g.g[next_path_nidx]);
             let next_nidx = match self
                 .g
                 .neighbors_directed(cur_nidx, Direction::Outgoing)
@@ -225,7 +225,7 @@ impl Poset {
                 Some(nidx) => nidx,
                 None => break,
             };
-            let prev_path_node = PosetNode::from_event(&path.g.g[prev_path_nidx].span);
+            let prev_path_node = PosetNode::from_event(&path.g.g[prev_path_nidx]);
             let prev_added_nidx: NodeIndex = match self
                 .g
                 .neighbors_directed(cur_added_nidx, Direction::Incoming)
@@ -236,7 +236,7 @@ impl Poset {
                     "Couldn't find previous added nidx {} of cur_added_nidx {}, cur_path_node: {}, cur_orig_nidx: {}",
                     prev_path_node,
                     self.g[cur_added_nidx],
-                    PosetNode::from_event(&path.g.g[cur_path_nidx].span),
+                    PosetNode::from_event(&path.g.g[cur_path_nidx]),
                     self.g[cur_orig_nidx]
                 ),
             };

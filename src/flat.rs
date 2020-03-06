@@ -220,7 +220,7 @@ impl FlatSpace {
             if !self
                 .enabled_tracepoints
                 .borrow()
-                .get(&path.g.g[cur_path_idx].span.tracepoint_id)
+                .get(&path.g.g[cur_path_idx].tracepoint_id)
                 .is_none()
             {
                 cur_path_idx = path.next_node(cur_path_idx).unwrap();
@@ -237,7 +237,7 @@ impl FlatSpace {
                 println!("Already reached target node, breaking");
                 continue;
             }
-            result.push(&path.g.g[cur_path_idx].span.tracepoint_id);
+            result.push(&path.g.g[cur_path_idx].tracepoint_id);
             assert_ne!(cur_path_idx, path_target);
             assert_ne!(cur_path_idx, path_source);
             cur_path_idx = path.next_node(cur_path_idx).unwrap();
@@ -276,9 +276,9 @@ impl FlatSpace {
 
     fn add_path(&mut self, path: &CriticalPath) {
         self.entry_points
-            .insert(path.g.g[path.start_node].span.tracepoint_id.clone());
+            .insert(path.g.g[path.start_node].tracepoint_id.clone());
         self.entry_points
-            .insert(path.g.g[path.end_node].span.tracepoint_id.clone());
+            .insert(path.g.g[path.end_node].tracepoint_id.clone());
         match self.paths.get(&path.hash()) {
             Some(_) => {}
             None => {

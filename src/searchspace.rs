@@ -17,8 +17,9 @@ use serde::{Deserialize, Serialize};
 use crate::critical::CriticalPath;
 use crate::critical::HashablePath;
 use crate::osprofiler::OSProfilerDAG;
-use crate::trace::DAGNode;
 use crate::trace::DAGEdge;
+use crate::trace::Event;
+use crate::trace::EventType;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 struct HierarchicalEdge {
@@ -43,7 +44,7 @@ impl HierarchicalEdge {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct HierarchicalCriticalPath {
-    g: StableGraph<DAGNode, HierarchicalEdge>,
+    g: StableGraph<Event, HierarchicalEdge>,
     start_node: NodeIndex,
     end_node: NodeIndex,
     duration: Duration,
@@ -60,6 +61,7 @@ impl HierarchicalCriticalPath {
 
     pub fn from_path(path: &CriticalPath) -> Self {
         let mut g = StableGraph::new();
+        // Add all nodes and happens before edges to the graph
         let mut prev_path_node = path.start_node;
         let mut prev_node = g.add_node(path.g.g[prev_path_node].clone());
         let start_node = prev_node;
@@ -72,17 +74,53 @@ impl HierarchicalCriticalPath {
             g.add_edge(
                 prev_node,
                 new_node,
-                HierarchicalEdge::from_dag_edge(&path.g.g[path.g.g.find_edge(prev_path_node, cur_path_node).unwrap()]),
+                HierarchicalEdge::from_dag_edge(
+                    &path.g.g[path.g.g.find_edge(prev_path_node, cur_path_node).unwrap()],
+                ),
             );
             prev_node = new_node;
             prev_path_node = cur_path_node;
         }
-        HierarchicalCriticalPath {
+        let mut result = HierarchicalCriticalPath {
             g: g,
             start_node: start_node,
             end_node: prev_node,
             duration: path.duration,
             hash: RefCell::new(None),
+        };
+        result.add_hierarchical_edges();
+        result
+    }
+
+    fn add_hierarchical_edges(&mut self) {
+        let mut prev_node = self.start_node;
+        let mut context = Vec::new();
+        assert!(self.g[prev_node].variant == EventType::Entry);
+        context.push(prev_node);
+        loop {
+            let next_node = match self.next_node(prev_node) {
+                Some(n) => n,
+                None => break,
+            };
+            self.g.add_edge(
+                *context.last().unwrap(),
+                next_node,
+                HierarchicalEdge {
+                    duration: Duration::new(0, 0),
+                    variant: EdgeType::Hierarchical,
+                },
+            );
+            match self.g[next_node].variant {
+                EventType::Entry => {
+                    context.push(next_node);
+                }
+                EventType::Exit => {
+                    let last = context.pop().unwrap();
+                    assert!(self.g[last].variant == EventType::Entry);
+                }
+                EventType::Annotation => {}
+            }
+            prev_node = next_node;
         }
     }
 
@@ -106,9 +144,9 @@ impl SearchSpace {
     pub fn add_trace(&mut self, trace: &OSProfilerDAG) {
         for path in &HierarchicalCriticalPath::all_possible_paths(trace) {
             self.entry_points
-                .insert(path.g[path.start_node].span.tracepoint_id.clone());
+                .insert(path.g[path.start_node].tracepoint_id.clone());
             self.entry_points
-                .insert(path.g[path.end_node].span.tracepoint_id.clone());
+                .insert(path.g[path.end_node].tracepoint_id.clone());
             match self.paths.get(&path.hash()) {
                 Some(_) => {}
                 None => {
@@ -143,7 +181,7 @@ impl HashablePath for HierarchicalCriticalPath {
         let mut hasher = Sha256::new();
         let mut cur_node = self.start_node;
         loop {
-            hasher.input_str(&self.g[cur_node].span.tracepoint_id);
+            hasher.input_str(&self.g[cur_node].tracepoint_id);
             cur_node = match self.next_node(cur_node) {
                 Some(node) => node,
                 None => break,

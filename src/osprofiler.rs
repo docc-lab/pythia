@@ -11,14 +11,14 @@ use chrono::NaiveDateTime;
 use petgraph::Direction;
 use petgraph::{graph::NodeIndex, stable_graph::StableGraph};
 use redis::Commands;
-use serde::{Serialize, Deserialize};
 use redis::Connection;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::rpclib::get_events_from_client;
 use crate::trace::Event;
-use crate::trace::EventEnum;
-use crate::trace::{DAGEdge, DAGNode, EdgeType};
+use crate::trace::EventType;
+use crate::trace::{DAGEdge, EdgeType};
 
 pub struct OSProfilerReader {
     connection: Connection,
@@ -215,7 +215,7 @@ impl OSProfilerReader {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OSProfilerDAG {
-    pub g: StableGraph<DAGNode, DAGEdge>,
+    pub g: StableGraph<Event, DAGEdge>,
     pub base_id: Uuid,
     pub start_node: NodeIndex,
     pub end_node: NodeIndex,
@@ -224,7 +224,7 @@ pub struct OSProfilerDAG {
 
 impl OSProfilerDAG {
     pub fn new(base_id: Uuid) -> OSProfilerDAG {
-        let dag = StableGraph::<DAGNode, DAGEdge>::new();
+        let dag = StableGraph::<Event, DAGEdge>::new();
         OSProfilerDAG {
             g: dag,
             base_id: base_id,
@@ -252,7 +252,7 @@ impl OSProfilerDAG {
     pub fn can_reach_from_node(&self, trace_id: Uuid, nidx: NodeIndex) -> bool {
         let mut cur_nidx = nidx;
         loop {
-            if self.g[cur_nidx].span.trace_id == trace_id {
+            if self.g[cur_nidx].trace_id == trace_id {
                 return true;
             }
             let next_nids = self
@@ -282,13 +282,13 @@ impl OSProfilerDAG {
         let mut start = NodeIndex::end();
         let mut end = NodeIndex::end();
         for i in self.g.node_indices() {
-            if self.g[i].span.timestamp > largest_time {
+            if self.g[i].timestamp > largest_time {
                 end = i;
-                largest_time = self.g[i].span.timestamp;
+                largest_time = self.g[i].timestamp;
             }
-            if self.g[i].span.timestamp < smallest_time {
+            if self.g[i].timestamp < smallest_time {
                 start = i;
-                smallest_time = self.g[i].span.timestamp;
+                smallest_time = self.g[i].timestamp;
             }
         }
         (start, end)
@@ -334,10 +334,10 @@ impl OSProfilerDAG {
             assert!(event.base_id == base_id);
             assert!(prev_time <= event.timestamp);
             prev_time = event.timestamp;
-            let mut mynode = DAGNode::from_osp_span(event);
-            mynode.span.tracepoint_id = event.get_tracepoint_id(&mut tracepoint_id_map);
-            if mynode.span.variant == EventEnum::Entry {
-                match REQUEST_TYPE_MAP.get(&mynode.span.tracepoint_id) {
+            let mut mynode = Event::from_osp_span(event);
+            mynode.tracepoint_id = event.get_tracepoint_id(&mut tracepoint_id_map);
+            if mynode.variant == EventType::Entry {
+                match REQUEST_TYPE_MAP.get(&mynode.tracepoint_id) {
                     Some(t) => {
                         assert!(self.request_type.is_none());
                         self.request_type = Some(*t);
@@ -352,7 +352,7 @@ impl OSProfilerDAG {
                     None
                 }
                 _ => {
-                    if wait_spans.contains(&mynode.span.trace_id) {
+                    if wait_spans.contains(&mynode.trace_id) {
                         None
                     } else {
                         let nidx = self.g.add_node(mynode);
@@ -387,7 +387,7 @@ impl OSProfilerDAG {
                                     nidx.unwrap(),
                                     DAGEdge {
                                         duration: (event.timestamp
-                                            - self.g[*sibling_node].span.timestamp)
+                                            - self.g[*sibling_node].timestamp)
                                             .to_std()
                                             .unwrap(),
                                         variant: EdgeType::ChildOf,
@@ -410,7 +410,7 @@ impl OSProfilerDAG {
                                         nidx.unwrap(),
                                         DAGEdge {
                                             duration: (event.timestamp
-                                                - self.g[*sibling_node].span.timestamp)
+                                                - self.g[*sibling_node].timestamp)
                                                 .to_std()
                                                 .unwrap(),
                                             variant: EdgeType::ChildOf,
@@ -424,7 +424,7 @@ impl OSProfilerDAG {
                                         nidx.unwrap(),
                                         DAGEdge {
                                             duration: (event.timestamp
-                                                - self.g[*parent_node].span.timestamp)
+                                                - self.g[*parent_node].timestamp)
                                                 .to_std()
                                                 .unwrap(),
                                             variant: EdgeType::ChildOf,
@@ -441,7 +441,7 @@ impl OSProfilerDAG {
                                         continue;
                                     }
                                 }];
-                                assert!(event.timestamp > parent_node.span.timestamp);
+                                assert!(event.timestamp > parent_node.timestamp);
                                 panic!("Parent of node {:?} not found: {:?}", event, parent_node);
                             }
                         }
@@ -455,8 +455,7 @@ impl OSProfilerDAG {
                                 *sibling_node,
                                 nidx.unwrap(),
                                 DAGEdge {
-                                    duration: (event.timestamp
-                                        - self.g[*sibling_node].span.timestamp)
+                                    duration: (event.timestamp - self.g[*sibling_node].timestamp)
                                         .to_std()
                                         .unwrap(),
                                     variant: EdgeType::ChildOf,
@@ -473,7 +472,7 @@ impl OSProfilerDAG {
                                     nidx.unwrap(),
                                     DAGEdge {
                                         duration: (event.timestamp
-                                            - self.g[*parent_node].span.timestamp)
+                                            - self.g[*parent_node].timestamp)
                                             .to_std()
                                             .unwrap(),
                                         variant: EdgeType::ChildOf,
@@ -496,8 +495,7 @@ impl OSProfilerDAG {
                                     *child_node,
                                     nidx.unwrap(),
                                     DAGEdge {
-                                        duration: (event.timestamp
-                                            - self.g[*child_node].span.timestamp)
+                                        duration: (event.timestamp - self.g[*child_node].timestamp)
                                             .to_std()
                                             .unwrap(),
                                         variant: EdgeType::ChildOf,
@@ -509,8 +507,7 @@ impl OSProfilerDAG {
                                     start_span,
                                     nidx.unwrap(),
                                     DAGEdge {
-                                        duration: (event.timestamp
-                                            - self.g[start_span].span.timestamp)
+                                        duration: (event.timestamp - self.g[start_span].timestamp)
                                             .to_std()
                                             .unwrap(),
                                         variant: EdgeType::ChildOf,
@@ -535,7 +532,7 @@ impl OSProfilerDAG {
                 continue;
             }
             let last_node = last_node.unwrap();
-            if self.g[last_node].span.timestamp > self.g[self.end_node].span.timestamp {
+            if self.g[last_node].timestamp > self.g[self.end_node].timestamp {
                 self.end_node = last_node;
             }
             match &waiters.get(trace_id) {
@@ -544,8 +541,7 @@ impl OSProfilerDAG {
                         last_node,
                         **parent,
                         DAGEdge {
-                            duration: (self.g[**parent].span.timestamp
-                                - self.g[last_node].span.timestamp)
+                            duration: (self.g[**parent].timestamp - self.g[last_node].timestamp)
                                 .to_std()
                                 .unwrap(),
                             variant: EdgeType::FollowsFrom,
@@ -579,13 +575,13 @@ impl OSProfilerDAG {
         let first_node = self
             .g
             .node_indices()
-            .find(|idx| self.g[*idx].span.trace_id == first_event.trace_id)
+            .find(|idx| self.g[*idx].trace_id == first_event.trace_id)
             .unwrap();
         self.g.add_edge(
             parent,
             first_node,
             DAGEdge {
-                duration: (first_event.timestamp - self.g[parent].span.timestamp)
+                duration: (first_event.timestamp - self.g[parent].timestamp)
                     .to_std()
                     .unwrap(),
                 variant: EdgeType::FollowsFrom,
@@ -625,21 +621,19 @@ fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
     Ok(result)
 }
 
-impl DAGNode {
-    fn from_osp_span(event: &OSProfilerSpan) -> DAGNode {
-        DAGNode {
-            span: Event {
-                trace_id: event.trace_id,
-                parent_id: event.parent_id,
-                tracepoint_id: event.tracepoint_id.clone(),
-                timestamp: event.timestamp,
-                variant: match event.variant {
-                    OSProfilerEnum::FunctionEntry(_)
-                    | OSProfilerEnum::RequestEntry(_)
-                    | OSProfilerEnum::WaitAnnotation(_) => EventEnum::Entry,
-                    OSProfilerEnum::Exit(_) => EventEnum::Exit,
-                    OSProfilerEnum::Annotation(_) => EventEnum::Annotation,
-                },
+impl Event {
+    fn from_osp_span(event: &OSProfilerSpan) -> Event {
+        Event {
+            trace_id: event.trace_id,
+            parent_id: event.parent_id,
+            tracepoint_id: event.tracepoint_id.clone(),
+            timestamp: event.timestamp,
+            variant: match event.variant {
+                OSProfilerEnum::FunctionEntry(_)
+                | OSProfilerEnum::RequestEntry(_)
+                | OSProfilerEnum::WaitAnnotation(_) => EventType::Entry,
+                OSProfilerEnum::Exit(_) => EventType::Exit,
+                OSProfilerEnum::Annotation(_) => EventType::Annotation,
             },
         }
     }

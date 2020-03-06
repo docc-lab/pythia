@@ -105,20 +105,20 @@ impl Historic {
         let mut to_visit = IndexSet::new();
         to_visit.insert(trace.start_node);
         self.entry_points
-            .insert(trace.g[trace.start_node].span.tracepoint_id.clone());
+            .insert(trace.g[trace.start_node].tracepoint_id.clone());
         for nidx in trace.possible_end_nodes() {
             self.entry_points
-                .insert(trace.g[nidx].span.tracepoint_id.clone());
+                .insert(trace.g[nidx].tracepoint_id.clone());
         }
         while let Some(nidx) = to_visit.pop() {
-            let source = PosetNode::from_event(&trace.g[nidx].span);
+            let source = PosetNode::from_event(&trace.g[nidx]);
             let inner_map = self
                 .edge_map
                 .entry(source.clone())
                 .or_insert(HashMap::new());
             for edge in trace.g.edges(nidx) {
                 assert_eq!(nidx, edge.source());
-                let target = PosetNode::from_event(&trace.g[edge.target()].span);
+                let target = PosetNode::from_event(&trace.g[edge.target()]);
                 match inner_map.get(&target) {
                     Some(&idx) => self.edges[idx].add_duration(edge.weight().duration),
                     None => {

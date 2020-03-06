@@ -16,42 +16,29 @@ pub struct Event {
     pub parent_id: Uuid,
     pub tracepoint_id: String,
     pub timestamp: NaiveDateTime,
-    pub variant: EventEnum,
+    pub variant: EventType,
 }
 
 #[derive(Serialize, Deserialize, Hash, Debug, Clone, Copy, Eq, PartialEq)]
-pub enum EventEnum {
+pub enum EventType {
     Entry,
     Exit,
     Annotation,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub struct DAGNode {
-    pub span: Event,
-}
-
-impl Display for DAGNode {
+impl Display for Event {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.span.variant {
-            EventEnum::Entry => write!(
-                f,
-                "{} start: {}",
-                self.span.trace_id, self.span.tracepoint_id
-            ),
-            EventEnum::Annotation => write!(
-                f,
-                "{} start: {}",
-                self.span.trace_id, self.span.tracepoint_id
-            ),
-            EventEnum::Exit => write!(f, "{} end", self.span.trace_id),
+        match &self.variant {
+            EventType::Entry => write!(f, "{} start: {}", self.trace_id, self.tracepoint_id),
+            EventType::Annotation => write!(f, "{} start: {}", self.trace_id, self.tracepoint_id),
+            EventType::Exit => write!(f, "{} end", self.trace_id),
         }
     }
 }
 
-impl PartialEq<GroupNode> for DAGNode {
+impl PartialEq<GroupNode> for Event {
     fn eq(&self, other: &GroupNode) -> bool {
-        self.span.tracepoint_id == other.tracepoint_id && self.span.variant == other.variant
+        self.tracepoint_id == other.tracepoint_id && self.variant == other.variant
     }
 }
 

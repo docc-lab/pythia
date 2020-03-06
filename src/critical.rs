@@ -12,10 +12,9 @@ use uuid::Uuid;
 use crate::osprofiler::OSProfilerDAG;
 use crate::osprofiler::RequestType;
 use crate::trace::DAGEdge;
-use crate::trace::DAGNode;
 use crate::trace::EdgeType;
 use crate::trace::Event;
-use crate::trace::EventEnum;
+use crate::trace::EventType;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CriticalPath {
@@ -46,7 +45,7 @@ impl CriticalPath {
             let next_node = dag
                 .g
                 .neighbors_directed(cur_node, Direction::Incoming)
-                .max_by_key(|&nidx| dag.g[nidx].span.timestamp)
+                .max_by_key(|&nidx| dag.g[nidx].timestamp)
                 .unwrap();
             let start_nidx = path.g.g.add_node(dag.g[next_node].clone());
             path.g.g.add_edge(
@@ -62,8 +61,8 @@ impl CriticalPath {
             end_nidx = start_nidx;
         }
         path.add_synthetic_nodes(dag);
-        path.duration = (path.g.g[path.end_node].span.timestamp
-            - path.g.g[path.start_node].span.timestamp)
+        path.duration = (path.g.g[path.end_node].timestamp
+            - path.g.g[path.start_node].timestamp)
             .to_std()
             .unwrap();
         path
@@ -153,10 +152,10 @@ impl CriticalPath {
         let mut nodes_to_remove = Vec::new();
         let mut exits = HashMap::<Uuid, NodeIndex>::new();
         loop {
-            let cur_trace_id = self.g.g[cur_node].span.trace_id;
+            let cur_trace_id = self.g.g[cur_node].trace_id;
             let existing_node_id = span_map.get(&cur_trace_id);
-            match self.g.g[cur_node].span.variant {
-                EventEnum::Entry => match existing_node_id {
+            match self.g.g[cur_node].variant {
+                EventType::Entry => match existing_node_id {
                     Some(_) => {
                         nodes_to_remove.push(cur_node.clone());
                         assert!(exits.get(&cur_trace_id).is_none());
@@ -165,8 +164,8 @@ impl CriticalPath {
                         span_map.insert(cur_trace_id.clone(), cur_node.clone());
                     }
                 },
-                EventEnum::Annotation => {}
-                EventEnum::Exit => {
+                EventType::Annotation => {}
+                EventType::Exit => {
                     match existing_node_id {
                         Some(_) => {
                             span_map.remove(&cur_trace_id);
@@ -207,16 +206,16 @@ impl CriticalPath {
         loop {
             let cur_node = &self.g.g[cur_nidx];
             let cur_dag_node = &dag.g[cur_dag_nidx];
-            assert!(cur_node.span.trace_id == cur_dag_node.span.trace_id);
-            match cur_node.span.variant {
-                EventEnum::Entry => {
-                    active_spans.push(cur_dag_node.span.clone());
+            assert!(cur_node.trace_id == cur_dag_node.trace_id);
+            match cur_node.variant {
+                EventType::Entry => {
+                    active_spans.push(cur_dag_node.clone());
                 }
-                EventEnum::Annotation => {}
-                EventEnum::Exit => {
+                EventType::Annotation => {}
+                EventType::Exit => {
                     match active_spans
                         .iter()
-                        .rposition(|span| span.trace_id == cur_node.span.trace_id)
+                        .rposition(|span| span.trace_id == cur_node.trace_id)
                     {
                         Some(idx) => {
                             active_spans.remove(idx);
@@ -241,7 +240,7 @@ impl CriticalPath {
                 assert!(next_dag_nodes.len() != 0);
                 let mut unfinished_spans = Vec::new();
                 for next_dag_nidx in next_dag_nodes {
-                    if dag.g[next_dag_nidx].span.trace_id == self.g.g[next_nidx].span.trace_id {
+                    if dag.g[next_dag_nidx].trace_id == self.g.g[next_nidx].trace_id {
                         cur_dag_nidx = next_dag_nidx;
                     } else {
                         unfinished_spans.extend(self.get_unfinished(
@@ -270,12 +269,12 @@ impl CriticalPath {
         start_dag_nidx: NodeIndex,
         dag: &OSProfilerDAG,
     ) {
-        let span_to_add = self.g.g[start_nidx].span.clone();
+        let span_to_add = self.g.g[start_nidx].clone();
         // Find synch. point
         let mut cur_nidx = start_nidx;
         let mut cur_dag_nidx = start_dag_nidx;
         loop {
-            assert!(dag.g[cur_dag_nidx].span.trace_id == self.g.g[cur_nidx].span.trace_id);
+            assert!(dag.g[cur_dag_nidx].trace_id == self.g.g[cur_nidx].trace_id);
             let prev_dag_nodes = dag
                 .g
                 .neighbors_directed(cur_dag_nidx, Direction::Incoming)
@@ -283,7 +282,7 @@ impl CriticalPath {
             let mut prev_nidx = cur_nidx;
             loop {
                 prev_nidx = self.prev_node(prev_nidx).unwrap();
-                if self.g.g[prev_nidx].span.parent_id != Uuid::nil() {
+                if self.g.g[prev_nidx].parent_id != Uuid::nil() {
                     break;
                 }
             }
@@ -295,7 +294,7 @@ impl CriticalPath {
                 assert!(!prev_dag_nodes.is_empty());
                 let mut found_start = false;
                 for prev_dag_nidx in prev_dag_nodes {
-                    if dag.g[prev_dag_nidx].span.trace_id == self.g.g[prev_nidx].span.trace_id {
+                    if dag.g[prev_dag_nidx].trace_id == self.g.g[prev_nidx].trace_id {
                         cur_dag_nidx = prev_dag_nidx;
                     } else {
                         if self.find_start_node(&span_to_add, prev_dag_nidx, dag) {
@@ -315,7 +314,7 @@ impl CriticalPath {
     fn find_start_node(&self, span: &Event, start_nidx: NodeIndex, dag: &OSProfilerDAG) -> bool {
         let mut cur_dag_nidx = start_nidx;
         loop {
-            if dag.g[cur_dag_nidx].span.trace_id == span.trace_id {
+            if dag.g[cur_dag_nidx].trace_id == span.trace_id {
                 return true;
             }
             let prev_dag_nodes = dag
@@ -354,7 +353,7 @@ impl CriticalPath {
         let mut cur_nidx = nidx;
         loop {
             for (idx, span) in unfinished.iter().enumerate() {
-                if span.trace_id == self.g.g[cur_nidx].span.trace_id {
+                if span.trace_id == self.g.g[cur_nidx].trace_id {
                     unfinished.remove(idx);
                     break;
                 }
@@ -415,8 +414,8 @@ impl CriticalPath {
                             prev_nidx,
                             next_nidx,
                             DAGEdge {
-                                duration: (self.g.g[next_nidx].span.timestamp
-                                    - self.g.g[prev_nidx].span.timestamp)
+                                duration: (self.g.g[next_nidx].timestamp
+                                    - self.g.g[prev_nidx].timestamp)
                                     .to_std()
                                     .unwrap(),
                                 variant: EdgeType::ChildOf,
@@ -446,18 +445,16 @@ impl CriticalPath {
     /// Modifies the span to be exit/end, and changes timestamp
     fn add_node_after(&mut self, after: NodeIndex, node: &Event) {
         let next_node = self.next_node(after);
-        let new_node = self.g.g.add_node(DAGNode {
-            span: Event {
-                tracepoint_id: node.tracepoint_id.clone(),
-                variant: match node.variant {
-                    EventEnum::Entry => EventEnum::Exit,
-                    EventEnum::Exit => EventEnum::Entry,
-                    EventEnum::Annotation => panic!("don't give me annotation"),
-                },
-                trace_id: node.trace_id,
-                timestamp: self.g.g[after].span.timestamp + chrono::Duration::nanoseconds(1),
-                parent_id: Uuid::nil(),
+        let new_node = self.g.g.add_node(Event {
+            tracepoint_id: node.tracepoint_id.clone(),
+            variant: match node.variant {
+                EventType::Entry => EventType::Exit,
+                EventType::Exit => EventType::Entry,
+                EventType::Annotation => panic!("don't give me annotation"),
             },
+            trace_id: node.trace_id,
+            timestamp: self.g.g[after].timestamp + chrono::Duration::nanoseconds(1),
+            parent_id: Uuid::nil(),
         });
         self.g.g.add_edge(
             after,
@@ -516,7 +513,7 @@ impl HashablePath for CriticalPath {
         let mut hasher = Sha256::new();
         let mut cur_node = self.start_node;
         loop {
-            hasher.input_str(&self.g.g[cur_node].span.tracepoint_id);
+            hasher.input_str(&self.g.g[cur_node].tracepoint_id);
             cur_node = match self.next_node(cur_node) {
                 Some(node) => node,
                 None => break,

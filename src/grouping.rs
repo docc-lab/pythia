@@ -13,7 +13,7 @@ use crate::critical::CriticalPath;
 use crate::critical::HashablePath;
 use crate::osprofiler::RequestType;
 use crate::trace::Event;
-use crate::trace::EventEnum;
+use crate::trace::EventType;
 
 #[derive(Clone, Debug)]
 pub struct Group {
@@ -28,7 +28,7 @@ pub struct Group {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct GroupNode {
     pub tracepoint_id: String,
-    pub variant: EventEnum,
+    pub variant: EventType,
 }
 
 impl GroupNode {
@@ -44,9 +44,9 @@ impl Display for GroupNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.tracepoint_id).ok();
         match self.variant {
-            EventEnum::Annotation => Ok(()),
-            EventEnum::Entry => write!(f, " start"),
-            EventEnum::Exit => write!(f, " end"),
+            EventType::Annotation => Ok(()),
+            EventType::Entry => write!(f, " start"),
+            EventType::Exit => write!(f, " end"),
         }
     }
 }
@@ -92,7 +92,7 @@ impl Group {
         let mut prev_dag_nidx = None;
         let mut start_node = None;
         loop {
-            let dag_nidx = dag.add_node(GroupNode::from_event(&path.g.g[cur_node].span));
+            let dag_nidx = dag.add_node(GroupNode::from_event(&path.g.g[cur_node]));
             if prev_node.is_none() {
                 start_node = Some(dag_nidx);
             } else {

@@ -17,7 +17,7 @@ use crate::osprofiler::OSProfilerDAG;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
 use crate::searchspace::SearchSpace;
-use crate::trace::EventEnum;
+use crate::trace::EventType;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CCT {
@@ -161,19 +161,19 @@ impl CCT {
         let mut nidx = group.start_node;
         loop {
             match group.g[nidx].variant {
-                EventEnum::Annotation => {
+                EventType::Annotation => {
                     if nidx == node {
                         result.push(&group.g[nidx].tracepoint_id);
                         break;
                     }
                 }
-                EventEnum::Exit => {
+                EventType::Exit => {
                     if nidx == node {
                         break;
                     }
                     assert_eq!(*result.pop().unwrap(), group.g[nidx].tracepoint_id);
                 }
-                EventEnum::Entry => {
+                EventType::Entry => {
                     result.push(&group.g[nidx].tracepoint_id);
                     if nidx == node {
                         break;
@@ -203,14 +203,14 @@ impl CCT {
         let mut cur_path_nidx = path.start_node;
         let mut cur_manifest_nidx = None;
         loop {
-            let cur_span = &path.g.g[cur_path_nidx].span;
+            let cur_span = &path.g.g[cur_path_nidx];
             if cur_span.tracepoint_id == "/opt/stack/neutron/neutron/agent/dhcp/agent.py:580:neutron.agent.dhcp.agent.DhcpAgent.port_create_end" {
                 if cur_manifest_nidx.is_none() {
                     println!("At that node, trace_id: {}", path.g.base_id.to_hyphenated().to_string());
                 }
             }
             match cur_span.variant {
-                EventEnum::Entry => {
+                EventType::Entry => {
                     let next_nidx = match cur_manifest_nidx {
                         Some(nidx) => self.add_child_if_necessary(nidx, &cur_span.tracepoint_id),
                         None => match self.entry_points.get(&cur_span.tracepoint_id) {
@@ -225,13 +225,13 @@ impl CCT {
                     };
                     cur_manifest_nidx = Some(next_nidx);
                 }
-                EventEnum::Annotation => {
+                EventType::Annotation => {
                     self.add_child_if_necessary(
                         cur_manifest_nidx.unwrap(),
                         &cur_span.tracepoint_id,
                     );
                 }
-                EventEnum::Exit => {
+                EventType::Exit => {
                     let mut parent_nidx = self.find_parent(cur_manifest_nidx.unwrap());
                     if cur_span.tracepoint_id == self.g[cur_manifest_nidx.unwrap()] {
                         cur_manifest_nidx = parent_nidx;
