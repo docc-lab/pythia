@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
+use petgraph::dot::Dot;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
 use petgraph::visit::EdgeFiltered;
@@ -25,6 +26,15 @@ use crate::trace::EventType;
 struct HierarchicalEdge {
     duration: Duration,
     variant: EdgeType,
+}
+
+impl Display for HierarchicalEdge {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.variant {
+            EdgeType::Hierarchical => write!(f, "Hierarchical",),
+            EdgeType::HappensBefore => write!(f, "{}", self.duration.as_nanos()),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, PartialEq)]
@@ -102,14 +112,21 @@ impl HierarchicalCriticalPath {
                 Some(n) => n,
                 None => break,
             };
-            self.g.add_edge(
-                *context.last().unwrap(),
-                next_node,
-                HierarchicalEdge {
-                    duration: Duration::new(0, 0),
-                    variant: EdgeType::Hierarchical,
-                },
-            );
+            match context.last() {
+                Some(&nidx) => {
+                    self.g.add_edge(
+                        nidx,
+                        next_node,
+                        HierarchicalEdge {
+                            duration: Duration::new(0, 0),
+                            variant: EdgeType::Hierarchical,
+                        },
+                    );
+                }
+                None => {
+                    eprintln!("This node has no context: {}", self.g[next_node]);
+                }
+            }
             match self.g[next_node].variant {
                 EventType::Entry => {
                     context.push(next_node);
@@ -163,7 +180,9 @@ impl SearchSpace {
 
 impl Display for SearchSpace {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "This is a representation",)?;
+        for (hash, path) in self.paths.iter() {
+            write!(f, "{}:\n{}", hash, Dot::new(&path.g))?;
+        }
         Ok(())
     }
 }
