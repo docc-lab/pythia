@@ -11,9 +11,8 @@ use chrono::NaiveDateTime;
 use petgraph::Direction;
 use petgraph::{graph::NodeIndex, stable_graph::StableGraph};
 use redis::Commands;
+use serde::{Serialize, Deserialize};
 use redis::Connection;
-use serde::de;
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::rpclib::get_events_from_client;
@@ -707,7 +706,7 @@ pub struct OSProfilerSpan {
     service: String,
     #[serde(skip_deserializing)]
     pub tracepoint_id: String,
-    #[serde(deserialize_with = "from_osp_timestamp")]
+    #[serde(with = "serde_timestamp")]
     pub timestamp: NaiveDateTime,
     #[serde(flatten)]
     pub variant: OSProfilerEnum,
@@ -807,37 +806,51 @@ struct FunctionEntryFunction {
     name: String,
 }
 
-struct NaiveDateTimeVisitor;
-
-impl<'de> de::Visitor<'de> for NaiveDateTimeVisitor {
-    type Value = NaiveDateTime;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "a string represents chrono::NaiveDateTime")
-    }
-
-    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        match NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.6f") {
-            Ok(t) => Ok(t),
-            Err(_) => Err(de::Error::invalid_value(de::Unexpected::Str(s), &self)),
-        }
-    }
-}
-
-fn from_osp_timestamp<'de, D>(d: D) -> Result<NaiveDateTime, D::Error>
-where
-    D: de::Deserializer<'de>,
-{
-    d.deserialize_str(NaiveDateTimeVisitor)
-}
-
 lazy_static! {
     pub static ref REQUEST_TYPE_MAP: HashMap<String,RequestType> = vec![
         ("/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action".to_string(), RequestType::ServerCreate),
         ("/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:1160:openstackclient.compute.v2.server.ListServer.take_action".to_string(), RequestType::ServerList),
         ("/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:1008:openstackclient.compute.v2.server.DeleteServer.take_action".to_string(), RequestType::ServerDelete),
     ].into_iter().to_owned().collect();
+}
+
+pub mod serde_timestamp {
+    use chrono::NaiveDateTime;
+    use serde::de;
+    use serde::ser;
+    use std::fmt;
+
+    pub fn deserialize<'de, D>(d: D) -> Result<NaiveDateTime, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        d.deserialize_str(NaiveDateTimeVisitor)
+    }
+
+    pub fn serialize<S>(t: &NaiveDateTime, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        s.serialize_str(&t.format("%Y-%m-%dT%H:%M:%S%.6f").to_string())
+    }
+
+    struct NaiveDateTimeVisitor;
+
+    impl<'de> de::Visitor<'de> for NaiveDateTimeVisitor {
+        type Value = NaiveDateTime;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            write!(formatter, "a string represents chrono::NaiveDateTime")
+        }
+
+        fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            match NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.6f") {
+                Ok(t) => Ok(t),
+                Err(_) => Err(de::Error::invalid_value(de::Unexpected::Str(s), &self)),
+            }
+        }
+    }
 }
