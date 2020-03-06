@@ -333,7 +333,6 @@ impl OSProfilerDAG {
         for (idx, event) in event_list.iter().enumerate() {
             assert!(event.base_id == base_id);
             assert!(prev_time <= event.timestamp);
-            println!("{}", event.timestamp);
             prev_time = event.timestamp;
             let mut mynode = DAGNode::from_osp_span(event);
             mynode.span.tracepoint_id = event.get_tracepoint_id(&mut tracepoint_id_map);
@@ -614,7 +613,6 @@ fn sort_event_list(event_list: &mut Vec<OSProfilerSpan>) {
 
 fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
     let result: OSProfilerSpan = serde_json::from_str(field).unwrap();
-    eprintln!("Parsed {:?} into {:?}", field, result);
     if result.name == "asynch_request" || result.name == "asynch_wait" {
         return match result.variant {
             OSProfilerEnum::Annotation(_) => Ok(result),
