@@ -13,11 +13,12 @@ use petgraph::visit::EdgeFiltered;
 use petgraph::visit::IntoNeighborsDirected;
 use petgraph::Direction;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
+use crate::critical::CriticalPath;
 use crate::critical::HashablePath;
 use crate::osprofiler::OSProfilerDAG;
 use crate::trace::DAGNode;
+use crate::trace::DAGEdge;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 struct HierarchicalEdge {
@@ -31,10 +32,18 @@ enum EdgeType {
     HappensBefore,
 }
 
+impl HierarchicalEdge {
+    fn from_dag_edge(e: &DAGEdge) -> Self {
+        HierarchicalEdge {
+            duration: e.duration,
+            variant: EdgeType::HappensBefore,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct HierarchicalCriticalPath {
     g: StableGraph<DAGNode, HierarchicalEdge>,
-    base_id: Uuid,
     start_node: NodeIndex,
     end_node: NodeIndex,
     duration: Duration,
@@ -43,7 +52,38 @@ struct HierarchicalCriticalPath {
 
 impl HierarchicalCriticalPath {
     pub fn all_possible_paths(trace: &OSProfilerDAG) -> Vec<Self> {
-        Vec::new()
+        CriticalPath::all_possible_paths(trace)
+            .iter()
+            .map(|x| HierarchicalCriticalPath::from_path(x))
+            .collect()
+    }
+
+    pub fn from_path(path: &CriticalPath) -> Self {
+        let mut g = StableGraph::new();
+        let mut prev_path_node = path.start_node;
+        let mut prev_node = g.add_node(path.g.g[prev_path_node].clone());
+        let start_node = prev_node;
+        loop {
+            let cur_path_node = match path.next_node(prev_path_node) {
+                Some(node) => node,
+                None => break,
+            };
+            let new_node = g.add_node(path.g.g[cur_path_node].clone());
+            g.add_edge(
+                prev_node,
+                new_node,
+                HierarchicalEdge::from_dag_edge(&path.g.g[path.g.g.find_edge(prev_path_node, cur_path_node).unwrap()]),
+            );
+            prev_node = new_node;
+            prev_path_node = cur_path_node;
+        }
+        HierarchicalCriticalPath {
+            g: g,
+            start_node: start_node,
+            end_node: prev_node,
+            duration: path.duration,
+            hash: RefCell::new(None),
+        }
     }
 
     pub fn next_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
