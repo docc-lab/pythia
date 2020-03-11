@@ -161,12 +161,11 @@ pub fn enable_all() {
 pub fn enable_skeleton() {
     let settings = get_settings();
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-    let manifest_method = settings.get("manifest_method").unwrap();
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
-    let mut to_enable = manifest.entry_points();
+    let to_enable = manifest.entry_points();
     controller.enable(&to_enable.iter().map(|&a| (a, None)).collect());
     println!("Enabled following tracepoints: {:?}", to_enable);
 }
@@ -174,7 +173,6 @@ pub fn enable_skeleton() {
 pub fn show_manifest(request_type: &str) {
     let settings = get_settings();
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-    let manifest_method = settings.get("manifest_method").unwrap();
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     match request_type {
@@ -213,7 +211,6 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
     let settings = get_settings();
     let mut reader = OSProfilerReader::from_settings(&settings);
     let traces = reader.read_trace_file(manfile);
-    let manifest_method = settings.get("manifest_method").unwrap();
     let manifest = Manifest::from_trace_list(&traces);
     println!("{}", manifest);
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());

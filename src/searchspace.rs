@@ -13,6 +13,7 @@ use petgraph::stable_graph::StableGraph;
 use petgraph::visit::EdgeFiltered;
 use petgraph::visit::IntoNeighborsDirected;
 use petgraph::Direction;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::critical::CriticalPath;
@@ -114,14 +115,16 @@ impl HierarchicalCriticalPath {
             };
             match context.last() {
                 Some(&nidx) => {
-                    self.g.add_edge(
-                        nidx,
-                        next_node,
-                        HierarchicalEdge {
-                            duration: Duration::new(0, 0),
-                            variant: EdgeType::Hierarchical,
-                        },
-                    );
+                    if self.g[nidx].tracepoint_id != self.g[next_node].tracepoint_id {
+                        self.g.add_edge(
+                            nidx,
+                            next_node,
+                            HierarchicalEdge {
+                                duration: Duration::new(0, 0),
+                                variant: EdgeType::Hierarchical,
+                            },
+                        );
+                    }
                 }
                 None => {
                     eprintln!("This node has no context: {}", self.g[next_node]);
@@ -180,8 +183,16 @@ impl SearchSpace {
 
 impl Display for SearchSpace {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        lazy_static! {
+            static ref RE: Regex = Regex::new("label=\"Hierarchical\"").unwrap();
+        }
         for (hash, path) in self.paths.iter() {
-            write!(f, "{}:\n{}", hash, Dot::new(&path.g))?;
+            write!(
+                f,
+                "{}:\n{}",
+                hash,
+                RE.replace_all(&format!("{}", Dot::new(&path.g)), "style=\"dashed\"")
+            )?;
         }
         Ok(())
     }
