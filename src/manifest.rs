@@ -3,31 +3,30 @@ use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
 use std::path::Path;
-use std::path::PathBuf;
 
-use petgraph::graph::EdgeIndex;
 use petgraph::visit::IntoNodeReferences;
+use serde::{Deserialize, Serialize};
 
-use crate::cct::CCT;
-use crate::flat::FlatSpace;
-use crate::grouping::Group;
-use crate::historic::Historic;
 use crate::osprofiler::OSProfilerDAG;
 use crate::osprofiler::RequestType;
 use crate::osprofiler::REQUEST_TYPE_REGEXES;
-use crate::poset::Poset;
-use crate::search::SearchState;
-use crate::search::SearchStrategy;
 use crate::searchspace::SearchSpace;
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Manifest {
     pub per_request_type: HashMap<RequestType, SearchSpace>,
     request_type_tracepoints: Vec<String>,
-    strategy: Box<dyn SearchStrategy>,
 }
 
 impl Manifest {
-    pub fn from_trace_list(manifest_type: &str, traces: &Vec<OSProfilerDAG>) -> Manifest {
+    pub fn new() -> Manifest {
+        Manifest {
+            per_request_type: HashMap::new(),
+            request_type_tracepoints: Vec::new(),
+        }
+    }
+
+    pub fn from_trace_list(traces: &Vec<OSProfilerDAG>) -> Manifest {
         let mut map = HashMap::<RequestType, SearchSpace>::new();
         for trace in traces {
             match map.get_mut(&trace.request_type.unwrap()) {
@@ -43,13 +42,6 @@ impl Manifest {
         }
         let mut result = Manifest {
             per_request_type: map,
-            strategy: match manifest_type {
-                "CCT" => Box::new(CCT::default()),
-                "Poset" => Box::new(Poset::default()),
-                "Flat" => Box::new(FlatSpace::default()),
-                "Historic" => Box::new(Historic::default()),
-                _ => panic!("Unsupported manifest method"),
-            },
             request_type_tracepoints: Vec::new(),
         };
         result.add_request_type_tracepoints(traces);
@@ -70,30 +62,13 @@ impl Manifest {
     }
 
     pub fn to_file(&self, file: &Path) {
-        std::fs::create_dir_all(file).ok();
-        for (request_type, inner) in self.per_request_type.iter() {
-            let mut newfile = PathBuf::from(file);
-            newfile.push(request_type.to_string());
-            newfile.set_extension("json");
-            let writer = std::fs::File::create(newfile).unwrap();
-            serde_json::to_writer(writer, inner).ok();
-        }
+        let writer = std::fs::File::create(file).unwrap();
+        serde_json::to_writer(writer, self).ok();
     }
 
-    pub fn from_file(manifest_type: &str, file: &Path) -> Option<Manifest> {
-        let mut result = Manifest {
-            per_request_type: HashMap::new(),
-            request_type_tracepoints: Vec::new(),
-            strategy: match manifest_type {
-                "CCT" => Box::new(CCT::default()),
-                "Poset" => Box::new(Poset::default()),
-                "Flat" => Box::new(FlatSpace::default()),
-                "Historic" => Box::new(Historic::default()),
-                _ => panic!("Unsupported manifest method"),
-            },
-        };
-        result.ingest_dir(file).ok();
-        Some(result)
+    pub fn from_file(file: &Path) -> Option<Manifest> {
+        let reader = std::fs::File::open(file).unwrap();
+        serde_json::from_reader(reader).unwrap()
     }
 
     fn ingest_dir(&mut self, file: &Path) -> std::io::Result<()> {
@@ -119,26 +94,26 @@ impl Manifest {
         result.drain().collect()
     }
 
-    pub fn search<'a>(
-        &'a self,
-        group: &Group,
-        edge: EdgeIndex,
-        budget: usize,
-    ) -> (Vec<(&'a String, Option<RequestType>)>, SearchState) {
-        let (tracepoints, state) = self.strategy.search(
-            self.per_request_type.get(&group.request_type).unwrap(),
-            group,
-            edge,
-            budget,
-        );
-        (
-            tracepoints
-                .iter()
-                .map(|&a| (a, Some(group.request_type)))
-                .collect(),
-            state,
-        )
-    }
+    // pub fn search<'a>(
+    //     &'a self,
+    //     group: &Group,
+    //     edge: EdgeIndex,
+    //     budget: usize,
+    // ) -> (Vec<(&'a String, Option<RequestType>)>, SearchState) {
+    //     let (tracepoints, state) = self.strategy.search(
+    //         self.per_request_type.get(&group.request_type).unwrap(),
+    //         group,
+    //         edge,
+    //         budget,
+    //     );
+    //     (
+    //         tracepoints
+    //             .iter()
+    //             .map(|&a| (a, Some(group.request_type)))
+    //             .collect(),
+    //         state,
+    //     )
+    // }
 }
 
 impl Display for Manifest {

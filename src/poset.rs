@@ -12,10 +12,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::critical::CriticalPath;
 use crate::grouping::Group;
+use crate::manifest::Manifest;
 use crate::osprofiler::OSProfilerDAG;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
-use crate::searchspace::SearchSpace;
 use crate::trace::Event;
 use crate::trace::EventType;
 
@@ -63,9 +63,19 @@ pub struct Poset {
     g: StableGraph<PosetNode, u32>, // Edge weights indicate number of occurance of an ordering.
     entry_points: HashMap<PosetNode, NodeIndex>,
     exit_points: HashMap<PosetNode, NodeIndex>,
+    manifest: Manifest,
 }
 
 impl Poset {
+    fn new(m: Manifest) -> Poset {
+        Poset {
+            g: StableGraph::new(),
+            entry_points: HashMap::new(),
+            exit_points: HashMap::new(),
+            manifest: m,
+        }
+    }
+
     fn add_trace(&mut self, trace: &OSProfilerDAG) {
         for path in &CriticalPath::all_possible_paths(trace) {
             self.add_path(path);
@@ -84,7 +94,6 @@ impl Poset {
 impl SearchStrategy for Poset {
     fn search(
         &self,
-        space: &SearchSpace,
         _group: &Group,
         _edge: EdgeIndex,
         _budget: usize,
@@ -96,6 +105,7 @@ impl SearchStrategy for Poset {
 impl Default for Poset {
     fn default() -> Self {
         Poset {
+            manifest: Manifest::new(),
             g: StableGraph::<PosetNode, u32>::new(),
             entry_points: HashMap::new(),
             exit_points: HashMap::new(),
@@ -104,14 +114,6 @@ impl Default for Poset {
 }
 
 impl Poset {
-    pub fn new() -> Self {
-        Poset {
-            g: StableGraph::<PosetNode, u32>::new(),
-            entry_points: HashMap::new(),
-            exit_points: HashMap::new(),
-        }
-    }
-
     fn add_path(&mut self, path: &CriticalPath) {
         let mut cur_path_nidx = path.start_node;
         let new_node = PosetNode::from_event(&path.g.g[cur_path_nidx]);

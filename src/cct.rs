@@ -13,21 +13,24 @@ use serde::{Deserialize, Serialize};
 
 use crate::critical::CriticalPath;
 use crate::grouping::Group;
+use crate::manifest::Manifest;
 use crate::osprofiler::OSProfilerDAG;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
 use crate::searchspace::SearchSpace;
 use crate::trace::EventType;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct CCT {
     pub g: Graph<String, u32>, // Nodes indicate tracepoint id, edges don't matter
     pub entry_points: HashMap<String, NodeIndex>,
     #[serde(skip)]
     enabled_tracepoints: RefCell<HashSet<String>>,
+    #[serde(skip)]
+    manifest: Manifest,
 }
 
-impl CCT{
+impl CCT {
     fn add_trace(&mut self, trace: &OSProfilerDAG) {
         for path in CriticalPath::all_possible_paths(trace) {
             self.add_path_to_manifest(&path);
@@ -82,27 +85,18 @@ impl SearchStrategy for CCT {
     }
 }
 
-impl Default for CCT {
-    fn default() -> Self {
-        CCT {
-            g: Graph::<String, u32>::new(),
-            entry_points: HashMap::<String, NodeIndex>::new(),
-            enabled_tracepoints: RefCell::new(HashSet::new()),
-        }
-    }
-}
-
 impl CCT {
-    pub fn new() -> CCT {
+    pub fn new(m: Manifest) -> CCT {
         CCT {
             g: Graph::<String, u32>::new(),
+            manifest: m,
             entry_points: HashMap::<String, NodeIndex>::new(),
             enabled_tracepoints: RefCell::new(HashSet::new()),
         }
     }
 
     pub fn from_trace_list(list: Vec<OSProfilerDAG>) -> CCT {
-        let mut cct = CCT::new();
+        let mut cct = CCT::new(Manifest::new());
         println!("Creating manifest from {} traces", list.len());
         let mut counter = 0;
         let mut node_counter = 0;

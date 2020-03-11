@@ -24,13 +24,18 @@ use config::{Config, File, FileFormat};
 use petgraph::dot::Dot;
 use rand::seq::SliceRandom;
 
-use self::controller::OSProfilerController;
-use self::critical::CriticalPath;
-use self::grouping::Group;
-use self::manifest::Manifest;
-use self::osprofiler::OSProfilerReader;
-use self::osprofiler::RequestType;
-use self::search::SearchState;
+use crate::cct::CCT;
+use crate::controller::OSProfilerController;
+use crate::critical::CriticalPath;
+use crate::flat::FlatSpace;
+use crate::grouping::Group;
+use crate::historic::Historic;
+use crate::manifest::Manifest;
+use crate::osprofiler::OSProfilerReader;
+use crate::osprofiler::RequestType;
+use crate::poset::Poset;
+use crate::search::SearchState;
+use crate::search::SearchStrategy;
 
 /// Make a single instrumentation decision.
 pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
@@ -39,9 +44,16 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
     let mut rng = &mut rand::thread_rng();
     let controller = OSProfilerController::from_settings(&settings);
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
-    let manifest_method = settings.get("manifest_method").unwrap();
-    let manifest = Manifest::from_file(manifest_method, manifest_file.as_path())
-        .expect("Couldn't read manifest from cache");
+    let manifest =
+        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    let manifest_method: &str = settings.get("manifest_method").unwrap();
+    let strategy: Box<dyn SearchStrategy> = match manifest_method {
+        "CCT" => Box::new(CCT::new(manifest)),
+        "Poset" => Box::new(Poset::new(manifest)),
+        "Flat" => Box::new(FlatSpace::new(manifest)),
+        "Historic" => Box::new(Historic::new(manifest)),
+        _ => panic!("Unsupported manifest method"),
+    };
     let mut reader = OSProfilerReader::from_settings(&settings);
     let now = Instant::now();
     let traces = reader.read_trace_file(epoch_file);
@@ -84,7 +96,7 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
             }
             let problem_edge = problem_edges[index];
             println!("\n\nTry {}: Next tracepoints to enable:\n", index);
-            let (tracepoints, state) = manifest.search(&groups[group_index], problem_edge, budget);
+            let (tracepoints, state) = strategy.search(&groups[group_index], problem_edge, budget);
             match old_tracepoints {
                 Some(list) => {
                     if list == tracepoints {
@@ -145,8 +157,8 @@ pub fn enable_skeleton() {
     let settings = get_settings();
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
     let manifest_method = settings.get("manifest_method").unwrap();
-    let manifest = Manifest::from_file(manifest_method, manifest_file.as_path())
-        .expect("Couldn't read manifest from cache");
+    let manifest =
+        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
     let mut to_enable = manifest.entry_points();
@@ -158,8 +170,8 @@ pub fn show_manifest(request_type: &str) {
     let settings = get_settings();
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
     let manifest_method = settings.get("manifest_method").unwrap();
-    let manifest = Manifest::from_file(manifest_method, manifest_file.as_path())
-        .expect("Couldn't read manifest from cache");
+    let manifest =
+        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     match request_type {
         "ServerCreate" => {
             println!(
@@ -197,7 +209,7 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
     let mut reader = OSProfilerReader::from_settings(&settings);
     let traces = reader.read_trace_file(manfile);
     let manifest_method = settings.get("manifest_method").unwrap();
-    let manifest = Manifest::from_trace_list(manifest_method, &traces);
+    let manifest = Manifest::from_trace_list(&traces);
     println!("{}", manifest);
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
     if manifest_file.exists() {

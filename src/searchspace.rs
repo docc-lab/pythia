@@ -151,7 +151,7 @@ impl HierarchicalCriticalPath {
     }
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct SearchSpace {
     paths: HashMap<String, HierarchicalCriticalPath>, // key is the hash of the critical path
     entry_points: HashSet<String>,

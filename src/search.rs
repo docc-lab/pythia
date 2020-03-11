@@ -15,7 +15,6 @@ pub enum SearchState {
 pub trait SearchStrategy: Display {
     fn search(
         &self,
-        space: &SearchSpace,
         group: &Group,
         edge: EdgeIndex,
         budget: usize,
