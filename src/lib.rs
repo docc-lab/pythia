@@ -106,7 +106,12 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
                 None => {}
             }
             println!("{:?}", tracepoints);
-            let mut to_enable = controller.get_disabled(&tracepoints);
+            let mut to_enable = controller.get_disabled(
+                &tracepoints
+                    .iter()
+                    .map(|&x| (x, Some(groups[group_index].request_type)))
+                    .collect(),
+            );
             if to_enable.len() != 0 {
                 if budget == 0 {
                     converged = true;

@@ -8,18 +8,15 @@ use std::time::Duration;
 use indexmap::set::IndexSet;
 use petgraph::graph::EdgeIndex;
 use petgraph::visit::EdgeRef;
-use serde::{Deserialize, Serialize};
-use serde::{Deserializer, Serializer};
 use stats::variance;
 
 use crate::grouping::Group;
+use crate::manifest::Manifest;
 use crate::osprofiler::OSProfilerDAG;
 use crate::poset::PosetNode;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
-use crate::searchspace::SearchSpace;
 
-#[derive(Serialize, Deserialize)]
 struct Edge {
     start: PosetNode,
     end: PosetNode,
@@ -42,47 +39,12 @@ impl Edge {
     }
 }
 
-fn serialize_historic<S: Serializer>(
-    map: &HashMap<PosetNode, HashMap<PosetNode, usize>>,
-    s: S,
-) -> Result<S::Ok, S::Error> {
-    map.iter()
-        .map(|(a, b)| {
-            (
-                a.clone(),
-                b.iter()
-                    .map(|(x, y)| (x.clone(), y.clone()))
-                    .collect::<Vec<(_, _)>>(),
-            )
-        })
-        .collect::<Vec<(_, _)>>()
-        .serialize(s)
-}
-
-fn deserialize_historic<'de, D: Deserializer<'de>>(
-    d: D,
-) -> Result<HashMap<PosetNode, HashMap<PosetNode, usize>>, D::Error> {
-    let vec = <Vec<(PosetNode, Vec<(PosetNode, usize)>)>>::deserialize(d)?;
-    let mut map = HashMap::new();
-    for (k, v) in vec {
-        let mut inner = HashMap::new();
-        for (x, y) in v {
-            inner.insert(x, y);
-        }
-        map.insert(k, inner);
-    }
-    Ok(map)
-}
-
-#[derive(Serialize, Deserialize)]
 pub struct Historic {
     edges: Vec<Edge>,
     entry_points: HashSet<String>,
-    #[serde(serialize_with = "serialize_historic")]
-    #[serde(deserialize_with = "deserialize_historic")]
     edge_map: HashMap<PosetNode, HashMap<PosetNode, usize>>,
-    #[serde(skip)]
     tried_tracepoints: RefCell<HashSet<String>>,
+    manifest: Manifest,
 }
 
 impl Display for Historic {
@@ -99,6 +61,16 @@ impl Display for Historic {
 }
 
 impl Historic {
+    pub fn new(m: Manifest) -> Historic {
+        Historic {
+            edges: Vec::new(),
+            entry_points: HashSet::new(),
+            edge_map: HashMap::new(),
+            tried_tracepoints: RefCell::new(HashSet::new()),
+            manifest: m
+        }
+    }
+
     fn add_trace(&mut self, trace: &OSProfilerDAG) {
         // Breadth-first search over all nodes, add outgoing edges to manifest
         let mut visited = HashSet::new();
@@ -145,11 +117,9 @@ impl Historic {
     }
 }
 
-#[typetag::serde]
 impl SearchStrategy for Historic {
     fn search(
         &self,
-        space: &SearchSpace,
         _group: &Group,
         _edge: EdgeIndex,
         budget: usize,
@@ -192,6 +162,7 @@ impl Default for Historic {
             edge_map: HashMap::new(),
             entry_points: HashSet::new(),
             tried_tracepoints: RefCell::new(HashSet::new()),
+            manifest: Manifest::new()
         }
     }
 }

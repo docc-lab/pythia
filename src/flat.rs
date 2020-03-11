@@ -7,25 +7,22 @@ use std::time::Instant;
 
 use petgraph::dot::Dot;
 use petgraph::graph::EdgeIndex;
-use serde::{Deserialize, Serialize};
 
 use crate::critical::CriticalPath;
 use crate::critical::HashablePath;
 use crate::grouping::Group;
+use crate::manifest::Manifest;
 use crate::osprofiler::OSProfilerDAG;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
-use crate::searchspace::SearchSpace;
 
-#[derive(Serialize, Deserialize)]
 pub struct FlatSpace {
     paths: HashMap<String, CriticalPath>, // key is the hash of the critical path
     entry_points: HashSet<String>,
     occurances: HashMap<String, usize>,
-    #[serde(skip)]
     tried_groups: RefCell<HashSet<String>>,
-    #[serde(skip)]
     enabled_tracepoints: RefCell<HashSet<String>>,
+    manifest: Manifest,
 }
 
 impl FlatSpace {
@@ -40,15 +37,8 @@ impl FlatSpace {
     }
 }
 
-#[typetag::serde]
 impl SearchStrategy for FlatSpace {
-    fn search(
-        &self,
-        space: &SearchSpace,
-        group: &Group,
-        edge: EdgeIndex,
-        budget: usize,
-    ) -> (Vec<&String>, SearchState) {
+    fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> (Vec<&String>, SearchState) {
         let now = Instant::now();
         let mut matching_hashes = self
             .paths
@@ -162,11 +152,23 @@ impl Default for FlatSpace {
             occurances: HashMap::new(),
             tried_groups: RefCell::new(HashSet::new()),
             enabled_tracepoints: RefCell::new(HashSet::new()),
+            manifest: Manifest::new(),
         }
     }
 }
 
 impl FlatSpace {
+    pub fn new(m: Manifest) -> Self {
+        FlatSpace {
+            paths: HashMap::new(),
+            entry_points: HashSet::new(),
+            occurances: HashMap::new(),
+            tried_groups: RefCell::new(HashSet::new()),
+            enabled_tracepoints: RefCell::new(HashSet::new()),
+            manifest: m,
+        }
+    }
+
     /// Find n tracepoints that equally separate the edge according to the path
     fn split_group_by_n<'a>(
         &self,

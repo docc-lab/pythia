@@ -3,7 +3,6 @@ use std::fmt::Display;
 use petgraph::graph::EdgeIndex;
 
 use crate::grouping::Group;
-use crate::searchspace::SearchSpace;
 
 #[derive(Clone, Copy)]
 pub enum SearchState {
@@ -11,7 +10,6 @@ pub enum SearchState {
     DepletedBudget,
 }
 
-#[typetag::serde(tag = "type")]
 pub trait SearchStrategy: Display {
     fn search(
         &self,

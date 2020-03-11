@@ -8,7 +8,6 @@ use petgraph::graph::EdgeIndex;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
 use petgraph::Direction;
-use serde::{Deserialize, Serialize};
 
 use crate::critical::CriticalPath;
 use crate::grouping::Group;
@@ -19,7 +18,7 @@ use crate::search::SearchStrategy;
 use crate::trace::Event;
 use crate::trace::EventType;
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct PosetNode {
     pub tracepoint_id: String,
     pub variant: EventType,
@@ -58,7 +57,6 @@ impl Display for PosetNode {
     }
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct Poset {
     g: StableGraph<PosetNode, u32>, // Edge weights indicate number of occurance of an ordering.
     entry_points: HashMap<PosetNode, NodeIndex>,
@@ -67,7 +65,7 @@ pub struct Poset {
 }
 
 impl Poset {
-    fn new(m: Manifest) -> Poset {
+    pub fn new(m: Manifest) -> Poset {
         Poset {
             g: StableGraph::new(),
             entry_points: HashMap::new(),
@@ -90,7 +88,6 @@ impl Poset {
     }
 }
 
-#[typetag::serde]
 impl SearchStrategy for Poset {
     fn search(
         &self,

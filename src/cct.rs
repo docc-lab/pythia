@@ -3,13 +3,11 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
-use std::path::Path;
 
 use petgraph::dot::Dot;
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::{Direction, Graph};
 use rand::seq::SliceRandom;
-use serde::{Deserialize, Serialize};
 
 use crate::critical::CriticalPath;
 use crate::grouping::Group;
@@ -17,16 +15,13 @@ use crate::manifest::Manifest;
 use crate::osprofiler::OSProfilerDAG;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
-use crate::searchspace::SearchSpace;
 use crate::trace::EventType;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
 pub struct CCT {
     pub g: Graph<String, u32>, // Nodes indicate tracepoint id, edges don't matter
     pub entry_points: HashMap<String, NodeIndex>,
-    #[serde(skip)]
     enabled_tracepoints: RefCell<HashSet<String>>,
-    #[serde(skip)]
     manifest: Manifest,
 }
 
@@ -42,11 +37,9 @@ impl CCT {
     }
 }
 
-#[typetag::serde]
 impl SearchStrategy for CCT {
     fn search<'a>(
         &'a self,
-        space: &SearchSpace,
         group: &Group,
         edge: EdgeIndex,
         budget: usize,
@@ -81,7 +74,11 @@ impl SearchStrategy for CCT {
             let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
             enabled_tracepoints.insert(i.to_string());
         }
-        (result, result_state)
+        (
+            result
+            ,
+            result_state,
+        )
     }
 }
 
@@ -177,19 +174,6 @@ impl CCT {
             nidx = group.next_node(nidx).unwrap();
         }
         result
-    }
-
-    pub fn from_file(file: &Path) -> Option<CCT> {
-        let reader = match std::fs::File::open(file) {
-            Ok(x) => x,
-            Err(_) => return None,
-        };
-        Some(serde_json::from_reader(reader).unwrap())
-    }
-
-    pub fn to_file(&self, file: &Path) {
-        let writer = std::fs::File::create(file).unwrap();
-        serde_json::to_writer(writer, self).expect("Failed to manifest to cache");
     }
 
     fn add_path_to_manifest(&mut self, path: &CriticalPath) {
