@@ -1240,6 +1240,7 @@ dependencies = [
  "petgraph",
  "rand 0.7.3",
  "redis",
+ "regex",
  "rust-crypto",
  "serde 1.0.104",
  "serde_json",

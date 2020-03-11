@@ -30,7 +30,6 @@ use self::grouping::Group;
 use self::manifest::Manifest;
 use self::osprofiler::OSProfilerReader;
 use self::osprofiler::RequestType;
-use self::osprofiler::REQUEST_TYPE_MAP;
 use self::search::SearchState;
 
 /// Make a single instrumentation decision.
@@ -151,7 +150,6 @@ pub fn enable_skeleton() {
     let controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
     let mut to_enable = manifest.entry_points();
-    to_enable.extend(REQUEST_TYPE_MAP.keys().into_iter());
     controller.enable(&to_enable.iter().map(|&a| (a, None)).collect());
     println!("Enabled following tracepoints: {:?}", to_enable);
 }
@@ -199,7 +197,7 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
     let mut reader = OSProfilerReader::from_settings(&settings);
     let traces = reader.read_trace_file(manfile);
     let manifest_method = settings.get("manifest_method").unwrap();
-    let manifest = Manifest::from_trace_list(manifest_method, traces);
+    let manifest = Manifest::from_trace_list(manifest_method, &traces);
     println!("{}", manifest);
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
     if manifest_file.exists() {

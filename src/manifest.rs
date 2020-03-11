@@ -6,6 +6,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use petgraph::graph::EdgeIndex;
+use petgraph::visit::IntoNodeReferences;
 
 use crate::cct::CCT;
 use crate::flat::FlatSpace;
@@ -13,6 +14,7 @@ use crate::grouping::Group;
 use crate::historic::Historic;
 use crate::osprofiler::OSProfilerDAG;
 use crate::osprofiler::RequestType;
+use crate::osprofiler::REQUEST_TYPE_REGEXES;
 use crate::poset::Poset;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
@@ -20,11 +22,12 @@ use crate::searchspace::SearchSpace;
 
 pub struct Manifest {
     pub per_request_type: HashMap<RequestType, SearchSpace>,
+    request_type_tracepoints: Vec<String>,
     strategy: Box<dyn SearchStrategy>,
 }
 
 impl Manifest {
-    pub fn from_trace_list(manifest_type: &str, traces: Vec<OSProfilerDAG>) -> Manifest {
+    pub fn from_trace_list(manifest_type: &str, traces: &Vec<OSProfilerDAG>) -> Manifest {
         let mut map = HashMap::<RequestType, SearchSpace>::new();
         for trace in traces {
             match map.get_mut(&trace.request_type.unwrap()) {
@@ -38,7 +41,7 @@ impl Manifest {
                 }
             }
         }
-        Manifest {
+        let mut result = Manifest {
             per_request_type: map,
             strategy: match manifest_type {
                 "CCT" => Box::new(CCT::default()),
@@ -47,6 +50,22 @@ impl Manifest {
                 "Historic" => Box::new(Historic::default()),
                 _ => panic!("Unsupported manifest method"),
             },
+            request_type_tracepoints: Vec::new(),
+        };
+        result.add_request_type_tracepoints(traces);
+        result
+    }
+
+    fn add_request_type_tracepoints(&mut self, traces: &Vec<OSProfilerDAG>) {
+        for trace in traces {
+            self.request_type_tracepoints.extend(
+                trace
+                    .g
+                    .node_references()
+                    .map(|x| &x.1.tracepoint_id)
+                    .filter(|x: &&String| REQUEST_TYPE_REGEXES.is_match(x))
+                    .map(|x| x.to_string()),
+            );
         }
     }
 
@@ -64,6 +83,7 @@ impl Manifest {
     pub fn from_file(manifest_type: &str, file: &Path) -> Option<Manifest> {
         let mut result = Manifest {
             per_request_type: HashMap::new(),
+            request_type_tracepoints: Vec::new(),
             strategy: match manifest_type {
                 "CCT" => Box::new(CCT::default()),
                 "Poset" => Box::new(Poset::default()),

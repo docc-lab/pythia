@@ -12,6 +12,7 @@ use petgraph::Direction;
 use petgraph::{graph::NodeIndex, stable_graph::StableGraph};
 use redis::Commands;
 use redis::Connection;
+use regex::RegexSet;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -337,12 +338,14 @@ impl OSProfilerDAG {
             let mut mynode = Event::from_osp_span(event);
             mynode.tracepoint_id = event.get_tracepoint_id(&mut tracepoint_id_map);
             if mynode.variant == EventType::Entry {
-                match REQUEST_TYPE_MAP.get(&mynode.tracepoint_id) {
-                    Some(t) => {
-                        assert!(self.request_type.is_none());
-                        self.request_type = Some(*t);
-                    }
-                    None => {}
+                let matches: Vec<usize> = REQUEST_TYPE_REGEXES
+                    .matches(&mynode.tracepoint_id)
+                    .iter()
+                    .collect();
+                if matches.len() > 0 {
+                    assert!(matches.len() == 1);
+                    assert!(self.request_type.is_none());
+                    self.request_type = Some(REQUEST_TYPES[matches[0]]);
                 }
             }
             // Don't add asynch_wait into the DAGs
@@ -438,7 +441,6 @@ impl OSProfilerDAG {
                                     Some(&nidx) => nidx,
                                     None => {
                                         panic!("Warning: Parent of node {:?} not found. Silently ignoring this event", event);
-                                        continue;
                                     }
                                 }];
                                 assert!(event.timestamp > parent_node.timestamp);
@@ -799,11 +801,18 @@ struct FunctionEntryFunction {
 }
 
 lazy_static! {
-    pub static ref REQUEST_TYPE_MAP: HashMap<String,RequestType> = vec![
-        ("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action".to_string(), RequestType::ServerCreate),
-        ("/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:1160:openstackclient.compute.v2.server.ListServer.take_action".to_string(), RequestType::ServerList),
-        ("/usr/local/lib/python3.7/site-packages/openstackclient/compute/v2/server.py:1008:openstackclient.compute.v2.server.DeleteServer.take_action".to_string(), RequestType::ServerDelete),
-    ].into_iter().to_owned().collect();
+    // The ordering of the below two structures should match each other
+    pub static ref REQUEST_TYPE_REGEXES: RegexSet = RegexSet::new(&[
+        r"openstackclient\.compute\.v2\.server\.CreateServer\.take_action",
+        r"openstackclient\.compute\.v2\.server\.ListServer\.take_action",
+        r"openstackclient\.compute\.v2\.server\.DeleteServer\.take_action"
+    ])
+    .unwrap();
+    static ref REQUEST_TYPES: Vec<RequestType> = vec![
+        RequestType::ServerCreate,
+        RequestType::ServerList,
+        RequestType::ServerDelete,
+    ];
 }
 
 pub mod serde_timestamp {
