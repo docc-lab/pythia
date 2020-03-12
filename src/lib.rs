@@ -207,6 +207,17 @@ pub fn show_manifest(request_type: &str) {
     }
 }
 
+pub fn dump_traces(tracefile: &str) {
+    let settings = get_settings();
+    let mut reader = OSProfilerReader::from_settings(&settings);
+    for trace in reader.read_trace_file(tracefile) {
+        let mut outfile = dirs::home_dir().unwrap();
+        outfile.push(trace.base_id.to_hyphenated().to_string());
+        outfile.set_extension("json");
+        trace.to_file(&outfile);
+    }
+}
+
 pub fn get_manifest(manfile: &str, overwrite: bool) {
     let settings = get_settings();
     let mut reader = OSProfilerReader::from_settings(&settings);
