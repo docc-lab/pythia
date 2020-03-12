@@ -34,15 +34,17 @@ struct PythiaAPIImpl {
 
 impl PythiaAPI for PythiaAPIImpl {
     fn get_events(&self, trace_id: String) -> Result<Value> {
-        eprintln!("Got request for {:?}", trace_id);
+        eprintln!("Got request for {}", trace_id);
         Ok(serde_json::to_value(self.reader.lock().unwrap().get_matches(&trace_id)).unwrap())
     }
 
     fn set_tracepoints(&self, settings: HashMap<(String, Option<RequestType>), [u8; 1]>) {
+        eprintln!("Setting {} tracepoints", settings.len());
         self.controller.lock().unwrap().apply_settings(settings);
     }
 
     fn set_all_tracepoints(&self, to_write: [u8; 1]) {
+        eprintln!("Setting all tracepoints to {:?}", to_write);
         self.controller.lock().unwrap().write_client_dir(&to_write);
     }
 }
