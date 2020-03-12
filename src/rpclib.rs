@@ -21,8 +21,10 @@ use crate::osprofiler::{OSProfilerReader, OSProfilerSpan, RequestType};
 pub trait PythiaAPI {
     #[rpc(name = "get_events")]
     fn get_events(&self, trace_id: String) -> Result<Value>;
-    #[rpc(name = "set_tracepoint")]
-    fn set_tracepoint(&self, settings: HashMap<(String, Option<RequestType>), [u8; 1]>);
+    #[rpc(name = "set_tracepoints")]
+    fn set_tracepoints(&self, settings: HashMap<(String, Option<RequestType>), [u8; 1]>);
+    #[rpc(name = "set_all_tracepoints")]
+    fn set_all_tracepoints(&self, to_write: [u8; 1]);
 }
 
 struct PythiaAPIImpl {
@@ -36,8 +38,12 @@ impl PythiaAPI for PythiaAPIImpl {
         Ok(serde_json::to_value(self.reader.lock().unwrap().get_matches(&trace_id)).unwrap())
     }
 
-    fn set_tracepoint(&self, settings: HashMap<(String, Option<RequestType>), [u8; 1]>) {
+    fn set_tracepoints(&self, settings: HashMap<(String, Option<RequestType>), [u8; 1]>) {
         self.controller.lock().unwrap().apply_settings(settings);
+    }
+
+    fn set_all_tracepoints(&self, to_write: [u8; 1]) {
+        self.controller.lock().unwrap().write_client_dir(&to_write);
     }
 }
 
@@ -76,6 +82,17 @@ impl From<RpcChannel> for PythiaClient {
 impl PythiaClient {
     fn get_events(&self, trace_id: String) -> impl Future<Item = Value, Error = RpcError> {
         self.0.call_method("get_events", "String", (trace_id,))
+    }
+
+    fn set_all_tracepoints(&self, to_write: [u8; 1]) -> impl Future<Item = (), Error = RpcError> {
+        self.0.notify("set_all_tracepoints", (to_write,))
+    }
+
+    fn set_tracepoints(
+        &self,
+        settings: HashMap<(String, Option<RequestType>), [u8; 1]>,
+    ) -> impl Future<Item = (), Error = RpcError> {
+        self.0.notify("set_tracepoints", (settings,))
     }
 }
 
@@ -120,4 +137,65 @@ pub fn get_events_from_client(client_uri: &str, trace_id: Uuid) -> Vec<OSProfile
         }
     }
     final_result
+}
+
+pub fn set_all_client_tracepoints(client_uri: &str, to_write: [u8; 1]) {
+    let (tx, mut rx) = futures::sync::mpsc::unbounded();
+
+    let run = http::connect(client_uri)
+        .and_then(move |client: PythiaClient| {
+            client
+                .set_all_tracepoints(to_write.clone())
+                .and_then(move |x| {
+                    drop(client);
+                    let _ = tx.unbounded_send(x);
+                    Ok(())
+                })
+        })
+        .map_err(|e| eprintln!("RPC Client error: {:?}", e));
+
+    rt::run(run);
+    loop {
+        match rx.poll() {
+            Ok(Async::Ready(Some(()))) => {
+                return;
+            }
+            Ok(Async::NotReady) => {}
+            Ok(Async::Ready(None)) => {
+                break;
+            }
+            Err(e) => panic!("Got error from poll: {:?}", e),
+        }
+    }
+}
+
+pub fn set_client_tracepoints(
+    client_uri: &str,
+    settings: HashMap<(String, Option<RequestType>), [u8; 1]>,
+) {
+    let (tx, mut rx) = futures::sync::mpsc::unbounded();
+
+    let run = http::connect(client_uri)
+        .and_then(move |client: PythiaClient| {
+            client.set_tracepoints(settings).and_then(move |x| {
+                drop(client);
+                let _ = tx.unbounded_send(x);
+                Ok(())
+            })
+        })
+        .map_err(|e| eprintln!("RPC Client error: {:?}", e));
+
+    rt::run(run);
+    loop {
+        match rx.poll() {
+            Ok(Async::Ready(Some(()))) => {
+                return;
+            }
+            Ok(Async::NotReady) => {}
+            Ok(Async::Ready(None)) => {
+                break;
+            }
+            Err(e) => panic!("Got error from poll: {:?}", e),
+        }
+    }
 }

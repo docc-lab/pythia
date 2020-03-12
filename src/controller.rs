@@ -4,6 +4,8 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 use crate::osprofiler::RequestType;
+use crate::rpclib::set_all_client_tracepoints;
+use crate::rpclib::set_client_tracepoints;
 
 pub struct OSProfilerController {
     manifest_root: PathBuf,
@@ -34,25 +36,51 @@ impl OSProfilerController {
     }
 
     pub fn enable(&self, points: &Vec<(&String, Option<RequestType>)>) {
-        for (tracepoint, request_type) in points {
-            self.write_to_tracepoint(tracepoint, request_type, b"1");
-        }
+        self.write_to_tracepoints(points, b"1");
     }
 
     pub fn disable(&self, points: &Vec<(&String, Option<RequestType>)>) {
-        for (tracepoint, request_type) in points {
-            self.write_to_tracepoint(tracepoint, request_type, b"0");
+        self.write_to_tracepoints(points, b"0");
+    }
+
+    fn write_to_tracepoints(
+        &self,
+        points: &Vec<(&String, Option<RequestType>)>,
+        to_write: &[u8; 1],
+    ) {
+        for client in vec!["cp-1"] {
+            set_client_tracepoints(
+                client,
+                points
+                    .iter()
+                    .map(|(x, y)| (((*x).clone(), y.clone()), to_write.clone()))
+                    .collect(),
+            );
         }
+        for (tracepoint, request_type) in points {
+            self.write_to_tracepoint(tracepoint, request_type, to_write);
+        }
+    }
+
+    fn set_all_tracepoints(&self, to_write: &[u8; 1]) {
+        self.write_dir(self.manifest_root.as_path(), to_write);
+        for client in vec!["cp-1"] {
+            set_all_client_tracepoints(client, *to_write);
+        }
+    }
+
+    pub fn write_client_dir(&self, to_write: &[u8; 1]) {
+        self.write_dir(self.manifest_root.as_path(), to_write);
     }
 
     /// Also removes request-type-specific controllers
     pub fn diable_all(&self) {
-        self.write_dir(self.manifest_root.as_path(), b"0");
+        self.set_all_tracepoints(b"0");
     }
 
     /// Also removes request-type-specific controllers
     pub fn enable_all(&self) {
-        self.write_dir(self.manifest_root.as_path(), b"1");
+        self.set_all_tracepoints(b"1");
     }
 
     pub fn apply_settings(&self, settings: HashMap<(String, Option<RequestType>), [u8; 1]>) {
