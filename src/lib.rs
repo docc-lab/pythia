@@ -158,6 +158,12 @@ pub fn enable_all() {
     controller.enable_all();
 }
 
+pub fn disable_tracepoint(t: &str) {
+    let settings = get_settings();
+    let controller = OSProfilerController::from_settings(&settings);
+    controller.disable(&vec![(&t.to_string(), None)]);
+}
+
 pub fn enable_skeleton() {
     let settings = get_settings();
     let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());

@@ -5,8 +5,8 @@ use clap::{App, Arg, SubCommand};
 use std::time::Instant;
 
 use pythia::{
-    disable_all, dump_traces, enable_all, enable_skeleton, get_crit, get_manifest, get_trace,
-    make_decision, show_config, show_key_value_pairs, show_manifest,
+    disable_all, disable_tracepoint, dump_traces, enable_all, enable_skeleton, get_crit,
+    get_manifest, get_trace, make_decision, show_config, show_key_value_pairs, show_manifest,
 };
 
 fn main() {
@@ -49,6 +49,10 @@ fn main() {
         )
         .subcommand(SubCommand::with_name("disable-all"))
         .subcommand(
+            SubCommand::with_name("disable-tracepoint")
+                .arg(Arg::with_name("tracepoint-id").required(true).index(1)),
+        )
+        .subcommand(
             SubCommand::with_name("show-manifest")
                 .arg(Arg::with_name("request-type").required(true).index(1)),
         )
@@ -77,6 +81,9 @@ fn main() {
         }
         ("get-crit", Some(matches)) => {
             get_crit(matches.value_of("trace-id").unwrap());
+        }
+        ("disable-tracepoint", Some(matches)) => {
+            disable_tracepoint(matches.value_of("tracepoint-id").unwrap());
         }
         ("key-value", Some(matches)) => {
             show_key_value_pairs(matches.value_of("trace-id").unwrap());
