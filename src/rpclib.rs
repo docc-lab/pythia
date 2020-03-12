@@ -22,9 +22,12 @@ pub trait PythiaAPI {
     #[rpc(name = "get_events")]
     fn get_events(&self, trace_id: String) -> Result<Value>;
     #[rpc(name = "set_tracepoints")]
-    fn set_tracepoints(&self, settings: HashMap<(String, Option<RequestType>), [u8; 1]>);
+    fn set_tracepoints(
+        &self,
+        settings: HashMap<(String, Option<RequestType>), [u8; 1]>,
+    ) -> Result<()>;
     #[rpc(name = "set_all_tracepoints")]
-    fn set_all_tracepoints(&self, to_write: [u8; 1]);
+    fn set_all_tracepoints(&self, to_write: [u8; 1]) -> Result<()>;
 }
 
 struct PythiaAPIImpl {
@@ -38,14 +41,19 @@ impl PythiaAPI for PythiaAPIImpl {
         Ok(serde_json::to_value(self.reader.lock().unwrap().get_matches(&trace_id)).unwrap())
     }
 
-    fn set_tracepoints(&self, settings: HashMap<(String, Option<RequestType>), [u8; 1]>) {
+    fn set_tracepoints(
+        &self,
+        settings: HashMap<(String, Option<RequestType>), [u8; 1]>,
+    ) -> Result<()> {
         eprintln!("Setting {} tracepoints", settings.len());
         self.controller.lock().unwrap().apply_settings(settings);
+        Ok(())
     }
 
-    fn set_all_tracepoints(&self, to_write: [u8; 1]) {
+    fn set_all_tracepoints(&self, to_write: [u8; 1]) -> Result<()> {
         eprintln!("Setting all tracepoints to {:?}", to_write);
         self.controller.lock().unwrap().write_client_dir(&to_write);
+        Ok(())
     }
 }
 
