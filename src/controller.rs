@@ -53,7 +53,7 @@ impl OSProfilerController {
                 client,
                 points
                     .iter()
-                    .map(|(x, y)| (((*x).clone(), y.clone()), to_write.clone()))
+                    .map(|(x, y)| ((*x).clone(), y.clone(), to_write.clone()))
                     .collect(),
             );
         }
@@ -83,8 +83,8 @@ impl OSProfilerController {
         self.set_all_tracepoints(b"1");
     }
 
-    pub fn apply_settings(&self, settings: HashMap<(String, Option<RequestType>), [u8; 1]>) {
-        for ((tracepoint, request_type), to_write) in settings.iter() {
+    pub fn apply_settings(&self, settings: Vec<(String, Option<RequestType>, [u8; 1])>) {
+        for (tracepoint, request_type, to_write) in settings.iter() {
             self.write_to_tracepoint(tracepoint, request_type, to_write);
         }
     }

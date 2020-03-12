@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use futures::future::Future;
@@ -22,10 +21,7 @@ pub trait PythiaAPI {
     #[rpc(name = "get_events")]
     fn get_events(&self, trace_id: String) -> Result<Value>;
     #[rpc(name = "set_tracepoints")]
-    fn set_tracepoints(
-        &self,
-        settings: HashMap<(String, Option<RequestType>), [u8; 1]>,
-    ) -> Result<()>;
+    fn set_tracepoints(&self, settings: Vec<(String, Option<RequestType>, [u8; 1])>) -> Result<()>;
     #[rpc(name = "set_all_tracepoints")]
     fn set_all_tracepoints(&self, to_write: [u8; 1]) -> Result<()>;
 }
@@ -41,10 +37,7 @@ impl PythiaAPI for PythiaAPIImpl {
         Ok(serde_json::to_value(self.reader.lock().unwrap().get_matches(&trace_id)).unwrap())
     }
 
-    fn set_tracepoints(
-        &self,
-        settings: HashMap<(String, Option<RequestType>), [u8; 1]>,
-    ) -> Result<()> {
+    fn set_tracepoints(&self, settings: Vec<(String, Option<RequestType>, [u8; 1])>) -> Result<()> {
         eprintln!("Setting {} tracepoints", settings.len());
         self.controller.lock().unwrap().apply_settings(settings);
         Ok(())
@@ -100,9 +93,9 @@ impl PythiaClient {
 
     fn set_tracepoints(
         &self,
-        settings: HashMap<(String, Option<RequestType>), [u8; 1]>,
+        settings: Vec<(String, Option<RequestType>, [u8; 1])>,
     ) -> impl Future<Item = (), Error = RpcError> {
-        self.0.notify("set_tracepoints", (settings,))
+        self.0.call_method("set_tracepoints", "", (settings,))
     }
 }
 
@@ -181,7 +174,7 @@ pub fn set_all_client_tracepoints(client_uri: &str, to_write: [u8; 1]) {
 
 pub fn set_client_tracepoints(
     client_uri: &str,
-    settings: HashMap<(String, Option<RequestType>), [u8; 1]>,
+    settings: Vec<(String, Option<RequestType>, [u8; 1])>,
 ) {
     let (tx, mut rx) = futures::sync::mpsc::unbounded();
 
