@@ -87,7 +87,7 @@ impl PythiaClient {
     }
 
     fn set_all_tracepoints(&self, to_write: [u8; 1]) -> impl Future<Item = (), Error = RpcError> {
-        self.0.notify("set_all_tracepoints", (to_write,))
+        self.0.call_method("set_all_tracepoints", "", (to_write,))
     }
 
     fn set_tracepoints(

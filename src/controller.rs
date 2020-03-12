@@ -48,7 +48,7 @@ impl OSProfilerController {
         points: &Vec<(&String, Option<RequestType>)>,
         to_write: &[u8; 1],
     ) {
-        for client in vec!["cp-1"] {
+        for client in vec!["http://cp-1:3030"] {
             set_client_tracepoints(
                 client,
                 points
@@ -64,7 +64,7 @@ impl OSProfilerController {
 
     fn set_all_tracepoints(&self, to_write: &[u8; 1]) {
         self.write_dir(self.manifest_root.as_path(), to_write);
-        for client in vec!["cp-1"] {
+        for client in vec!["http://cp-1:3030"] {
             set_all_client_tracepoints(client, *to_write);
         }
     }
