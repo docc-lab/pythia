@@ -133,7 +133,7 @@ impl OSProfilerController {
             Ok(mut f) => {
                 f.write_all(to_write).unwrap();
             }
-            Err(e) => panic!("Problem creating file {:?}: {}", path, e),
+            Err(e) => eprintln!("Problem creating file {:?}: {}", path, e),
         }
     }
 
