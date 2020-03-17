@@ -6,6 +6,7 @@ pub mod controller;
 pub mod critical;
 pub mod flat;
 pub mod grouping;
+pub mod hdfs;
 pub mod historic;
 pub mod manifest;
 pub mod osprofiler;
@@ -29,6 +30,7 @@ use crate::controller::OSProfilerController;
 use crate::critical::CriticalPath;
 use crate::flat::FlatSpace;
 use crate::grouping::Group;
+use crate::hdfs::HDFSReader;
 use crate::historic::Historic;
 use crate::manifest::Manifest;
 use crate::osprofiler::OSProfilerReader;
@@ -246,6 +248,13 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
         println!("Overwriting");
     }
     manifest.to_file(manifest_file.as_path());
+}
+
+pub fn read_hdfs_trace(trace_file: &str) {
+    let settings = get_settings();
+    let mut reader = HDFSReader::from_settings(&settings);
+    let trace = reader.read_file(trace_file);
+    println!("{}", Dot::new(&trace.g));
 }
 
 pub fn get_trace(trace_id: &str, to_file: bool) {

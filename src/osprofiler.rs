@@ -691,6 +691,7 @@ impl fmt::Display for RequestType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct OSProfilerSpan {
     pub trace_id: Uuid,
     pub parent_id: Uuid,
@@ -708,6 +709,7 @@ pub struct OSProfilerSpan {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(untagged)]
+#[serde(deny_unknown_fields)]
 pub enum OSProfilerEnum {
     WaitAnnotation(WaitAnnotationSpan),
     Annotation(AnnotationSpan),
@@ -717,12 +719,14 @@ pub enum OSProfilerEnum {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct WaitAnnotationSpan {
     pub info: WaitAnnotationInfo,
     pub tracepoint_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct WaitAnnotationInfo {
     function: FunctionEntryFunction,
     thread_id: u64,
@@ -733,12 +737,14 @@ pub struct WaitAnnotationInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct AnnotationSpan {
     pub info: AnnotationInfo,
     pub tracepoint_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct AnnotationInfo {
     thread_id: u64,
     host: String,
@@ -748,12 +754,14 @@ pub struct AnnotationInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct RequestEntrySpan {
     info: RequestEntryInfo,
     pub tracepoint_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 struct RequestEntryInfo {
     request: RequestEntryRequest,
     thread_id: u64,
@@ -763,6 +771,7 @@ struct RequestEntryInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 struct RequestEntryRequest {
     path: String,
     scheme: String,
@@ -771,22 +780,26 @@ struct RequestEntryRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct ExitSpan {
     info: ExitInfo,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 struct ExitInfo {
     host: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct FunctionEntrySpan {
     info: FunctionEntryInfo,
     pub tracepoint_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 struct FunctionEntryInfo {
     function: FunctionEntryFunction,
     thread_id: u64,
@@ -796,6 +809,7 @@ struct FunctionEntryInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
 struct FunctionEntryFunction {
     name: String,
 }

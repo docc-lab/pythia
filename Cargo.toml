@@ -15,6 +15,7 @@ chrono = { version = "0.4", features = ["serde"] }
 petgraph = { version = "0.5.0", features = ["serde-1"] }
 clap = "*"
 config = "*"
+hex = "*"
 rust-crypto = "*"
 streaming-stats = "*"
 lazy_static = "1.4.0"

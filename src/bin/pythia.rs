@@ -6,7 +6,8 @@ use std::time::Instant;
 
 use pythia::{
     disable_all, disable_tracepoint, dump_traces, enable_all, enable_skeleton, get_crit,
-    get_manifest, get_trace, make_decision, show_config, show_key_value_pairs, show_manifest,
+    get_manifest, get_trace, make_decision, read_hdfs_trace, show_config, show_key_value_pairs,
+    show_manifest,
 };
 
 fn main() {
@@ -23,6 +24,10 @@ fn main() {
             SubCommand::with_name("get-trace")
                 .arg(Arg::with_name("trace-id").required(true).index(1))
                 .arg(Arg::with_name("to-file").long("to-file")),
+        )
+        .subcommand(
+            SubCommand::with_name("test-hdfs")
+                .arg(Arg::with_name("trace-file").required(true).index(1)),
         )
         .subcommand(
             SubCommand::with_name("dump-traces")
@@ -66,6 +71,9 @@ fn main() {
                 matches.value_of("manifest-file").unwrap(),
                 matches.occurrences_of("overwrite") > 0,
             );
+        }
+        ("test-hdfs", Some(matches)) => {
+            read_hdfs_trace(matches.value_of("trace-file").unwrap());
         }
         ("show-manifest", Some(matches)) => {
             show_manifest(matches.value_of("request-type").unwrap());
