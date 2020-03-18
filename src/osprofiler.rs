@@ -261,8 +261,11 @@ impl OSProfilerReader {
             }
             // Don't add asynch_wait into the DAGs
             nidx = match &event.variant {
-                OSProfilerEnum::WaitAnnotation(variant) => {
-                    wait_for.push(variant.info.wait_for);
+                OSProfilerEnum::Annotation(AnnotationSpan {
+                    info: AnnotationEnum::WaitFor(w),
+                    tracepoint_id: _,
+                }) => {
+                    wait_for.push(w.wait_for);
                     None
                 }
                 _ => {
@@ -278,6 +281,17 @@ impl OSProfilerReader {
                     }
                 }
             };
+            if let OSProfilerEnum::Annotation(s) = &event.variant {
+                match &s.info {
+                    AnnotationEnum::WaitFor(_) => {
+                        wait_spans.insert(event.trace_id);
+                    }
+                    AnnotationEnum::Child(c) => {
+                        async_traces.insert(c.child_id, nidx.unwrap());
+                    }
+                    _ => {}
+                }
+            }
             if add_next_to_waiters && !nidx.is_none() {
                 for waiter in wait_for.iter() {
                     waiters.insert(*waiter, nidx.unwrap());
@@ -286,9 +300,6 @@ impl OSProfilerReader {
                 add_next_to_waiters = false;
             }
             match &event.variant {
-                OSProfilerEnum::WaitAnnotation(_) => {
-                    wait_spans.insert(event.trace_id);
-                }
                 OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {
                     active_spans.insert(event.trace_id, nidx.unwrap());
                     children_per_parent.insert(event.trace_id, None);
@@ -360,40 +371,46 @@ impl OSProfilerReader {
                         }
                     }
                 }
-                OSProfilerEnum::Annotation(myspan) => {
-                    match children_per_parent.get(&event.parent_id).unwrap() {
-                        Some(sibling_id) => {
-                            let sibling_node = id_map.get(sibling_id).unwrap();
-                            dag.g.add_edge(
-                                *sibling_node,
-                                nidx.unwrap(),
-                                DAGEdge {
-                                    duration: (event.timestamp - dag.g[*sibling_node].timestamp)
-                                        .to_std()
-                                        .unwrap(),
-                                    variant: EdgeType::ChildOf,
-                                },
-                            );
-                        }
+                OSProfilerEnum::Annotation(_) => {
+                    match nidx {
                         None => {
-                            // If idx == 0, annotation is the first node and the edge is added in
-                            // add_async
-                            if idx != 0 {
-                                let parent_node = id_map.get(&event.parent_id).unwrap();
+                            // Don't add wait for annotations
+                        }
+                        Some(nidx) => match children_per_parent.get(&event.parent_id).unwrap() {
+                            Some(sibling_id) => {
+                                let sibling_node = id_map.get(sibling_id).unwrap();
                                 dag.g.add_edge(
-                                    *parent_node,
-                                    nidx.unwrap(),
+                                    *sibling_node,
+                                    nidx,
                                     DAGEdge {
-                                        duration: (event.timestamp - dag.g[*parent_node].timestamp)
+                                        duration: (event.timestamp
+                                            - dag.g[*sibling_node].timestamp)
                                             .to_std()
                                             .unwrap(),
                                         variant: EdgeType::ChildOf,
                                     },
                                 );
                             }
-                        }
+                            None => {
+                                // If idx == 0, annotation is the first node and the edge is added in
+                                // add_async
+                                if idx != 0 {
+                                    let parent_node = id_map.get(&event.parent_id).unwrap();
+                                    dag.g.add_edge(
+                                        *parent_node,
+                                        nidx,
+                                        DAGEdge {
+                                            duration: (event.timestamp
+                                                - dag.g[*parent_node].timestamp)
+                                                .to_std()
+                                                .unwrap(),
+                                            variant: EdgeType::ChildOf,
+                                        },
+                                    );
+                                }
+                            }
+                        },
                     }
-                    async_traces.insert(myspan.info.child_id, nidx.unwrap());
                 }
                 OSProfilerEnum::Exit(_) => {
                     if nidx.is_none() {
@@ -520,7 +537,12 @@ fn sort_event_list(event_list: &mut Vec<OSProfilerSpan>) {
 }
 
 fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
-    let result: OSProfilerSpan = serde_json::from_str(field).unwrap();
+    let result: OSProfilerSpan = match serde_json::from_str(field) {
+        Ok(a) => a,
+        Err(e) => {
+            return Err(e.to_string());
+        }
+    };
     if result.name == "asynch_request" || result.name == "asynch_wait" {
         return match result.variant {
             OSProfilerEnum::Annotation(_) => Ok(result),
@@ -540,9 +562,9 @@ impl Event {
             tracepoint_id: event.tracepoint_id.clone(),
             timestamp: event.timestamp,
             variant: match event.variant {
-                OSProfilerEnum::FunctionEntry(_)
-                | OSProfilerEnum::RequestEntry(_)
-                | OSProfilerEnum::WaitAnnotation(_) => EventType::Entry,
+                OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {
+                    EventType::Entry
+                }
                 OSProfilerEnum::Exit(_) => EventType::Exit,
                 OSProfilerEnum::Annotation(_) => EventType::Annotation,
             },
@@ -563,21 +585,22 @@ impl OSProfilerSpan {
                 map.insert(self.trace_id, s.tracepoint_id.clone());
                 s.tracepoint_id.clone()
             }
-            OSProfilerEnum::WaitAnnotation(s) => {
-                map.insert(self.trace_id, s.tracepoint_id.clone());
-                s.tracepoint_id.clone()
-            }
             OSProfilerEnum::Annotation(s) => s.tracepoint_id.clone(),
             OSProfilerEnum::Exit(_) => match map.remove(&self.trace_id) {
                 Some(s) => s,
-                None => panic!("Couldn't find trace id for {:?}", self),
+                None => {
+                    if self.name.starts_with("asynch_wait") {
+                        self.tracepoint_id.clone()
+                    } else {
+                        panic!("Couldn't find trace id for {:?}", self);
+                    }
+                }
             },
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
 pub struct OSProfilerSpan {
     pub trace_id: Uuid,
     pub parent_id: Uuid,
@@ -595,9 +618,7 @@ pub struct OSProfilerSpan {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(untagged)]
-#[serde(deny_unknown_fields)]
 pub enum OSProfilerEnum {
-    WaitAnnotation(WaitAnnotationSpan),
     Annotation(AnnotationSpan),
     FunctionEntry(FunctionEntrySpan),
     RequestEntry(RequestEntrySpan),
@@ -606,9 +627,17 @@ pub enum OSProfilerEnum {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct WaitAnnotationSpan {
-    pub info: WaitAnnotationInfo,
+pub struct AnnotationSpan {
+    pub info: AnnotationEnum,
     pub tracepoint_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(untagged)]
+pub enum AnnotationEnum {
+    WaitFor(WaitAnnotationInfo),
+    Child(ChildAnnotationInfo),
+    Plain(PlainAnnotationInfo),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -624,14 +653,16 @@ pub struct WaitAnnotationInfo {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct AnnotationSpan {
-    pub info: AnnotationInfo,
+pub struct PlainAnnotationInfo {
+    thread_id: u64,
+    host: String,
     pub tracepoint_id: String,
+    pid: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct AnnotationInfo {
+pub struct ChildAnnotationInfo {
     thread_id: u64,
     host: String,
     pub tracepoint_id: String,
