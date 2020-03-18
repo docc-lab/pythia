@@ -5,7 +5,12 @@ use std::fmt;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use chrono::NaiveDateTime;
+use futures::future::Future;
+use futures::stream::Stream;
+use futures::Async;
 use hex;
+use hyper::rt;
+use hyper::Client;
 use petgraph::graph::NodeIndex;
 use serde::de;
 use serde::{Deserialize, Serialize};
@@ -21,6 +26,43 @@ pub struct HDFSReader {}
 impl HDFSReader {
     pub fn from_settings(_settings: &HashMap<String, String>) -> Self {
         HDFSReader {}
+    }
+
+    pub fn get_trace_from_base_id(&self, id: &str) -> Option<Trace> {
+        assert!(id.len() != 0);
+        let (tx, mut rx) = futures::sync::mpsc::unbounded();
+        let client = Client::new();
+
+        let fut = client
+            .get(
+                "http://localhost:4080/interactive/reports/5c924fe2264cf827"
+                    .parse()
+                    .unwrap(),
+            )
+            .and_then(|res| res.into_body().concat2())
+            .and_then(move |body| {
+                let s = ::std::str::from_utf8(&body).expect("httpbin sends utf-8 JSON");
+
+                tx.unbounded_send(s.to_string());
+                Ok(())
+            })
+            .map_err(|e| eprintln!("RPC Client error: {:?}", e));
+        rt::run(fut);
+        let mut result = "".to_string();
+        loop {
+            match rx.poll() {
+                Ok(Async::Ready(Some(s))) => {
+                    result = s;
+                }
+                Ok(Async::NotReady) => {}
+                Ok(Async::Ready(None)) => {
+                    break;
+                }
+                Err(e) => panic!("Got error from poll: {:?}", e),
+            }
+        }
+        println!("{}", result);
+        None
     }
 
     pub fn read_file(&self, file: &str) -> Trace {

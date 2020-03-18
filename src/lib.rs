@@ -253,6 +253,7 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
 pub fn read_hdfs_trace(trace_file: &str) {
     let settings = get_settings();
     let reader = HDFSReader::from_settings(&settings);
+    reader.get_trace_from_base_id("a");
     let trace = reader.read_file(trace_file);
     println!("{}", Dot::new(&trace.g));
 }
