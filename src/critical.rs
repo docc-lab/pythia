@@ -61,8 +61,7 @@ impl CriticalPath {
             end_nidx = start_nidx;
         }
         path.add_synthetic_nodes(dag);
-        path.duration = (path.g.g[path.end_node].timestamp
-            - path.g.g[path.start_node].timestamp)
+        path.duration = (path.g.g[path.end_node].timestamp - path.g.g[path.start_node].timestamp)
             .to_std()
             .unwrap();
         path
@@ -282,7 +281,7 @@ impl CriticalPath {
             let mut prev_nidx = cur_nidx;
             loop {
                 prev_nidx = self.prev_node(prev_nidx).unwrap();
-                if self.g.g[prev_nidx].parent_id != Uuid::nil() {
+                if !self.g.g[prev_nidx].is_synthetic {
                     break;
                 }
             }
@@ -454,7 +453,7 @@ impl CriticalPath {
             },
             trace_id: node.trace_id,
             timestamp: self.g.g[after].timestamp + chrono::Duration::nanoseconds(1),
-            parent_id: Uuid::nil(),
+            is_synthetic: true,
         });
         self.g.g.add_edge(
             after,

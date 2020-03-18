@@ -1,10 +1,15 @@
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::fmt;
 
+use byteorder::BigEndian;
+use byteorder::ByteOrder;
+use chrono::NaiveDateTime;
 use hex;
 use petgraph::{graph::NodeIndex, stable_graph::StableGraph};
 use serde::de;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::trace::Event;
 use crate::trace::EventType;
@@ -19,15 +24,28 @@ impl HDFSReader {
 
     pub fn read_file(&self, file: &str) -> HDFSDAG {
         let reader = std::fs::File::open(file).unwrap();
-        let t: Vec<HDFSTrace> = serde_json::from_reader(reader).unwrap();
+        let mut t: Vec<HDFSTrace> = serde_json::from_reader(reader).unwrap();
         assert!(t.len() == 1);
-        HDFSDAG::from_json(&t[0])
+        HDFSDAG::from_json(&mut t[0])
     }
 }
 
 #[derive(Serialize, Debug, Clone, Eq, PartialEq, Copy)]
 pub struct HDFSID {
     id: Option<[u8; 8]>,
+}
+
+fn eventid_to_uuid(id: &String) -> Uuid {
+    let id = id.parse::<i64>().unwrap();
+    let mut buf = [0; 16];
+    BigEndian::write_i64(&mut buf, id);
+    Uuid::from_bytes(buf)
+}
+
+fn convert_hdfs_timestamp(timestamp: u64, _hrt: u64) -> NaiveDateTime {
+    let seconds: i64 = (timestamp / 1000).try_into().unwrap();
+    let nanos: u32 = ((timestamp % 1000) * 1000000).try_into().unwrap();
+    NaiveDateTime::from_timestamp(seconds, nanos)
 }
 
 impl<'de> Deserialize<'de> for HDFSID {
@@ -81,24 +99,63 @@ impl HDFSDAG {
         }
     }
 
-    fn from_json(data: &HDFSTrace) -> HDFSDAG {
+    fn from_json(data: &mut HDFSTrace) -> HDFSDAG {
         let mut mydag = HDFSDAG::new(data.id);
-        mydag.add_events(&data.reports);
+        mydag.add_events(&mut data.reports);
         mydag
     }
 
-    fn add_events(&mut self, data: &Vec<HDFSEvent>) {
-        // let mut event_id_map = HashMap::new();
-        // for (idx, event) in data.iter().enumerate() {
-        //     let mut mynode = Event::from_hdfs_node(event);
-        // }
+    fn add_events(&mut self, data: &mut Vec<HDFSEvent>) {
+        let mut event_id_map = HashMap::new();
+        let mut nidx = NodeIndex::end();
+        sort_event_list(data);
+        for (idx, event) in data.iter().enumerate() {
+            let mynode = Event::from_hdfs_node(event);
+            nidx = self.g.add_node(mynode.clone());
+            event_id_map.insert(event.event_id.clone(), nidx);
+            if idx == 0 {
+                self.start_node = nidx;
+            } else {
+                for parent in event.parent_event_id.iter() {
+                    match event_id_map.get(parent) {
+                        Some(&parent_nidx) => {
+                            self.g.add_edge(
+                                parent_nidx,
+                                nidx,
+                                DAGEdge {
+                                    duration: (mynode.timestamp - self.g[parent_nidx].timestamp)
+                                        .to_std()
+                                        .unwrap(),
+                                    variant: EdgeType::ChildOf,
+                                },
+                            );
+                        }
+                        None => {
+                            panic!("Couldn't find parent node {}", parent);
+                        }
+                    }
+                }
+            }
+        }
+        self.end_node = nidx;
     }
 }
 
+fn sort_event_list(event_list: &mut Vec<HDFSEvent>) {
+    // Sorts events by timestamp
+    event_list.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+}
+
 impl Event {
-    // fn from_hdfs_node(event: &HDFSEvent) -> Event {
-    //     Event {}
-    // }
+    fn from_hdfs_node(event: &HDFSEvent) -> Event {
+        Event {
+            trace_id: eventid_to_uuid(&event.event_id),
+            tracepoint_id: event.label.clone(),
+            timestamp: convert_hdfs_timestamp(event.timestamp, event.hrt),
+            variant: EventType::Annotation,
+            is_synthetic: false,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]

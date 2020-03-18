@@ -627,7 +627,6 @@ impl Event {
     fn from_osp_span(event: &OSProfilerSpan) -> Event {
         Event {
             trace_id: event.trace_id,
-            parent_id: event.parent_id,
             tracepoint_id: event.tracepoint_id.clone(),
             timestamp: event.timestamp,
             variant: match event.variant {
@@ -637,6 +636,7 @@ impl Event {
                 OSProfilerEnum::Exit(_) => EventType::Exit,
                 OSProfilerEnum::Annotation(_) => EventType::Annotation,
             },
+            is_synthetic: false,
         }
     }
 }

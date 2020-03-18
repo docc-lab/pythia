@@ -13,9 +13,9 @@ use crate::grouping::GroupNode;
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct Event {
     pub trace_id: Uuid,
-    pub parent_id: Uuid,
     pub tracepoint_id: String,
     pub timestamp: NaiveDateTime,
+    pub is_synthetic: bool,
     pub variant: EventType,
 }
 

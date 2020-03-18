@@ -1230,6 +1230,7 @@ dependencies = [
 name = "pythia"
 version = "0.1.0"
 dependencies = [
+ "byteorder",
  "chrono",
  "clap",
  "config",
