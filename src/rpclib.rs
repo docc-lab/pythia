@@ -14,7 +14,8 @@ use uuid::Uuid;
 
 use crate::controller::OSProfilerController;
 use crate::get_settings;
-use crate::osprofiler::{OSProfilerReader, OSProfilerSpan, RequestType};
+use crate::osprofiler::{OSProfilerReader, OSProfilerSpan};
+use crate::trace::RequestType;
 
 #[rpc]
 pub trait PythiaAPI {

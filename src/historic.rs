@@ -12,10 +12,10 @@ use stats::variance;
 
 use crate::grouping::Group;
 use crate::manifest::Manifest;
-use crate::osprofiler::OSProfilerDAG;
 use crate::poset::PosetNode;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
+use crate::trace::Trace;
 
 struct Edge {
     start: PosetNode,
@@ -67,11 +67,11 @@ impl Historic {
             entry_points: HashSet::new(),
             edge_map: HashMap::new(),
             tried_tracepoints: RefCell::new(HashSet::new()),
-            manifest: m
+            manifest: m,
         }
     }
 
-    fn add_trace(&mut self, trace: &OSProfilerDAG) {
+    fn add_trace(&mut self, trace: &Trace) {
         // Breadth-first search over all nodes, add outgoing edges to manifest
         let mut visited = HashSet::new();
         let mut to_visit = IndexSet::new();
@@ -162,7 +162,7 @@ impl Default for Historic {
             edge_map: HashMap::new(),
             entry_points: HashSet::new(),
             tried_tracepoints: RefCell::new(HashSet::new()),
-            manifest: Manifest::new()
+            manifest: Manifest::new(),
         }
     }
 }

@@ -6,14 +6,14 @@ use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use chrono::NaiveDateTime;
 use hex;
-use petgraph::{graph::NodeIndex, stable_graph::StableGraph};
+use petgraph::graph::NodeIndex;
 use serde::de;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::osprofiler::RequestType;
 use crate::trace::Event;
 use crate::trace::EventType;
+use crate::trace::Trace;
 use crate::trace::{DAGEdge, EdgeType};
 
 pub struct HDFSReader {}
@@ -23,17 +23,67 @@ impl HDFSReader {
         HDFSReader {}
     }
 
-    pub fn read_file(&self, file: &str) -> HDFSDAG {
+    pub fn read_file(&self, file: &str) -> Trace {
         let reader = std::fs::File::open(file).unwrap();
         let mut t: Vec<HDFSTrace> = serde_json::from_reader(reader).unwrap();
         assert!(t.len() == 1);
-        HDFSDAG::from_json(&mut t[0])
+        self.from_json(&mut t[0])
+    }
+
+    fn from_json(&self, data: &mut HDFSTrace) -> Trace {
+        let mut mydag = Trace::new(&data.id.to_uuid());
+        let mut event_id_map = HashMap::new();
+        let mut nidx = NodeIndex::end();
+        sort_event_list(&mut data.reports);
+        for (idx, event) in data.reports.iter().enumerate() {
+            let mynode = Event::from_hdfs_node(event);
+            nidx = mydag.g.add_node(mynode.clone());
+            event_id_map.insert(event.event_id.clone(), nidx);
+            if idx == 0 {
+                mydag.start_node = nidx;
+            } else {
+                for parent in event.parent_event_id.iter() {
+                    match event_id_map.get(parent) {
+                        Some(&parent_nidx) => {
+                            mydag.g.add_edge(
+                                parent_nidx,
+                                nidx,
+                                DAGEdge {
+                                    duration: (mynode.timestamp - mydag.g[parent_nidx].timestamp)
+                                        .to_std()
+                                        .unwrap(),
+                                    variant: EdgeType::ChildOf,
+                                },
+                            );
+                        }
+                        None => {
+                            panic!("Couldn't find parent node {}", parent);
+                        }
+                    }
+                }
+            }
+        }
+        mydag.end_node = nidx;
+        mydag
     }
 }
 
 #[derive(Serialize, Debug, Clone, Eq, PartialEq, Copy)]
 pub struct HDFSID {
     id: Option<[u8; 8]>,
+}
+
+impl HDFSID {
+    fn to_uuid(&self) -> Uuid {
+        let mut buf: [u8; 16] = [0; 16];
+        match self.id {
+            Some(bytes) => {
+                buf[..8].copy_from_slice(&bytes);
+            }
+            None => {}
+        }
+        Uuid::from_bytes(buf)
+    }
 }
 
 fn eventid_to_uuid(id: &String) -> Uuid {
@@ -79,68 +129,6 @@ impl<'de> de::Visitor<'de> for HDFSIDVisitor {
         let decoded = &decoded[..result.len()];
         result.copy_from_slice(decoded);
         Ok(HDFSID { id: Some(result) })
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct HDFSDAG {
-    pub g: StableGraph<Event, DAGEdge>,
-    pub base_id: HDFSID,
-    pub start_node: NodeIndex,
-    pub end_node: NodeIndex,
-    pub request_type: Option<RequestType>,
-}
-
-impl HDFSDAG {
-    pub fn new(base_id: HDFSID) -> Self {
-        HDFSDAG {
-            g: StableGraph::new(),
-            base_id: base_id.clone(),
-            start_node: NodeIndex::end(),
-            end_node: NodeIndex::end(),
-            request_type: None,
-        }
-    }
-
-    fn from_json(data: &mut HDFSTrace) -> HDFSDAG {
-        let mut mydag = HDFSDAG::new(data.id);
-        mydag.add_events(&mut data.reports);
-        mydag
-    }
-
-    fn add_events(&mut self, data: &mut Vec<HDFSEvent>) {
-        let mut event_id_map = HashMap::new();
-        let mut nidx = NodeIndex::end();
-        sort_event_list(data);
-        for (idx, event) in data.iter().enumerate() {
-            let mynode = Event::from_hdfs_node(event);
-            nidx = self.g.add_node(mynode.clone());
-            event_id_map.insert(event.event_id.clone(), nidx);
-            if idx == 0 {
-                self.start_node = nidx;
-            } else {
-                for parent in event.parent_event_id.iter() {
-                    match event_id_map.get(parent) {
-                        Some(&parent_nidx) => {
-                            self.g.add_edge(
-                                parent_nidx,
-                                nidx,
-                                DAGEdge {
-                                    duration: (mynode.timestamp - self.g[parent_nidx].timestamp)
-                                        .to_std()
-                                        .unwrap(),
-                                    variant: EdgeType::ChildOf,
-                                },
-                            );
-                        }
-                        None => {
-                            panic!("Couldn't find parent node {}", parent);
-                        }
-                    }
-                }
-            }
-        }
-        self.end_node = nidx;
     }
 }
 

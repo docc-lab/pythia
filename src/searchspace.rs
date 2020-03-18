@@ -18,10 +18,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::critical::CriticalPath;
 use crate::critical::HashablePath;
-use crate::osprofiler::OSProfilerDAG;
 use crate::trace::DAGEdge;
 use crate::trace::Event;
 use crate::trace::EventType;
+use crate::trace::Trace;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 struct HierarchicalEdge {
@@ -63,7 +63,7 @@ struct HierarchicalCriticalPath {
 }
 
 impl HierarchicalCriticalPath {
-    pub fn all_possible_paths(trace: &OSProfilerDAG) -> Vec<Self> {
+    pub fn all_possible_paths(trace: &Trace) -> Vec<Self> {
         CriticalPath::all_possible_paths(trace)
             .iter()
             .map(|x| HierarchicalCriticalPath::from_path(x))
@@ -161,7 +161,7 @@ pub struct SearchSpace {
 }
 
 impl SearchSpace {
-    pub fn add_trace(&mut self, trace: &OSProfilerDAG) {
+    pub fn add_trace(&mut self, trace: &Trace) {
         for path in &HierarchicalCriticalPath::all_possible_paths(trace) {
             self.entry_points
                 .insert(path.g[path.start_node].tracepoint_id.clone());

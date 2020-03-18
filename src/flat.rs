@@ -12,9 +12,9 @@ use crate::critical::CriticalPath;
 use crate::critical::HashablePath;
 use crate::grouping::Group;
 use crate::manifest::Manifest;
-use crate::osprofiler::OSProfilerDAG;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
+use crate::trace::Trace;
 
 pub struct FlatSpace {
     paths: HashMap<String, CriticalPath>, // key is the hash of the critical path
@@ -26,7 +26,7 @@ pub struct FlatSpace {
 }
 
 impl FlatSpace {
-    fn add_trace(&mut self, trace: &OSProfilerDAG) {
+    fn add_trace(&mut self, trace: &Trace) {
         for path in &CriticalPath::all_possible_paths(trace) {
             self.add_path(path);
         }

@@ -34,10 +34,10 @@ use crate::hdfs::HDFSReader;
 use crate::historic::Historic;
 use crate::manifest::Manifest;
 use crate::osprofiler::OSProfilerReader;
-use crate::osprofiler::RequestType;
 use crate::poset::Poset;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
+use crate::trace::RequestType;
 
 /// Make a single instrumentation decision.
 pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
@@ -252,7 +252,7 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
 
 pub fn read_hdfs_trace(trace_file: &str) {
     let settings = get_settings();
-    let mut reader = HDFSReader::from_settings(&settings);
+    let reader = HDFSReader::from_settings(&settings);
     let trace = reader.read_file(trace_file);
     println!("{}", Dot::new(&trace.g));
 }

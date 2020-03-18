@@ -12,10 +12,10 @@ use rand::seq::SliceRandom;
 use crate::critical::CriticalPath;
 use crate::grouping::Group;
 use crate::manifest::Manifest;
-use crate::osprofiler::OSProfilerDAG;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
 use crate::trace::EventType;
+use crate::trace::Trace;
 
 #[derive(Debug)]
 pub struct CCT {
@@ -26,7 +26,7 @@ pub struct CCT {
 }
 
 impl CCT {
-    fn add_trace(&mut self, trace: &OSProfilerDAG) {
+    fn add_trace(&mut self, trace: &Trace) {
         for path in CriticalPath::all_possible_paths(trace) {
             self.add_path_to_manifest(&path);
         }
@@ -74,11 +74,7 @@ impl SearchStrategy for CCT {
             let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
             enabled_tracepoints.insert(i.to_string());
         }
-        (
-            result
-            ,
-            result_state,
-        )
+        (result, result_state)
     }
 }
 
@@ -92,7 +88,7 @@ impl CCT {
         }
     }
 
-    pub fn from_trace_list(list: Vec<OSProfilerDAG>) -> CCT {
+    pub fn from_trace_list(list: Vec<Trace>) -> CCT {
         let mut cct = CCT::new(Manifest::new());
         println!("Creating manifest from {} traces", list.len());
         let mut counter = 0;

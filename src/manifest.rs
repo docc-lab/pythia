@@ -7,10 +7,10 @@ use std::path::Path;
 use petgraph::visit::IntoNodeReferences;
 use serde::{Deserialize, Serialize};
 
-use crate::osprofiler::OSProfilerDAG;
-use crate::osprofiler::RequestType;
 use crate::osprofiler::REQUEST_TYPE_REGEXES;
 use crate::searchspace::SearchSpace;
+use crate::trace::RequestType;
+use crate::trace::Trace;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Manifest {
@@ -26,17 +26,17 @@ impl Manifest {
         }
     }
 
-    pub fn from_trace_list(traces: &Vec<OSProfilerDAG>) -> Manifest {
+    pub fn from_trace_list(traces: &Vec<Trace>) -> Manifest {
         let mut map = HashMap::<RequestType, SearchSpace>::new();
         for trace in traces {
-            match map.get_mut(&trace.request_type.unwrap()) {
+            match map.get_mut(&trace.request_type) {
                 Some(space) => {
                     space.add_trace(&trace);
                 }
                 None => {
                     let mut space = SearchSpace::default();
                     space.add_trace(&trace);
-                    map.insert(trace.request_type.unwrap(), space);
+                    map.insert(trace.request_type, space);
                 }
             }
         }
@@ -48,7 +48,7 @@ impl Manifest {
         result
     }
 
-    fn add_request_type_tracepoints(&mut self, traces: &Vec<OSProfilerDAG>) {
+    fn add_request_type_tracepoints(&mut self, traces: &Vec<Trace>) {
         for trace in traces {
             self.request_type_tracepoints.extend(
                 trace

@@ -3,7 +3,7 @@ use std::fs::{read_dir, File};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
-use crate::osprofiler::RequestType;
+use crate::trace::RequestType;
 use crate::rpclib::set_all_client_tracepoints;
 use crate::rpclib::set_client_tracepoints;
 
