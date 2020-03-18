@@ -11,6 +11,7 @@ use serde::de;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::osprofiler::RequestType;
 use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::{DAGEdge, EdgeType};
@@ -18,7 +19,7 @@ use crate::trace::{DAGEdge, EdgeType};
 pub struct HDFSReader {}
 
 impl HDFSReader {
-    pub fn from_settings(settings: &HashMap<String, String>) -> Self {
+    pub fn from_settings(_settings: &HashMap<String, String>) -> Self {
         HDFSReader {}
     }
 
@@ -87,6 +88,7 @@ pub struct HDFSDAG {
     pub base_id: HDFSID,
     pub start_node: NodeIndex,
     pub end_node: NodeIndex,
+    pub request_type: Option<RequestType>,
 }
 
 impl HDFSDAG {
@@ -96,6 +98,7 @@ impl HDFSDAG {
             base_id: base_id.clone(),
             start_node: NodeIndex::end(),
             end_node: NodeIndex::end(),
+            request_type: None,
         }
     }
 
