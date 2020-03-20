@@ -21,6 +21,7 @@ use crate::trace::{DAGEdge, EdgeType};
 
 pub struct OSProfilerReader {
     connection: Connection,
+    client_list: Vec<String>,
 }
 
 impl OSProfilerReader {
@@ -28,7 +29,15 @@ impl OSProfilerReader {
         let redis_url = settings.get("redis_url").unwrap().to_string();
         let client = redis::Client::open(&redis_url[..]).unwrap();
         let con = client.get_connection().unwrap();
-        OSProfilerReader { connection: con }
+        OSProfilerReader {
+            connection: con,
+            client_list: settings
+                .get("pythia_clients")
+                .unwrap()
+                .split(",")
+                .map(|x| x.to_string())
+                .collect(),
+        }
     }
 
     pub fn read_trace_file(&mut self, file: &str) -> Vec<Trace> {
@@ -172,8 +181,8 @@ impl OSProfilerReader {
 
     /// Get matching events from all redis instances
     fn get_all_matches(&mut self, span_id: &Uuid) -> Vec<OSProfilerSpan> {
-        let mut event_list = self.get_matches_(&span_id).unwrap();
-        for node in vec!["http://cp-1:3030"] {
+        let mut event_list = Vec::new();
+        for node in self.client_list.iter() {
             event_list.extend(get_events_from_client(node, span_id.clone()));
         }
         event_list

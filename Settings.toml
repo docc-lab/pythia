@@ -5,4 +5,6 @@ manifest_root = "/opt/stack/manifest"
 
 redis_url = "redis://localhost:6379"
 
+pythia_clients = "http://localhost:3030,http://cp-1:3030"
+
 manifest_method = "Flat" # can be CCT, Poset, Historic, Flat

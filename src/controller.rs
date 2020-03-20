@@ -3,18 +3,25 @@ use std::fs::{read_dir, File};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
-use crate::trace::RequestType;
 use crate::rpclib::set_all_client_tracepoints;
 use crate::rpclib::set_client_tracepoints;
+use crate::trace::RequestType;
 
 pub struct OSProfilerController {
     manifest_root: PathBuf,
+    client_list: Vec<String>,
 }
 
 impl OSProfilerController {
     pub fn from_settings(settings: &HashMap<String, String>) -> OSProfilerController {
         OSProfilerController {
             manifest_root: PathBuf::from(settings.get("manifest_root").unwrap()),
+            client_list: settings
+                .get("pythia_clients")
+                .unwrap()
+                .split(",")
+                .map(|x| x.to_string())
+                .collect(),
         }
     }
 
@@ -48,7 +55,7 @@ impl OSProfilerController {
         points: &Vec<(&String, Option<RequestType>)>,
         to_write: &[u8; 1],
     ) {
-        for client in vec!["http://cp-1:3030"] {
+        for client in self.client_list.iter() {
             set_client_tracepoints(
                 client,
                 points
@@ -57,14 +64,10 @@ impl OSProfilerController {
                     .collect(),
             );
         }
-        for (tracepoint, request_type) in points {
-            self.write_to_tracepoint(tracepoint, request_type, to_write);
-        }
     }
 
     fn set_all_tracepoints(&self, to_write: &[u8; 1]) {
-        self.write_dir(self.manifest_root.as_path(), to_write);
-        for client in vec!["http://cp-1:3030"] {
+        for client in self.client_list.iter() {
             set_all_client_tracepoints(client, *to_write);
         }
     }
