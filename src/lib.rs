@@ -11,6 +11,7 @@ pub mod historic;
 pub mod manifest;
 pub mod osprofiler;
 pub mod poset;
+pub mod reader;
 pub mod rpclib;
 pub mod search;
 pub mod searchspace;
@@ -30,11 +31,11 @@ use crate::controller::OSProfilerController;
 use crate::critical::CriticalPath;
 use crate::flat::FlatSpace;
 use crate::grouping::Group;
-use crate::hdfs::HDFSReader;
 use crate::historic::Historic;
+use crate::reader::Reader;
 use crate::manifest::Manifest;
-use crate::osprofiler::OSProfilerReader;
 use crate::poset::Poset;
+use crate::reader::reader_from_settings;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
 use crate::trace::RequestType;
@@ -56,7 +57,7 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
         "Historic" => Box::new(Historic::new(manifest)),
         _ => panic!("Unsupported manifest method"),
     };
-    let mut reader = OSProfilerReader::from_settings(&settings);
+    let mut reader = reader_from_settings(&settings);
     let now = Instant::now();
     let traces = reader.read_trace_file(epoch_file);
     eprintln!("Reading traces took {}", now.elapsed().as_micros());
@@ -217,7 +218,7 @@ pub fn show_manifest(request_type: &str) {
 
 pub fn dump_traces(tracefile: &str) {
     let settings = get_settings();
-    let mut reader = OSProfilerReader::from_settings(&settings);
+    let mut reader = reader_from_settings(&settings);
     for trace in reader.read_trace_file(tracefile) {
         let mut outfile = dirs::home_dir().unwrap();
         outfile.push(trace.base_id.to_hyphenated().to_string());
@@ -228,7 +229,7 @@ pub fn dump_traces(tracefile: &str) {
 
 pub fn get_manifest(manfile: &str, overwrite: bool) {
     let settings = get_settings();
-    let mut reader = OSProfilerReader::from_settings(&settings);
+    let mut reader = reader_from_settings(&settings);
     let traces = reader.read_trace_file(manfile);
     let manifest = Manifest::from_trace_list(&traces);
     println!("{}", manifest);
@@ -250,17 +251,16 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
     manifest.to_file(manifest_file.as_path());
 }
 
-pub fn read_hdfs_trace(trace_file: &str) {
+pub fn read_trace_file(trace_file: &str) {
     let settings = get_settings();
-    let reader = HDFSReader::from_settings(&settings);
-    reader.get_trace_from_base_id("a");
+    let mut reader = reader_from_settings(&settings);
     let trace = reader.read_file(trace_file);
     println!("{}", Dot::new(&trace.g));
 }
 
 pub fn get_trace(trace_id: &str, to_file: bool) {
     let settings = get_settings();
-    let mut reader = OSProfilerReader::from_settings(&settings);
+    let mut reader = reader_from_settings(&settings);
     let trace = reader.get_trace_from_base_id(trace_id).unwrap();
     println!("{}", Dot::new(&trace.g));
     if to_file {
@@ -274,7 +274,7 @@ pub fn get_trace(trace_id: &str, to_file: bool) {
 
 pub fn show_key_value_pairs(trace_id: &str) {
     // let settings = get_settings();
-    // let mut reader = OSProfilerReader::from_settings(&settings);
+    // let mut reader = OSProfilerreader_from_settings(&settings);
     // let pairs = reader.get_key_value_pairs(trace_id);
     // println!("{:?}", pairs);
     println!("{:?}", trace_id);
@@ -282,7 +282,7 @@ pub fn show_key_value_pairs(trace_id: &str) {
 
 pub fn get_crit(trace_id: &str) {
     let settings = get_settings();
-    let mut reader = OSProfilerReader::from_settings(&settings);
+    let mut reader = reader_from_settings(&settings);
     let trace = reader.get_trace_from_base_id(trace_id).unwrap();
     let crit = CriticalPath::from_trace(&trace);
     println!("{}", Dot::new(&crit.g.g));

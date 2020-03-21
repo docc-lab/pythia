@@ -12,6 +12,7 @@ use regex::RegexSet;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::reader::Reader;
 use crate::rpclib::get_events_from_client;
 use crate::trace::Event;
 use crate::trace::EventType;
@@ -24,34 +25,12 @@ pub struct OSProfilerReader {
     client_list: Vec<String>,
 }
 
-impl OSProfilerReader {
-    pub fn from_settings(settings: &HashMap<String, String>) -> OSProfilerReader {
-        let redis_url = settings.get("redis_url").unwrap().to_string();
-        let client = redis::Client::open(&redis_url[..]).unwrap();
-        let con = client.get_connection().unwrap();
-        OSProfilerReader {
-            connection: con,
-            client_list: settings
-                .get("pythia_clients")
-                .unwrap()
-                .split(",")
-                .map(|x| x.to_string())
-                .collect(),
-        }
-    }
-
-    pub fn read_trace_file(&mut self, file: &str) -> Vec<Trace> {
-        let trace_ids = std::fs::read_to_string(file).unwrap();
-        let mut traces = Vec::new();
-        for id in trace_ids.split('\n') {
-            if id.len() <= 1 {
-                continue;
-            }
-            println!("Working on {:?}", id);
-            let trace = self.get_trace_from_base_id(id).unwrap();
-            traces.push(trace);
-        }
-        traces
+impl Reader for OSProfilerReader {
+    fn read_file(&mut self, file: &str) -> Trace {
+        let reader = std::fs::File::open(file).unwrap();
+        let t: Vec<OSProfilerSpan> = serde_json::from_reader(reader).unwrap();
+        let dag = self.from_event_list(Uuid::nil(), t);
+        dag
     }
 
     /*
@@ -158,7 +137,7 @@ impl OSProfilerReader {
     }
     */
 
-    pub fn get_trace_from_base_id(&mut self, id: &str) -> Option<Trace> {
+    fn get_trace_from_base_id(&mut self, id: &str) -> Option<Trace> {
         let result = match Uuid::parse_str(id) {
             Ok(uuid) => {
                 let event_list = self.get_all_matches(&uuid);
@@ -177,6 +156,23 @@ impl OSProfilerReader {
             eprintln!("Warning: couldn't get type for request {}", id);
         }
         Some(result)
+    }
+}
+
+impl OSProfilerReader {
+    pub fn from_settings(settings: &HashMap<String, String>) -> OSProfilerReader {
+        let redis_url = settings.get("redis_url").unwrap().to_string();
+        let client = redis::Client::open(&redis_url[..]).unwrap();
+        let con = client.get_connection().unwrap();
+        OSProfilerReader {
+            connection: con,
+            client_list: settings
+                .get("pythia_clients")
+                .unwrap()
+                .split(",")
+                .map(|x| x.to_string())
+                .collect(),
+        }
     }
 
     /// Get matching events from all redis instances

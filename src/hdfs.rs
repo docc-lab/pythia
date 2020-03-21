@@ -16,6 +16,7 @@ use serde::de;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::reader::Reader;
 use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::Trace;
@@ -23,12 +24,8 @@ use crate::trace::{DAGEdge, EdgeType};
 
 pub struct HDFSReader {}
 
-impl HDFSReader {
-    pub fn from_settings(_settings: &HashMap<String, String>) -> Self {
-        HDFSReader {}
-    }
-
-    pub fn get_trace_from_base_id(&self, id: &str) -> Option<Trace> {
+impl Reader for HDFSReader {
+    fn get_trace_from_base_id(&mut self, id: &str) -> Option<Trace> {
         assert!(id.len() != 0);
         let (tx, mut rx) = futures::sync::mpsc::unbounded();
         let client = Client::new();
@@ -65,11 +62,17 @@ impl HDFSReader {
         None
     }
 
-    pub fn read_file(&self, file: &str) -> Trace {
+    fn read_file(&mut self, file: &str) -> Trace {
         let reader = std::fs::File::open(file).unwrap();
         let mut t: Vec<HDFSTrace> = serde_json::from_reader(reader).unwrap();
         assert!(t.len() == 1);
         self.from_json(&mut t[0])
+    }
+}
+
+impl HDFSReader {
+    pub fn from_settings(_settings: &HashMap<String, String>) -> Self {
+        HDFSReader {}
     }
 
     fn from_json(&self, data: &mut HDFSTrace) -> Trace {
