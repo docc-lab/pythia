@@ -183,7 +183,7 @@ pub fn set_client_tracepoints(
         .and_then(move |client: PythiaClient| {
             client.set_tracepoints(settings).and_then(move |x| {
                 drop(client);
-                let _ = tx.unbounded_send(x);
+                tx.unbounded_send(x).unwrap();
                 Ok(())
             })
         })

@@ -40,7 +40,7 @@ impl Reader for HDFSReader {
             .and_then(move |body| {
                 let s = ::std::str::from_utf8(&body).expect("httpbin sends utf-8 JSON");
 
-                tx.unbounded_send(s.to_string());
+                tx.unbounded_send(s.to_string()).unwrap();
                 Ok(())
             })
             .map_err(|e| eprintln!("RPC Client error: {:?}", e));

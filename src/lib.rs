@@ -32,7 +32,6 @@ use crate::critical::CriticalPath;
 use crate::flat::FlatSpace;
 use crate::grouping::Group;
 use crate::historic::Historic;
-use crate::reader::Reader;
 use crate::manifest::Manifest;
 use crate::poset::Poset;
 use crate::reader::reader_from_settings;
