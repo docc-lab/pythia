@@ -15,14 +15,12 @@ pub mod reader;
 pub mod rpclib;
 pub mod search;
 pub mod searchspace;
+pub mod settings;
 pub mod trace;
 
-use std::collections::HashMap;
 use std::io::stdin;
-use std::path::PathBuf;
 use std::time::Instant;
 
-use config::{Config, File, FileFormat};
 use petgraph::dot::Dot;
 use rand::seq::SliceRandom;
 
@@ -37,24 +35,24 @@ use crate::poset::Poset;
 use crate::reader::reader_from_settings;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
+use crate::settings::ManifestMethod;
+use crate::settings::Settings;
 use crate::trace::RequestType;
 
 /// Make a single instrumentation decision.
 pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
-    let settings = get_settings();
+    let settings = Settings::read();
     let mut budget = budget;
     let mut rng = &mut rand::thread_rng();
     let controller = OSProfilerController::from_settings(&settings);
-    let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
+    let manifest_file = &settings.manifest_file;
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
-    let manifest_method: &str = settings.get("manifest_method").unwrap();
-    let strategy: Box<dyn SearchStrategy> = match manifest_method {
-        "CCT" => Box::new(CCT::new(manifest)),
-        "Poset" => Box::new(Poset::new(manifest)),
-        "Flat" => Box::new(FlatSpace::new(manifest)),
-        "Historic" => Box::new(Historic::new(manifest)),
-        _ => panic!("Unsupported manifest method"),
+    let strategy: Box<dyn SearchStrategy> = match &settings.manifest_method {
+        ManifestMethod::CCT => Box::new(CCT::new(manifest)),
+        ManifestMethod::Poset => Box::new(Poset::new(manifest)),
+        ManifestMethod::Flat => Box::new(FlatSpace::new(manifest)),
+        ManifestMethod::Historic => Box::new(Historic::new(manifest)),
     };
     let mut reader = reader_from_settings(&settings);
     let now = Instant::now();
@@ -149,26 +147,26 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
 }
 
 pub fn disable_all() {
-    let settings = get_settings();
+    let settings = Settings::read();
     let controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
 }
 
 pub fn enable_all() {
-    let settings = get_settings();
+    let settings = Settings::read();
     let controller = OSProfilerController::from_settings(&settings);
     controller.enable_all();
 }
 
 pub fn disable_tracepoint(t: &str) {
-    let settings = get_settings();
+    let settings = Settings::read();
     let controller = OSProfilerController::from_settings(&settings);
     controller.disable(&vec![(&t.to_string(), None)]);
 }
 
 pub fn enable_skeleton() {
-    let settings = get_settings();
-    let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
+    let settings = Settings::read();
+    let manifest_file = &settings.manifest_file;
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let controller = OSProfilerController::from_settings(&settings);
@@ -179,8 +177,8 @@ pub fn enable_skeleton() {
 }
 
 pub fn show_manifest(request_type: &str) {
-    let settings = get_settings();
-    let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
+    let settings = Settings::read();
+    let manifest_file = settings.manifest_file;
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     match request_type {
@@ -216,7 +214,7 @@ pub fn show_manifest(request_type: &str) {
 }
 
 pub fn dump_traces(tracefile: &str) {
-    let settings = get_settings();
+    let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
     for trace in reader.read_trace_file(tracefile) {
         let mut outfile = dirs::home_dir().unwrap();
@@ -227,12 +225,12 @@ pub fn dump_traces(tracefile: &str) {
 }
 
 pub fn get_manifest(manfile: &str, overwrite: bool) {
-    let settings = get_settings();
+    let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
     let traces = reader.read_trace_file(manfile);
     let manifest = Manifest::from_trace_list(&traces);
     println!("{}", manifest);
-    let manifest_file = PathBuf::from(settings.get("manifest_file").unwrap());
+    let manifest_file = settings.manifest_file;
     if manifest_file.exists() {
         if !overwrite {
             println!(
@@ -251,14 +249,14 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
 }
 
 pub fn read_trace_file(trace_file: &str) {
-    let settings = get_settings();
+    let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
     let trace = reader.read_file(trace_file);
     println!("{}", Dot::new(&trace.g));
 }
 
 pub fn get_trace(trace_id: &str, to_file: bool) {
-    let settings = get_settings();
+    let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
     let trace = reader.get_trace_from_base_id(trace_id).unwrap();
     println!("{}", Dot::new(&trace.g));
@@ -272,7 +270,7 @@ pub fn get_trace(trace_id: &str, to_file: bool) {
 }
 
 pub fn show_key_value_pairs(trace_id: &str) {
-    // let settings = get_settings();
+    // let settings = Settings::read();
     // let mut reader = OSProfilerreader_from_settings(&settings);
     // let pairs = reader.get_key_value_pairs(trace_id);
     // println!("{:?}", pairs);
@@ -280,7 +278,7 @@ pub fn show_key_value_pairs(trace_id: &str) {
 }
 
 pub fn get_crit(trace_id: &str) {
-    let settings = get_settings();
+    let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
     let trace = reader.get_trace_from_base_id(trace_id).unwrap();
     let crit = CriticalPath::from_trace(&trace);
@@ -288,36 +286,6 @@ pub fn get_crit(trace_id: &str) {
 }
 
 pub fn show_config() {
-    let settings = get_settings();
+    let settings = Settings::read();
     println!("{:?}", settings);
-}
-
-pub fn get_settings() -> HashMap<String, String> {
-    let mut settings = Config::default();
-    settings
-        .merge(File::new(
-            "/opt/stack/reconstruction/Settings.toml",
-            FileFormat::Toml,
-        ))
-        .unwrap();
-    let mut results = settings.try_into::<HashMap<String, String>>().unwrap();
-    let mut manifest_file = PathBuf::from(results.get("pythia_cache").unwrap());
-    match results.get("manifest_method").unwrap().as_str() {
-        "CCT" => manifest_file.push("cct_manifest"),
-        "Poset" => manifest_file.push("poset_manifest"),
-        "Historic" => manifest_file.push("historic_manifest"),
-        "Flat" => manifest_file.push("flat_manifest"),
-        _ => panic!("Unsupported manifest method"),
-    }
-    results.insert(
-        "manifest_file".to_string(),
-        manifest_file.to_string_lossy().to_string(),
-    );
-    let mut trace_cache = PathBuf::from(results.get("pythia_cache").unwrap());
-    trace_cache.push("traces");
-    results.insert(
-        "trace_cache".to_string(),
-        trace_cache.to_string_lossy().to_string(),
-    );
-    results
 }

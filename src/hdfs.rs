@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::reader::Reader;
+use crate::settings::Settings;
 use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::Trace;
@@ -71,7 +72,7 @@ impl Reader for HDFSReader {
 }
 
 impl HDFSReader {
-    pub fn from_settings(_settings: &HashMap<String, String>) -> Self {
+    pub fn from_settings(_settings: &Settings) -> Self {
         HDFSReader {}
     }
 

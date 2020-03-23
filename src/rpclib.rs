@@ -13,8 +13,8 @@ use serde_json;
 use uuid::Uuid;
 
 use crate::controller::OSProfilerController;
-use crate::get_settings;
 use crate::osprofiler::{OSProfilerReader, OSProfilerSpan};
+use crate::settings::Settings;
 use crate::trace::RequestType;
 
 #[rpc]
@@ -52,7 +52,7 @@ impl PythiaAPI for PythiaAPIImpl {
 }
 
 pub fn start_rpc_server() {
-    let settings = get_settings();
+    let settings = Settings::read();
     let reader = Arc::new(Mutex::new(OSProfilerReader::from_settings(&settings)));
     let controller = Arc::new(Mutex::new(OSProfilerController::from_settings(&settings)));
     let mut io = IoHandler::new();
@@ -64,7 +64,7 @@ pub fn start_rpc_server() {
         .to_delegate(),
     );
 
-    let address: &String = settings.get("server_address").unwrap();
+    let address = settings.server_address;
     println!("Starting the server at {}", address);
 
     let _server = ServerBuilder::new(io)

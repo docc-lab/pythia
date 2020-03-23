@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 use crate::reader::Reader;
 use crate::rpclib::get_events_from_client;
+use crate::settings::Settings;
 use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::RequestType;
@@ -160,18 +161,13 @@ impl Reader for OSProfilerReader {
 }
 
 impl OSProfilerReader {
-    pub fn from_settings(settings: &HashMap<String, String>) -> OSProfilerReader {
-        let redis_url = settings.get("redis_url").unwrap().to_string();
+    pub fn from_settings(settings: &Settings) -> OSProfilerReader {
+        let redis_url = &settings.redis_url;
         let client = redis::Client::open(&redis_url[..]).unwrap();
         let con = client.get_connection().unwrap();
         OSProfilerReader {
             connection: con,
-            client_list: settings
-                .get("pythia_clients")
-                .unwrap()
-                .split(",")
-                .map(|x| x.to_string())
-                .collect(),
+            client_list: settings.pythia_clients.clone(),
         }
     }
 

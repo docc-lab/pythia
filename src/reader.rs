@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-
 use crate::hdfs::HDFSReader;
 use crate::osprofiler::OSProfilerReader;
+use crate::settings::ApplicationType;
+use crate::settings::Settings;
 use crate::trace::Trace;
 
 pub trait Reader {
@@ -23,16 +23,9 @@ pub trait Reader {
     }
 }
 
-pub fn reader_from_settings(settings: &HashMap<String, String>) -> Box<dyn Reader> {
-    match settings.get("application") {
-        Some(s) => {
-            if s == "OpenStack" {
-                return Box::new(OSProfilerReader::from_settings(settings));
-            } else if s == "HDFS" {
-                return Box::new(HDFSReader::from_settings(settings));
-            }
-        }
-        None => {}
+pub fn reader_from_settings(settings: &Settings) -> Box<dyn Reader> {
+    match &settings.application {
+        ApplicationType::OpenStack => Box::new(OSProfilerReader::from_settings(settings)),
+        ApplicationType::HDFS => Box::new(HDFSReader::from_settings(settings)),
     }
-    panic!("Please choose application in Settings.toml")
 }

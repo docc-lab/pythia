@@ -1,10 +1,10 @@
-use std::collections::HashMap;
 use std::fs::{read_dir, File};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 use crate::rpclib::set_all_client_tracepoints;
 use crate::rpclib::set_client_tracepoints;
+use crate::settings::Settings;
 use crate::trace::RequestType;
 
 pub struct OSProfilerController {
@@ -13,15 +13,10 @@ pub struct OSProfilerController {
 }
 
 impl OSProfilerController {
-    pub fn from_settings(settings: &HashMap<String, String>) -> OSProfilerController {
+    pub fn from_settings(settings: &Settings) -> OSProfilerController {
         OSProfilerController {
-            manifest_root: PathBuf::from(settings.get("manifest_root").unwrap()),
-            client_list: settings
-                .get("pythia_clients")
-                .unwrap()
-                .split(",")
-                .map(|x| x.to_string())
-                .collect(),
+            manifest_root: settings.manifest_root.clone(),
+            client_list: settings.pythia_clients.clone(),
         }
     }
 
