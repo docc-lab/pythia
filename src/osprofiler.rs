@@ -27,6 +27,10 @@ pub struct OSProfilerReader {
 }
 
 impl Reader for OSProfilerReader {
+    fn get_recent_traces(&mut self) -> Vec<Trace> {
+        Vec::new()
+    }
+
     fn read_file(&mut self, file: &str) -> Trace {
         let reader = std::fs::File::open(file).unwrap();
         let t: Vec<OSProfilerSpan> = serde_json::from_reader(reader).unwrap();

@@ -19,6 +19,8 @@ pub mod settings;
 pub mod trace;
 
 use std::io::stdin;
+use std::thread::sleep;
+use std::time::Duration;
 use std::time::Instant;
 
 use petgraph::dot::Dot;
@@ -38,6 +40,21 @@ use crate::search::SearchStrategy;
 use crate::settings::ManifestMethod;
 use crate::settings::Settings;
 use crate::trace::RequestType;
+
+pub fn run_controller() {
+    let settings = Settings::read();
+    let mut reader = reader_from_settings(&settings);
+    let now = Instant::now();
+    loop {
+        let traces = reader.get_recent_traces();
+        println!(
+            "Got {} traces at time {}us",
+            traces.len(),
+            now.elapsed().as_micros()
+        );
+        sleep(Duration::from_secs(5));
+    }
+}
 
 /// Make a single instrumentation decision.
 pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {

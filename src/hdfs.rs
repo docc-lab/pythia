@@ -26,6 +26,10 @@ use crate::trace::{DAGEdge, EdgeType};
 pub struct HDFSReader {}
 
 impl Reader for HDFSReader {
+    fn get_recent_traces(&mut self) -> Vec<Trace> {
+        Vec::new()
+    }
+
     fn get_trace_from_base_id(&mut self, id: &str) -> Option<Trace> {
         assert!(id.len() != 0);
         let (tx, mut rx) = futures::sync::mpsc::unbounded();
