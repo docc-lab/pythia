@@ -261,11 +261,8 @@ impl OSProfilerReader {
                 }
             }
             // Don't add asynch_wait into the DAGs
-            nidx = match &event.variant {
-                OSProfilerEnum::Annotation(AnnotationSpan {
-                    info: AnnotationEnum::WaitFor(w),
-                    tracepoint_id: _,
-                }) => {
+            nidx = match &event.info {
+                OSProfilerEnum::Annotation(AnnotationEnum::WaitFor(w)) => {
                     wait_for.push(w.wait_for);
                     None
                 }
@@ -282,8 +279,8 @@ impl OSProfilerReader {
                     }
                 }
             };
-            if let OSProfilerEnum::Annotation(s) = &event.variant {
-                match &s.info {
+            if let OSProfilerEnum::Annotation(s) = &event.info {
+                match &s {
                     AnnotationEnum::WaitFor(_) => {
                         wait_spans.insert(event.trace_id);
                     }
@@ -300,7 +297,7 @@ impl OSProfilerReader {
                 wait_for = vec![];
                 add_next_to_waiters = false;
             }
-            match &event.variant {
+            match &event.info {
                 OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {
                     active_spans.insert(event.trace_id, nidx.unwrap());
                     children_per_parent.insert(event.trace_id, None);
@@ -525,7 +522,7 @@ fn sort_event_list(event_list: &mut Vec<OSProfilerSpan>) {
     // Sorts events by timestamp
     event_list.sort_by(|a, b| {
         if a.timestamp == b.timestamp {
-            match a.variant {
+            match a.info {
                 OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {
                     Ordering::Less
                 }
@@ -545,7 +542,7 @@ fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
         }
     };
     if result.name == "asynch_request" || result.name == "asynch_wait" {
-        return match result.variant {
+        return match result.info {
             OSProfilerEnum::Annotation(_) => Ok(result),
             _ => {
                 println!("{:?}", result);
@@ -562,7 +559,7 @@ impl Event {
             trace_id: event.trace_id,
             tracepoint_id: event.tracepoint_id.clone(),
             timestamp: event.timestamp,
-            variant: match event.variant {
+            variant: match event.info {
                 OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {
                     EventType::Entry
                 }
@@ -577,16 +574,12 @@ impl Event {
 impl OSProfilerSpan {
     pub fn get_tracepoint_id(&self, map: &mut HashMap<Uuid, String>) -> String {
         // The map needs to be initialized and passed to it from outside :(
-        match &self.variant {
-            OSProfilerEnum::FunctionEntry(s) => {
-                map.insert(self.trace_id, s.tracepoint_id.clone());
-                s.tracepoint_id.clone()
+        match &self.info {
+            OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {
+                map.insert(self.trace_id, self.tracepoint_id.clone());
+                self.tracepoint_id.clone()
             }
-            OSProfilerEnum::RequestEntry(s) => {
-                map.insert(self.trace_id, s.tracepoint_id.clone());
-                s.tracepoint_id.clone()
-            }
-            OSProfilerEnum::Annotation(s) => s.tracepoint_id.clone(),
+            OSProfilerEnum::Annotation(_) => self.tracepoint_id.clone(),
             OSProfilerEnum::Exit(_) => match map.remove(&self.trace_id) {
                 Some(s) => s,
                 None => {
@@ -609,33 +602,24 @@ pub struct OSProfilerSpan {
     pub name: String,
     pub base_id: Uuid,
     service: String,
-    #[serde(skip_deserializing)]
     pub tracepoint_id: String,
     #[serde(with = "serde_timestamp")]
     pub timestamp: NaiveDateTime,
-    #[serde(flatten)]
-    pub variant: OSProfilerEnum,
+    info: OSProfilerEnum,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(untagged)]
-pub enum OSProfilerEnum {
-    Annotation(AnnotationSpan),
-    FunctionEntry(FunctionEntrySpan),
-    RequestEntry(RequestEntrySpan),
-    Exit(ExitSpan),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct AnnotationSpan {
-    pub info: AnnotationEnum,
-    pub tracepoint_id: String,
+enum OSProfilerEnum {
+    Annotation(AnnotationEnum),
+    FunctionEntry(FunctionEntryInfo),
+    RequestEntry(RequestEntryInfo),
+    Exit(ExitInfo),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(untagged)]
-pub enum AnnotationEnum {
+enum AnnotationEnum {
     WaitFor(WaitAnnotationInfo),
     Child(ChildAnnotationInfo),
     Plain(PlainAnnotationInfo),
@@ -643,39 +627,32 @@ pub enum AnnotationEnum {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct WaitAnnotationInfo {
+struct WaitAnnotationInfo {
     function: FunctionEntryFunction,
     thread_id: u64,
     host: String,
     tracepoint_id: String,
     pid: u64,
-    pub wait_for: Uuid,
+    wait_for: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct PlainAnnotationInfo {
+struct PlainAnnotationInfo {
     thread_id: u64,
     host: String,
-    pub tracepoint_id: String,
+    tracepoint_id: String,
     pid: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct ChildAnnotationInfo {
+struct ChildAnnotationInfo {
     thread_id: u64,
     host: String,
-    pub tracepoint_id: String,
-    pub child_id: Uuid,
+    tracepoint_id: String,
+    child_id: Uuid,
     pid: u64,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct RequestEntrySpan {
-    info: RequestEntryInfo,
-    pub tracepoint_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -684,7 +661,7 @@ struct RequestEntryInfo {
     request: RequestEntryRequest,
     thread_id: u64,
     host: String,
-    pub tracepoint_id: String,
+    tracepoint_id: String,
     pid: u64,
 }
 
@@ -699,21 +676,8 @@ struct RequestEntryRequest {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct ExitSpan {
-    info: ExitInfo,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
 struct ExitInfo {
     host: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct FunctionEntrySpan {
-    info: FunctionEntryInfo,
-    pub tracepoint_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
