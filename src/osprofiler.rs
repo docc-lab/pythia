@@ -28,7 +28,35 @@ pub struct OSProfilerReader {
 
 impl Reader for OSProfilerReader {
     fn get_recent_traces(&mut self) -> Vec<Trace> {
-        Vec::new()
+        let mut traces = Vec::new();
+        let mut first_trace = None;
+        loop {
+            let id: String = match self.connection.lpop("osprofiler_traces") {
+                Ok(s) => s,
+                Err(_) => {
+                    break;
+                }
+            };
+            match &first_trace {
+                Some(i) => {
+                    if *i == id {
+                        break;
+                    }
+                }
+                None => {
+                    first_trace = Some(id.clone());
+                }
+            }
+            match self.get_trace_from_base_id(&id) {
+                Some(t) => {
+                    traces.push(t);
+                }
+                None => {
+                    let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
+                }
+            }
+        }
+        traces
     }
 
     fn read_file(&mut self, file: &str) -> Trace {
