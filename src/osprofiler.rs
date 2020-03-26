@@ -672,7 +672,7 @@ enum OSProfilerEnum {
     Annotation(AnnotationEnum),
     FunctionEntry(FunctionEntryInfo),
     RequestEntry(RequestEntryInfo),
-    Exit(ExitInfo),
+    Exit(ExitEnum),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -681,15 +681,6 @@ enum AnnotationEnum {
     WaitFor(WaitAnnotationInfo),
     Child(ChildAnnotationInfo),
     Plain(PlainAnnotationInfo),
-    Error(ErrorAnnotationInfo),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-struct ErrorAnnotationInfo {
-    etype: String,
-    message: String,
-    host: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -742,8 +733,23 @@ struct RequestEntryRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(untagged)]
+enum ExitEnum {
+    Normal(NormalExitInfo),
+    Error(ErrorExitInfo),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
-struct ExitInfo {
+struct NormalExitInfo {
+    host: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+struct ErrorExitInfo {
+    etype: String,
+    message: String,
     host: String,
 }
 
