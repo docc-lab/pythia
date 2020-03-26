@@ -60,6 +60,7 @@ pub fn run_controller() {
                 .collect::<Vec<Duration>>(),
             now.elapsed().as_micros()
         );
+        println!("Groups: {}", groups);
         sleep(Duration::from_secs(5));
     }
 }

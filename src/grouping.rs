@@ -237,3 +237,12 @@ impl Display for Group {
         )
     }
 }
+
+impl Display for GroupManager {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for (_, g) in &self.groups {
+            write!(f, "{}, ", g)?;
+        }
+        Ok(())
+    }
+}
