@@ -31,6 +31,7 @@ use crate::controller::OSProfilerController;
 use crate::critical::CriticalPath;
 use crate::flat::FlatSpace;
 use crate::grouping::Group;
+use crate::grouping::GroupManager;
 use crate::historic::Historic;
 use crate::manifest::Manifest;
 use crate::poset::Poset;
@@ -44,13 +45,12 @@ use crate::trace::RequestType;
 pub fn run_controller() {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
+    let mut groups = GroupManager::new();
     let now = Instant::now();
     loop {
         let traces = reader.get_recent_traces();
-        let critical_paths = traces
-            .iter()
-            .map(|t| CriticalPath::from_trace(t))
-            .collect::<Vec<CriticalPath>>();
+        let critical_paths = traces.iter().map(|t| CriticalPath::from_trace(t)).collect();
+        groups.update(&critical_paths);
         println!(
             "Got {} paths of duration {:?} at time {}us",
             traces.len(),

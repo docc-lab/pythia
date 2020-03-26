@@ -198,6 +198,34 @@ impl Group {
     }
 }
 
+#[derive(Debug)]
+pub struct GroupManager {
+    groups: HashMap<String, Group>,
+}
+
+impl GroupManager {
+    pub fn new() -> Self {
+        GroupManager {
+            groups: HashMap::new(),
+        }
+    }
+
+    pub fn update(&mut self, paths: &Vec<CriticalPath>) {
+        for path in paths {
+            match self.groups.get_mut(&path.hash()) {
+                Some(v) => v.add_trace(&path),
+                None => {
+                    self.groups
+                        .insert(path.hash().to_string(), Group::new(path.clone()));
+                }
+            }
+        }
+        for (_, group) in self.groups.iter_mut() {
+            group.calculate_variance();
+        }
+    }
+}
+
 impl Display for Group {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
