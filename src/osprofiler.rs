@@ -3,6 +3,7 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::time::Duration;
 
 use chrono::NaiveDateTime;
 use petgraph::graph::NodeIndex;
@@ -24,6 +25,7 @@ use crate::trace::{DAGEdge, EdgeType};
 pub struct OSProfilerReader {
     connection: Connection,
     client_list: Vec<String>,
+    prev_traces: HashMap<String, Duration>,
 }
 
 impl Reader for OSProfilerReader {
@@ -32,7 +34,7 @@ impl Reader for OSProfilerReader {
         let mut first_trace = None;
         loop {
             let id: String = match self.connection.lpop("osprofiler_traces") {
-                Ok(s) => s,
+                Ok(i) => i,
                 Err(_) => {
                     break;
                 }
@@ -40,6 +42,7 @@ impl Reader for OSProfilerReader {
             match &first_trace {
                 Some(i) => {
                     if *i == id {
+                        let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
                         break;
                     }
                 }
@@ -49,7 +52,25 @@ impl Reader for OSProfilerReader {
             }
             match self.get_trace_from_base_id(&id) {
                 Some(t) => {
-                    traces.push(t);
+                    // Keep traces for one cycle, use them only when the duration becomes stable
+                    // (i.e., request has finished)
+                    let stable = match self.prev_traces.get(&id) {
+                        Some(&d) => {
+                            if d == t.duration {
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                        None => false,
+                    };
+                    if stable {
+                        traces.push(t);
+                        self.prev_traces.remove(&id);
+                    } else {
+                        let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
+                        self.prev_traces.insert(id, t.duration);
+                    }
                 }
                 None => {
                     let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
@@ -171,7 +192,7 @@ impl Reader for OSProfilerReader {
     */
 
     fn get_trace_from_base_id(&mut self, id: &str) -> Option<Trace> {
-        let result = match Uuid::parse_str(id) {
+        let mut result = match Uuid::parse_str(id) {
             Ok(uuid) => {
                 let event_list = self.get_all_matches(&uuid);
                 if event_list.len() == 0 {
@@ -188,6 +209,10 @@ impl Reader for OSProfilerReader {
         if let RequestType::Unknown = result.request_type {
             eprintln!("Warning: couldn't get type for request {}", id);
         }
+        result.duration = (result.g[result.end_node].timestamp
+            - result.g[result.start_node].timestamp)
+            .to_std()
+            .unwrap();
         Some(result)
     }
 }
@@ -200,6 +225,7 @@ impl OSProfilerReader {
         OSProfilerReader {
             connection: con,
             client_list: settings.pythia_clients.clone(),
+            prev_traces: HashMap::new(),
         }
     }
 
@@ -655,6 +681,15 @@ enum AnnotationEnum {
     WaitFor(WaitAnnotationInfo),
     Child(ChildAnnotationInfo),
     Plain(PlainAnnotationInfo),
+    Error(ErrorAnnotationInfo),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+struct ErrorAnnotationInfo {
+    etype: String,
+    message: String,
+    host: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]

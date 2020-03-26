@@ -114,6 +114,7 @@ impl HDFSReader {
             }
         }
         mydag.end_node = nidx;
+        mydag.duration = (mydag.g[mydag.end_node].timestamp - mydag.g[mydag.start_node].timestamp).to_std().unwrap();
         mydag
     }
 }

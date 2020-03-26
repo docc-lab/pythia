@@ -47,9 +47,17 @@ pub fn run_controller() {
     let now = Instant::now();
     loop {
         let traces = reader.get_recent_traces();
+        let critical_paths = traces
+            .iter()
+            .map(|t| CriticalPath::from_trace(t))
+            .collect::<Vec<CriticalPath>>();
         println!(
-            "Got {} traces at time {}us",
+            "Got {} paths of duration {:?} at time {}us",
             traces.len(),
+            critical_paths
+                .iter()
+                .map(|p| p.duration)
+                .collect::<Vec<Duration>>(),
             now.elapsed().as_micros()
         );
         sleep(Duration::from_secs(5));
