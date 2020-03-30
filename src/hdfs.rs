@@ -187,7 +187,7 @@ impl<'de> de::Visitor<'de> for HDFSIDVisitor {
 
 fn sort_event_list(event_list: &mut Vec<HDFSEvent>) {
     // Sorts events by timestamp
-    event_list.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    event_list.sort_by(|a, b| a.hrt.cmp(&b.hrt));
 }
 
 impl Event {
