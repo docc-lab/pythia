@@ -142,7 +142,7 @@ impl Display for Event {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.variant {
             EventType::Entry => write!(f, "{} start: {}", self.trace_id, self.tracepoint_id),
-            EventType::Annotation => write!(f, "{} start: {}", self.trace_id, self.tracepoint_id),
+            EventType::Annotation => write!(f, "{}: {}", self.trace_id, self.tracepoint_id),
             EventType::Exit => write!(f, "{} end", self.trace_id),
         }
     }

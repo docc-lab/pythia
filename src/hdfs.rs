@@ -201,7 +201,10 @@ impl Event {
     fn from_hdfs_node(event: &HDFSEvent) -> Event {
         Event {
             trace_id: eventid_to_uuid(&event.event_id),
-            tracepoint_id: event.label.clone(),
+            tracepoint_id: match &event.variant {
+                HDFSEnum::WithSource(s) => s.source.clone(),
+                HDFSEnum::WithoutSource(_) => event.label.clone(),
+            },
             timestamp: convert_hdfs_timestamp(event.timestamp, event.hrt),
             variant: EventType::Annotation,
             is_synthetic: false,
@@ -244,10 +247,24 @@ pub struct HDFSEvent {
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(untagged)]
 pub enum HDFSEnum {
+    WithSource(EventWithSource),
+    WithoutSource(EventWithoutSource),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct EventWithSource {
+    source: String,
+    #[serde(flatten)]
+    variant: WithSourceEnum,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(untagged)]
+pub enum WithSourceEnum {
     Type1(Type1Event),
     Type2(Type2Event),
     Type3(Type3Event),
-    Type4(Type4Event),
     Type5(Type5Event),
     Type6(Type6Event),
     Type7(Type7Event),
@@ -256,7 +273,13 @@ pub enum HDFSEnum {
     Type10(Type10Event),
     Type11(Type11Event),
     Type12(Type12Event),
-    Type13(Type13Event),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(untagged)]
+pub enum EventWithoutSource {
+    Type4(Type4Event),
+    Type9(Type8Event),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -264,7 +287,6 @@ pub enum HDFSEnum {
 #[serde(deny_unknown_fields)]
 pub struct Type1Event {
     tag: Vec<String>,
-    source: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -273,7 +295,6 @@ pub struct Type1Event {
 pub struct Type2Event {
     operation: String,
     cycles: u64,
-    source: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -284,7 +305,6 @@ pub struct Type3Event {
     cycles: u64,
     file: String,
     duration: String,
-    source: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -300,7 +320,6 @@ pub struct Type4Event {
 #[serde(deny_unknown_fields)]
 pub struct Type5Event {
     cycles: u64,
-    source: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -311,7 +330,6 @@ pub struct Type6Event {
     connection: String,
     duration: String,
     operation: String,
-    source: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -319,7 +337,6 @@ pub struct Type6Event {
 #[serde(deny_unknown_fields)]
 pub struct Type7Event {
     cycles: u64,
-    source: String,
     duration: String,
     operation: String,
 }
@@ -333,7 +350,6 @@ pub struct Type8Event {
     duration: String,
     operation: String,
     bytes: String,
-    source: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -341,10 +357,9 @@ pub struct Type8Event {
 #[serde(deny_unknown_fields)]
 pub struct Type9Event {
     cycles: u64,
-    connection: String,
+    bytes: String,
     duration: String,
     operation: String,
-    bytes: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -353,7 +368,6 @@ pub struct Type9Event {
 pub struct Type10Event {
     cycles: u64,
     queue: String,
-    source: String,
     operation: String,
 }
 
@@ -363,7 +377,6 @@ pub struct Type10Event {
 pub struct Type11Event {
     cycles: u64,
     queue: String,
-    source: String,
     operation: String,
     queue_duration: String,
 }
@@ -373,19 +386,7 @@ pub struct Type11Event {
 #[serde(deny_unknown_fields)]
 pub struct Type12Event {
     cycles: u64,
-    source: String,
     file: String,
-    bytes: String,
-    duration: String,
-    operation: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(rename_all = "PascalCase")]
-#[serde(deny_unknown_fields)]
-pub struct Type13Event {
-    cycles: u64,
-    source: String,
     bytes: String,
     duration: String,
     operation: String,
