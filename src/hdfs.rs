@@ -256,6 +256,7 @@ pub enum HDFSEnum {
     Type10(Type10Event),
     Type11(Type11Event),
     Type12(Type12Event),
+    Type13(Type13Event),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -374,6 +375,17 @@ pub struct Type12Event {
     cycles: u64,
     source: String,
     file: String,
+    bytes: String,
+    duration: String,
+    operation: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+#[serde(deny_unknown_fields)]
+pub struct Type13Event {
+    cycles: u64,
+    source: String,
     bytes: String,
     duration: String,
     operation: String,
