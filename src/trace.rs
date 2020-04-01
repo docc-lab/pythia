@@ -95,6 +95,52 @@ impl Trace {
         }
         (start, end)
     }
+
+    pub fn prune(&mut self) {
+        let mut removed_count = 0;
+        loop {
+            let mut iter = self.g.externals(Direction::Outgoing);
+            let mut end_node = iter.next().unwrap();
+            if end_node == self.end_node {
+                end_node = match iter.next() {
+                    None => {
+                        break;
+                    }
+                    Some(n) => n,
+                };
+            }
+            let mut cur_nodes = vec![end_node];
+            loop {
+                let cur_node = match cur_nodes.pop() {
+                    None => {
+                        break;
+                    }
+                    Some(i) => i,
+                };
+                let out_neighbors = self
+                    .g
+                    .neighbors_directed(cur_node, Direction::Outgoing)
+                    .collect::<Vec<_>>();
+                if out_neighbors.len() >= 1 {
+                    continue;
+                }
+                let neighbors = self
+                    .g
+                    .neighbors_directed(cur_node, Direction::Incoming)
+                    .collect::<Vec<_>>();
+                self.g.remove_node(cur_node);
+                removed_count += 1;
+                if neighbors.len() == 0 {
+                    panic!("Pruning ran to a start node from {}", self.g[cur_node]);
+                } else {
+                    for n in neighbors {
+                        cur_nodes.push(n);
+                    }
+                }
+            }
+        }
+        eprintln!("Removed {} nodes when pruning", removed_count);
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Eq, PartialEq, Hash, Clone)]
