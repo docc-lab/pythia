@@ -69,9 +69,16 @@ impl Reader for HDFSReader {
 
     fn read_file(&mut self, file: &str) -> Trace {
         let reader = std::fs::File::open(file).unwrap();
-        let mut t: Vec<HDFSTrace> = serde_json::from_reader(reader).unwrap();
-        assert!(t.len() == 1);
-        self.from_json(&mut t[0])
+        match serde_json::from_reader(reader) {
+            // We either have a saved file, or saved xtrace output
+            Ok(v) => v,
+            Err(_) => {
+                let reader = std::fs::File::open(file).unwrap();
+                let mut t: Vec<HDFSTrace> = serde_json::from_reader(reader).unwrap();
+                assert!(t.len() == 1);
+                self.from_json(&mut t[0])
+            }
+        }
     }
 }
 
