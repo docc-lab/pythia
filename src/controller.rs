@@ -6,7 +6,7 @@ use crate::rpclib::set_all_client_tracepoints;
 use crate::rpclib::set_client_tracepoints;
 use crate::settings::Settings;
 use crate::trace::RequestType;
-use crate::trace::TRACEPOINT_ID_MAP;
+use crate::trace::TracepointID;
 
 pub struct OSProfilerController {
     manifest_root: PathBuf,
@@ -23,8 +23,8 @@ impl OSProfilerController {
 
     pub fn get_disabled(
         &self,
-        points: &Vec<(usize, Option<RequestType>)>,
-    ) -> Vec<(usize, Option<RequestType>)> {
+        points: &Vec<(TracepointID, Option<RequestType>)>,
+    ) -> Vec<(TracepointID, Option<RequestType>)> {
         let mut result = Vec::new();
         for point in points {
             if self.is_disabled(point) {
@@ -34,11 +34,11 @@ impl OSProfilerController {
         result
     }
 
-    fn is_disabled(&self, point: &(usize, Option<RequestType>)) -> bool {
+    fn is_disabled(&self, point: &(TracepointID, Option<RequestType>)) -> bool {
         !self.read_tracepoint(point.0, &point.1)
     }
 
-    pub fn enable(&self, points: &Vec<(usize, Option<RequestType>)>) {
+    pub fn enable(&self, points: &Vec<(TracepointID, Option<RequestType>)>) {
         self.write_to_tracepoints(points, b"1");
     }
 
@@ -46,11 +46,11 @@ impl OSProfilerController {
         self.write_to_tracepoint(point, &None, b"0");
     }
 
-    pub fn disable(&self, points: &Vec<(usize, Option<RequestType>)>) {
+    pub fn disable(&self, points: &Vec<(TracepointID, Option<RequestType>)>) {
         self.write_to_tracepoints(points, b"0");
     }
 
-    fn write_to_tracepoints(&self, points: &Vec<(usize, Option<RequestType>)>, to_write: &[u8; 1]) {
+    fn write_to_tracepoints(&self, points: &Vec<(TracepointID, Option<RequestType>)>, to_write: &[u8; 1]) {
         for client in self.client_list.iter() {
             set_client_tracepoints(
                 client,
@@ -113,14 +113,19 @@ impl OSProfilerController {
         }
     }
 
-    fn read_tracepoint(&self, tracepoint: usize, request_type: &Option<RequestType>) -> bool {
-        let map = TRACEPOINT_ID_MAP.lock().unwrap();
-        let tracepoint_id = map.get_by_right(&tracepoint).unwrap();
-        let contents =
-            match std::fs::read_to_string(self.get_path(tracepoint_id, request_type)).ok() {
-                Some(x) => x,
-                None => return false,
-            };
+    fn read_tracepoint(
+        &self,
+        tracepoint: TracepointID,
+        request_type: &Option<RequestType>,
+    ) -> bool {
+        let contents = match std::fs::read_to_string(
+            self.get_path(&tracepoint.to_string(), request_type),
+        )
+        .ok()
+        {
+            Some(x) => x,
+            None => return false,
+        };
         contents.parse::<i32>().unwrap() == 1
     }
 

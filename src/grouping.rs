@@ -14,6 +14,7 @@ use crate::critical::Path;
 use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::RequestType;
+use crate::trace::TracepointID;
 
 #[derive(Clone, Debug)]
 pub struct Group {
@@ -27,7 +28,7 @@ pub struct Group {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct GroupNode {
-    pub tracepoint_id: usize,
+    pub tracepoint_id: TracepointID,
     pub variant: EventType,
 }
 

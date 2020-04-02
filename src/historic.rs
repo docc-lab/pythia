@@ -16,6 +16,7 @@ use crate::poset::PosetNode;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
 use crate::trace::Trace;
+use crate::trace::TracepointID;
 
 struct Edge {
     start: PosetNode,
@@ -41,9 +42,9 @@ impl Edge {
 
 pub struct Historic {
     edges: Vec<Edge>,
-    entry_points: HashSet<usize>,
+    entry_points: HashSet<TracepointID>,
     edge_map: HashMap<PosetNode, HashMap<PosetNode, usize>>,
-    tried_tracepoints: RefCell<HashSet<usize>>,
+    tried_tracepoints: RefCell<HashSet<TracepointID>>,
     manifest: Manifest,
 }
 
@@ -111,13 +112,18 @@ impl Historic {
         });
     }
 
-    fn get_entry_points(&self) -> Vec<&usize> {
+    fn get_entry_points(&self) -> Vec<&TracepointID> {
         self.entry_points.iter().collect()
     }
 }
 
 impl SearchStrategy for Historic {
-    fn search(&self, _group: &Group, _edge: EdgeIndex, budget: usize) -> (Vec<usize>, SearchState) {
+    fn search(
+        &self,
+        _group: &Group,
+        _edge: EdgeIndex,
+        budget: usize,
+    ) -> (Vec<TracepointID>, SearchState) {
         if budget == 0 {
             panic!("The historic method cannot be used without a budget");
         }

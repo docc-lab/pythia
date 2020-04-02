@@ -5,18 +5,19 @@ use std::fmt::Display;
 use std::path::Path;
 
 use petgraph::visit::IntoNodeReferences;
+use petgraph::visit::NodeRef;
 use serde::{Deserialize, Serialize};
 
 use crate::osprofiler::REQUEST_TYPE_REGEXES;
 use crate::searchspace::SearchSpace;
 use crate::trace::RequestType;
 use crate::trace::Trace;
-use crate::trace::TRACEPOINT_ID_MAP;
+use crate::trace::TracepointID;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Manifest {
     pub per_request_type: HashMap<RequestType, SearchSpace>,
-    request_type_tracepoints: Vec<usize>,
+    request_type_tracepoints: Vec<TracepointID>,
 }
 
 impl Manifest {
@@ -50,15 +51,14 @@ impl Manifest {
     }
 
     fn add_request_type_tracepoints(&mut self, traces: &Vec<Trace>) {
-        let map = TRACEPOINT_ID_MAP.lock().unwrap();
         for trace in traces {
             self.request_type_tracepoints.extend(
                 trace
                     .g
                     .node_references()
-                    .map(|x| map.get_by_right(&x.1.tracepoint_id).unwrap())
-                    .filter(|x: &&String| REQUEST_TYPE_REGEXES.is_match(x))
-                    .map(|x| map.get_by_left(x).unwrap()),
+                    .map(|x| x.weight().tracepoint_id.to_string())
+                    .filter(|x: &String| REQUEST_TYPE_REGEXES.is_match(x))
+                    .map(|x| TracepointID::from_str(&x)),
             );
         }
     }
@@ -86,14 +86,14 @@ impl Manifest {
         Ok(())
     }
 
-    pub fn entry_points(&self) -> Vec<&usize> {
+    pub fn entry_points(&self) -> Vec<TracepointID> {
         let mut result = HashSet::new();
         for cct in self.per_request_type.values() {
             for tracepoint in cct.get_entry_points() {
                 result.insert(tracepoint);
             }
         }
-        result.drain().collect()
+        result.iter().cloned().collect()
     }
 
     // pub fn search<'a>(

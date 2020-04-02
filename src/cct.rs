@@ -17,12 +17,13 @@ use crate::search::SearchState;
 use crate::search::SearchStrategy;
 use crate::trace::EventType;
 use crate::trace::Trace;
+use crate::trace::TracepointID;
 
 #[derive(Debug)]
 pub struct CCT {
-    pub g: Graph<usize, u32>, // Nodes indicate tracepoint id, edges don't matter
-    pub entry_points: HashMap<usize, NodeIndex>,
-    enabled_tracepoints: RefCell<HashSet<usize>>,
+    pub g: Graph<TracepointID, u32>, // Nodes indicate tracepoint id, edges don't matter
+    pub entry_points: HashMap<TracepointID, NodeIndex>,
+    enabled_tracepoints: RefCell<HashSet<TracepointID>>,
     manifest: Manifest,
 }
 
@@ -33,13 +34,18 @@ impl CCT {
         }
     }
 
-    fn get_entry_points(&self) -> Vec<usize> {
+    fn get_entry_points(&self) -> Vec<TracepointID> {
         self.entry_points.keys().cloned().collect()
     }
 }
 
 impl SearchStrategy for CCT {
-    fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> (Vec<usize>, SearchState) {
+    fn search(
+        &self,
+        group: &Group,
+        edge: EdgeIndex,
+        budget: usize,
+    ) -> (Vec<TracepointID>, SearchState) {
         let mut rng = &mut rand::thread_rng();
         let (source, target) = group.g.edge_endpoints(edge).unwrap();
         let source_context = self.get_context(group, source);
@@ -104,7 +110,7 @@ impl CCT {
         cct
     }
 
-    fn search_context(&self, context: Vec<usize>) -> Vec<usize> {
+    fn search_context(&self, context: Vec<TracepointID>) -> Vec<TracepointID> {
         let mut nidx: Option<NodeIndex> = None;
         for tracepoint in context {
             nidx = match nidx {
@@ -139,7 +145,7 @@ impl CCT {
         }
     }
 
-    fn get_context(&self, group: &Group, node: NodeIndex) -> Vec<usize> {
+    fn get_context(&self, group: &Group, node: NodeIndex) -> Vec<TracepointID> {
         let mut result = Vec::new();
         let mut nidx = group.start_node;
         loop {
@@ -221,14 +227,14 @@ impl CCT {
         }
     }
 
-    fn add_child_if_necessary(&mut self, parent: NodeIndex, node: usize) -> NodeIndex {
+    fn add_child_if_necessary(&mut self, parent: NodeIndex, node: TracepointID) -> NodeIndex {
         match self.find_child(parent, node) {
             Some(child_nidx) => child_nidx,
             None => self.add_child(parent, node),
         }
     }
 
-    fn add_child(&mut self, parent: NodeIndex, node: usize) -> NodeIndex {
+    fn add_child(&mut self, parent: NodeIndex, node: TracepointID) -> NodeIndex {
         let nidx = self.g.add_node(node);
         self.g.add_edge(parent, nidx, 1);
         nidx
@@ -241,7 +247,7 @@ impl CCT {
         result
     }
 
-    fn find_child(&mut self, parent: NodeIndex, node: usize) -> Option<NodeIndex> {
+    fn find_child(&mut self, parent: NodeIndex, node: TracepointID) -> Option<NodeIndex> {
         let mut matches = self
             .g
             .neighbors_directed(parent, Direction::Outgoing)

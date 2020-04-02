@@ -15,13 +15,14 @@ use crate::manifest::Manifest;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
 use crate::trace::Trace;
+use crate::trace::TracepointID;
 
 pub struct FlatSpace {
     paths: HashMap<String, CriticalPath>, // key is the hash of the critical path
-    entry_points: HashSet<usize>,
+    entry_points: HashSet<TracepointID>,
     occurances: HashMap<String, usize>,
     tried_groups: RefCell<HashSet<String>>,
-    enabled_tracepoints: RefCell<HashSet<usize>>,
+    enabled_tracepoints: RefCell<HashSet<TracepointID>>,
     manifest: Manifest,
 }
 
@@ -32,13 +33,18 @@ impl FlatSpace {
         }
     }
 
-    fn get_entry_points(&self) -> Vec<usize> {
+    fn get_entry_points(&self) -> Vec<TracepointID> {
         self.entry_points.iter().cloned().collect()
     }
 }
 
 impl SearchStrategy for FlatSpace {
-    fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> (Vec<usize>, SearchState) {
+    fn search(
+        &self,
+        group: &Group,
+        edge: EdgeIndex,
+        budget: usize,
+    ) -> (Vec<TracepointID>, SearchState) {
         let now = Instant::now();
         let mut matching_hashes = self
             .paths
@@ -176,7 +182,7 @@ impl FlatSpace {
         group: &Group,
         edge: EdgeIndex,
         n: usize,
-    ) -> Vec<usize> {
+    ) -> Vec<TracepointID> {
         let mut result = Vec::new();
         let (source, target) = group.g.edge_endpoints(edge).unwrap();
         let mut path_source = path.start_node;

@@ -11,6 +11,8 @@ use chrono::NaiveDateTime;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
 use petgraph::Direction;
+use serde::de;
+use serde::ser;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use uuid::Uuid;
@@ -174,8 +176,7 @@ impl fmt::Display for RequestType {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Event {
     pub trace_id: Uuid,
-    #[serde(with = "serde_tracepoint_id")]
-    pub tracepoint_id: usize,
+    pub tracepoint_id: TracepointID,
     pub timestamp: NaiveDateTime,
     pub is_synthetic: bool,
     pub variant: EventType,
@@ -191,26 +192,8 @@ pub enum EventType {
 impl Display for Event {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.variant {
-            EventType::Entry => write!(
-                f,
-                "{} start: {}",
-                self.trace_id,
-                TRACEPOINT_ID_MAP
-                    .lock()
-                    .unwrap()
-                    .get_by_right(&self.tracepoint_id)
-                    .unwrap()
-            ),
-            EventType::Annotation => write!(
-                f,
-                "{}: {}",
-                self.trace_id,
-                TRACEPOINT_ID_MAP
-                    .lock()
-                    .unwrap()
-                    .get_by_right(&self.tracepoint_id)
-                    .unwrap()
-            ),
+            EventType::Entry => write!(f, "{} start: {}", self.trace_id, self.tracepoint_id),
+            EventType::Annotation => write!(f, "{}: {}", self.trace_id, self.tracepoint_id),
             EventType::Exit => write!(f, "{} end", self.trace_id),
         }
     }
@@ -250,52 +233,78 @@ impl Display for DAGEdge {
 }
 
 lazy_static! {
-    pub static ref TRACEPOINT_ID_MAP: Mutex<BiMap<String, usize>> = Mutex::new(BiMap::new());
+    static ref TRACEPOINT_ID_MAP: Mutex<BiMap<String, usize>> = Mutex::new(BiMap::new());
 }
 
-pub mod serde_tracepoint_id {
-    use serde::de;
-    use serde::ser;
-    use std::fmt;
+#[derive(Hash, Debug, Clone, Copy, Eq, PartialEq)]
+pub struct TracepointID {
+    id: usize,
+}
 
-    use crate::trace::TRACEPOINT_ID_MAP;
+impl TracepointID {
+    pub fn to_string(&self) -> String {
+        TRACEPOINT_ID_MAP
+            .lock()
+            .unwrap()
+            .get_by_right(&self.id)
+            .unwrap()
+            .clone()
+    }
 
-    pub fn deserialize<'de, D>(d: D) -> Result<usize, D::Error>
+    pub fn from_str(s: &str) -> Self {
+        let mut map = TRACEPOINT_ID_MAP.lock().unwrap();
+        match map.get_by_left(&s.to_string()) {
+            Some(&id) => Self { id: id },
+            None => {
+                let id = map.len();
+                map.insert(s.to_string(), id);
+                Self { id: id }
+            }
+        }
+    }
+
+    pub fn bytes(&self) -> [u8; 8] {
+        self.id.to_ne_bytes()
+    }
+}
+
+impl Display for TracepointID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
+
+impl Serialize for TracepointID {
+    fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        s.serialize_str(&self.to_string())
+    }
+}
+
+struct TracepointIDVisitor;
+
+impl<'de> de::Visitor<'de> for TracepointIDVisitor {
+    type Value = TracepointID;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "a string representing a tracepoint id")
+    }
+
+    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Ok(TracepointID::from_str(s))
+    }
+}
+
+impl<'de> Deserialize<'de> for TracepointID {
+    fn deserialize<D>(d: D) -> Result<TracepointID, D::Error>
     where
         D: de::Deserializer<'de>,
     {
         d.deserialize_str(TracepointIDVisitor)
-    }
-
-    pub fn serialize<S>(t: &usize, s: S) -> Result<S::Ok, S::Error>
-    where
-        S: ser::Serializer,
-    {
-        s.serialize_str(TRACEPOINT_ID_MAP.lock().unwrap().get_by_right(t).unwrap())
-    }
-
-    struct TracepointIDVisitor;
-
-    impl<'de> de::Visitor<'de> for TracepointIDVisitor {
-        type Value = usize;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            write!(formatter, "a string representing a tracepoint id")
-        }
-
-        fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            let mut map = TRACEPOINT_ID_MAP.lock().unwrap();
-            Ok(match map.get_by_left(&s.to_string()) {
-                Some(&id) => id,
-                None => {
-                    let id = map.len();
-                    map.insert(s.to_string(), id);
-                    id
-                }
-            })
-        }
     }
 }

@@ -20,7 +20,7 @@ use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::RequestType;
 use crate::trace::Trace;
-use crate::trace::TRACEPOINT_ID_MAP;
+use crate::trace::TracepointID;
 use crate::trace::{DAGEdge, EdgeType};
 
 pub struct OSProfilerReader {
@@ -310,15 +310,7 @@ impl OSProfilerReader {
             prev_time = event.timestamp;
             let mut mynode = Event::from_osp_span(event);
             let current_tracepoint_id = event.get_tracepoint_id(&mut tracepoint_id_map);
-            let mut map = TRACEPOINT_ID_MAP.lock().unwrap();
-            mynode.tracepoint_id = match map.get_by_left(&current_tracepoint_id) {
-                Some(&id) => id,
-                None => {
-                    let id = map.len();
-                    map.insert(current_tracepoint_id.clone(), id);
-                    id
-                }
-            };
+            mynode.tracepoint_id = TracepointID::from_str(&current_tracepoint_id);
             if mynode.variant == EventType::Entry {
                 let matches: Vec<usize> = REQUEST_TYPE_REGEXES
                     .matches(&current_tracepoint_id)
@@ -625,17 +617,9 @@ fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
 
 impl Event {
     fn from_osp_span(event: &OSProfilerSpan) -> Event {
-        let mut map = TRACEPOINT_ID_MAP.lock().unwrap();
         Event {
             trace_id: event.trace_id,
-            tracepoint_id: match map.get_by_left(&event.tracepoint_id) {
-                Some(&id) => id,
-                None => {
-                    let id = map.len();
-                    map.insert(event.tracepoint_id.clone(), id);
-                    id
-                }
-            },
+            tracepoint_id: TracepointID::from_str(&event.tracepoint_id),
             timestamp: event.timestamp,
             variant: match event.info {
                 OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {

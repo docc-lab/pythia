@@ -499,7 +499,7 @@ pub trait Path {
         let mut hasher = Sha256::new();
         let mut cur_node = self.start_node();
         loop {
-            hasher.input(&self.at(cur_node).tracepoint_id.to_ne_bytes());
+            hasher.input(&self.at(cur_node).tracepoint_id.bytes());
             cur_node = match self.next_node(cur_node) {
                 Some(node) => node,
                 None => break,

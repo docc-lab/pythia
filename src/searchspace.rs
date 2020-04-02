@@ -20,6 +20,7 @@ use crate::trace::DAGEdge;
 use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::Trace;
+use crate::trace::TracepointID;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 struct HierarchicalEdge {
@@ -164,7 +165,7 @@ impl HierarchicalCriticalPath {
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct SearchSpace {
     paths: HashMap<String, HierarchicalCriticalPath>, // key is the hash of the critical path
-    entry_points: HashSet<usize>,
+    entry_points: HashSet<TracepointID>,
 }
 
 impl SearchSpace {
@@ -201,8 +202,8 @@ impl SearchSpace {
         }
     }
 
-    pub fn get_entry_points(&self) -> Vec<&usize> {
-        self.entry_points.iter().collect()
+    pub fn get_entry_points(&self) -> Vec<TracepointID> {
+        self.entry_points.iter().cloned().collect()
     }
 }
 
