@@ -61,6 +61,7 @@ pub fn run_controller() {
             now.elapsed().as_micros()
         );
         println!("Groups: {}", groups);
+
         sleep(Duration::from_secs(5));
     }
 }
