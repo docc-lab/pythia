@@ -206,8 +206,8 @@ impl Display for SearchSpace {
 }
 
 impl Path for HierarchicalCriticalPath {
-    fn get_hash(&self) -> RefCell<Option<String>> {
-        self.hash
+    fn get_hash(&self) -> &RefCell<Option<String>> {
+        &self.hash
     }
 
     fn start_node(&self) -> NodeIndex {

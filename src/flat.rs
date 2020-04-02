@@ -9,7 +9,7 @@ use petgraph::dot::Dot;
 use petgraph::graph::EdgeIndex;
 
 use crate::critical::CriticalPath;
-use crate::critical::HashablePath;
+use crate::critical::Path;
 use crate::grouping::Group;
 use crate::manifest::Manifest;
 use crate::search::SearchState;

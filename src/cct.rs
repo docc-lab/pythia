@@ -10,6 +10,7 @@ use petgraph::{Direction, Graph};
 use rand::seq::SliceRandom;
 
 use crate::critical::CriticalPath;
+use crate::critical::Path;
 use crate::grouping::Group;
 use crate::manifest::Manifest;
 use crate::search::SearchState;

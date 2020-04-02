@@ -10,6 +10,7 @@ use petgraph::stable_graph::StableGraph;
 use petgraph::Direction;
 
 use crate::critical::CriticalPath;
+use crate::critical::Path;
 use crate::grouping::Group;
 use crate::manifest::Manifest;
 use crate::search::SearchState;

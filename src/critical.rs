@@ -478,7 +478,7 @@ impl CriticalPath {
 }
 
 pub trait Path {
-    fn get_hash(&self) -> RefCell<Option<String>>;
+    fn get_hash(&self) -> &RefCell<Option<String>>;
     fn start_node(&self) -> NodeIndex;
     fn tracepoint_id(&self, idx: NodeIndex) -> &str;
     fn next_node(&self, idx: NodeIndex) -> Option<NodeIndex>;
@@ -509,8 +509,8 @@ pub trait Path {
 }
 
 impl Path for CriticalPath {
-    fn get_hash(&self) -> RefCell<Option<String>> {
-        self.hash
+    fn get_hash(&self) -> &RefCell<Option<String>> {
+        &self.hash
     }
 
     fn start_node(&self) -> NodeIndex {
