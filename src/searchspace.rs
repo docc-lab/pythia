@@ -104,8 +104,26 @@ impl HierarchicalCriticalPath {
     }
 
     fn add_hierarchical_edges(&mut self) {
-        let mut prev_node = self.start_node;
         let mut context = Vec::new();
+        let mut prev_node = self.start_node;
+        loop {
+            match self.g[prev_node].variant {
+                EventType::Entry => {
+                    break;
+                }
+                EventType::Annotation => {
+                    prev_node = match self.next_node(prev_node) {
+                        Some(n) => n,
+                        None => {
+                            return;
+                        }
+                    };
+                }
+                EventType::Exit => {
+                    panic!("Saw exit event before any entry events");
+                }
+            }
+        }
         assert!(self.g[prev_node].variant == EventType::Entry);
         context.push(prev_node);
         loop {
