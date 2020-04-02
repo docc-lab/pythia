@@ -164,26 +164,44 @@ impl HierarchicalCriticalPath {
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct SearchSpace {
     paths: HashMap<String, HierarchicalCriticalPath>, // key is the hash of the critical path
-    entry_points: HashSet<String>,
+    entry_points: HashSet<usize>,
 }
 
 impl SearchSpace {
     pub fn add_trace(&mut self, trace: &Trace) {
         for path in &HierarchicalCriticalPath::all_possible_paths(trace) {
             self.entry_points
-                .insert(path.g[path.start_node].tracepoint_id.clone());
+                .insert(path.g[path.start_node].tracepoint_id);
             self.entry_points
-                .insert(path.g[path.end_node].tracepoint_id.clone());
+                .insert(path.g[path.end_node].tracepoint_id);
             match self.paths.get(&path.hash()) {
                 Some(_) => {}
                 None => {
-                    self.paths.insert(path.hash().clone(), path.clone());
+                    let mut add_path = true;
+                    let mut paths_to_remove = Vec::new();
+                    for p in self.paths.values() {
+                        if p.len() < path.len() {
+                            if path.contains(p) {
+                                paths_to_remove.push(p.hash());
+                            }
+                        } else if path.len() < p.len() {
+                            if p.contains(path) {
+                                add_path = false;
+                            }
+                        }
+                    }
+                    for p in &paths_to_remove {
+                        self.paths.remove(p);
+                    }
+                    if add_path {
+                        self.paths.insert(path.hash().clone(), path.clone());
+                    }
                 }
             }
         }
     }
 
-    pub fn get_entry_points(&self) -> Vec<&String> {
+    pub fn get_entry_points(&self) -> Vec<&usize> {
         self.entry_points.iter().collect()
     }
 }
@@ -214,8 +232,8 @@ impl Path for HierarchicalCriticalPath {
         self.start_node
     }
 
-    fn tracepoint_id(&self, idx: NodeIndex) -> &str {
-        &self.g[idx].tracepoint_id
+    fn at(&self, idx: NodeIndex) -> &Event {
+        &self.g[idx]
     }
 
     fn next_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
@@ -225,5 +243,9 @@ impl Path for HierarchicalCriticalPath {
         let result = matches.next();
         assert!(matches.next().is_none());
         result
+    }
+
+    fn len(&self) -> usize {
+        self.g.node_count()
     }
 }

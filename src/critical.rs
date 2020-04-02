@@ -480,8 +480,9 @@ impl CriticalPath {
 pub trait Path {
     fn get_hash(&self) -> &RefCell<Option<String>>;
     fn start_node(&self) -> NodeIndex;
-    fn tracepoint_id(&self, idx: NodeIndex) -> &str;
+    fn at(&self, idx: NodeIndex) -> &Event;
     fn next_node(&self, idx: NodeIndex) -> Option<NodeIndex>;
+    fn len(&self) -> usize;
 
     fn hash(&self) -> String {
         if !self.has_hash() {
@@ -498,13 +499,38 @@ pub trait Path {
         let mut hasher = Sha256::new();
         let mut cur_node = self.start_node();
         loop {
-            hasher.input_str(&self.tracepoint_id(cur_node));
+            hasher.input(&self.at(cur_node).tracepoint_id.to_ne_bytes());
             cur_node = match self.next_node(cur_node) {
                 Some(node) => node,
                 None => break,
             };
         }
         *self.get_hash().borrow_mut() = Some(hasher.result_str());
+    }
+
+    fn contains(&self, other: &dyn Path) -> bool {
+        let mut cur_self_idx = self.start_node();
+        let mut cur_other_idx = other.start_node();
+        let result;
+        loop {
+            if self.at(cur_self_idx) == other.at(cur_other_idx) {
+                cur_other_idx = match other.next_node(cur_other_idx) {
+                    Some(nidx) => nidx,
+                    None => {
+                        result = true;
+                        break;
+                    }
+                }
+            }
+            cur_self_idx = match self.next_node(cur_self_idx) {
+                Some(nidx) => nidx,
+                None => {
+                    result = false;
+                    break;
+                }
+            }
+        }
+        return result;
     }
 }
 
@@ -517,8 +543,8 @@ impl Path for CriticalPath {
         self.start_node
     }
 
-    fn tracepoint_id(&self, idx: NodeIndex) -> &str {
-        &self.g.g[idx].tracepoint_id
+    fn at(&self, idx: NodeIndex) -> &Event {
+        &self.g.g[idx]
     }
 
     fn next_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
@@ -526,5 +552,9 @@ impl Path for CriticalPath {
         let result = matches.next();
         assert!(matches.next().is_none());
         result
+    }
+
+    fn len(&self) -> usize {
+        self.g.g.node_count()
     }
 }

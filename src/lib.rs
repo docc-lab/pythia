@@ -187,7 +187,7 @@ pub fn enable_all() {
 pub fn disable_tracepoint(t: &str) {
     let settings = Settings::read();
     let controller = OSProfilerController::from_settings(&settings);
-    controller.disable(&vec![(&t.to_string(), None)]);
+    controller.disable_by_name(t);
 }
 
 pub fn enable_skeleton() {
@@ -198,7 +198,7 @@ pub fn enable_skeleton() {
     let controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
     let to_enable = manifest.entry_points();
-    controller.enable(&to_enable.iter().map(|&a| (a, None)).collect());
+    controller.enable(&to_enable.iter().map(|&a| (a.clone(), None)).collect());
     println!("Enabled following tracepoints: {:?}", to_enable);
 }
 

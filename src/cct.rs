@@ -20,9 +20,9 @@ use crate::trace::Trace;
 
 #[derive(Debug)]
 pub struct CCT {
-    pub g: Graph<String, u32>, // Nodes indicate tracepoint id, edges don't matter
-    pub entry_points: HashMap<String, NodeIndex>,
-    enabled_tracepoints: RefCell<HashSet<String>>,
+    pub g: Graph<usize, u32>, // Nodes indicate tracepoint id, edges don't matter
+    pub entry_points: HashMap<usize, NodeIndex>,
+    enabled_tracepoints: RefCell<HashSet<usize>>,
     manifest: Manifest,
 }
 
@@ -33,18 +33,13 @@ impl CCT {
         }
     }
 
-    fn get_entry_points(&self) -> Vec<&String> {
-        self.entry_points.keys().collect()
+    fn get_entry_points(&self) -> Vec<usize> {
+        self.entry_points.keys().cloned().collect()
     }
 }
 
 impl SearchStrategy for CCT {
-    fn search<'a>(
-        &'a self,
-        group: &Group,
-        edge: EdgeIndex,
-        budget: usize,
-    ) -> (Vec<&'a String>, SearchState) {
+    fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> (Vec<usize>, SearchState) {
         let mut rng = &mut rand::thread_rng();
         let (source, target) = group.g.edge_endpoints(edge).unwrap();
         let source_context = self.get_context(group, source);
@@ -73,7 +68,7 @@ impl SearchStrategy for CCT {
         }
         for i in &result {
             let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
-            enabled_tracepoints.insert(i.to_string());
+            enabled_tracepoints.insert(*i);
         }
         (result, result_state)
     }
@@ -82,9 +77,9 @@ impl SearchStrategy for CCT {
 impl CCT {
     pub fn new(m: Manifest) -> CCT {
         CCT {
-            g: Graph::<String, u32>::new(),
+            g: Graph::new(),
             manifest: m,
-            entry_points: HashMap::<String, NodeIndex>::new(),
+            entry_points: HashMap::new(),
             enabled_tracepoints: RefCell::new(HashSet::new()),
         }
     }
@@ -109,19 +104,19 @@ impl CCT {
         cct
     }
 
-    fn search_context<'a>(&'a self, context: Vec<&String>) -> Vec<&'a String> {
+    fn search_context(&self, context: Vec<usize>) -> Vec<usize> {
         let mut nidx: Option<NodeIndex> = None;
         for tracepoint in context {
             nidx = match nidx {
                 None => {
-                    let result = self.entry_points.get(tracepoint);
+                    let result = self.entry_points.get(&tracepoint);
                     Some(*result.unwrap())
                 }
                 Some(nidx) => {
                     let result: Vec<NodeIndex> = self
                         .g
                         .neighbors_directed(nidx, Direction::Outgoing)
-                        .filter(|a| self.g[*a] == *tracepoint)
+                        .filter(|a| self.g[*a] == tracepoint)
                         .collect();
                     if result.len() == 0 {
                         // We are at a child node, look at the parent for more trace points to
@@ -138,20 +133,20 @@ impl CCT {
             Some(nidx) => self
                 .g
                 .neighbors_directed(nidx, Direction::Outgoing)
-                .map(|x| &self.g[x])
-                .filter(|&a| self.enabled_tracepoints.borrow().get(a).is_none())
+                .map(|x| self.g[x])
+                .filter(|&a| self.enabled_tracepoints.borrow().get(&a).is_none())
                 .collect(),
         }
     }
 
-    fn get_context<'a>(&self, group: &'a Group, node: NodeIndex) -> Vec<&'a String> {
+    fn get_context(&self, group: &Group, node: NodeIndex) -> Vec<usize> {
         let mut result = Vec::new();
         let mut nidx = group.start_node;
         loop {
             match group.g[nidx].variant {
                 EventType::Annotation => {
                     if nidx == node {
-                        result.push(&group.g[nidx].tracepoint_id);
+                        result.push(group.g[nidx].tracepoint_id);
                         break;
                     }
                 }
@@ -159,10 +154,10 @@ impl CCT {
                     if nidx == node {
                         break;
                     }
-                    assert_eq!(*result.pop().unwrap(), group.g[nidx].tracepoint_id);
+                    assert_eq!(result.pop().unwrap(), group.g[nidx].tracepoint_id);
                 }
                 EventType::Entry => {
-                    result.push(&group.g[nidx].tracepoint_id);
+                    result.push(group.g[nidx].tracepoint_id);
                     if nidx == node {
                         break;
                     }
@@ -179,15 +174,10 @@ impl CCT {
         let mut cur_manifest_nidx = None;
         loop {
             let cur_span = &path.g.g[cur_path_nidx];
-            if cur_span.tracepoint_id == "/opt/stack/neutron/neutron/agent/dhcp/agent.py:580:neutron.agent.dhcp.agent.DhcpAgent.port_create_end" {
-                if cur_manifest_nidx.is_none() {
-                    println!("At that node, trace_id: {}", path.g.base_id.to_hyphenated().to_string());
-                }
-            }
             match cur_span.variant {
                 EventType::Entry => {
                     let next_nidx = match cur_manifest_nidx {
-                        Some(nidx) => self.add_child_if_necessary(nidx, &cur_span.tracepoint_id),
+                        Some(nidx) => self.add_child_if_necessary(nidx, cur_span.tracepoint_id),
                         None => match self.entry_points.get(&cur_span.tracepoint_id) {
                             Some(nidx) => *nidx,
                             None => {
@@ -201,10 +191,7 @@ impl CCT {
                     cur_manifest_nidx = Some(next_nidx);
                 }
                 EventType::Annotation => {
-                    self.add_child_if_necessary(
-                        cur_manifest_nidx.unwrap(),
-                        &cur_span.tracepoint_id,
-                    );
+                    self.add_child_if_necessary(cur_manifest_nidx.unwrap(), cur_span.tracepoint_id);
                 }
                 EventType::Exit => {
                     let mut parent_nidx = self.find_parent(cur_manifest_nidx.unwrap());
@@ -234,15 +221,15 @@ impl CCT {
         }
     }
 
-    fn add_child_if_necessary(&mut self, parent: NodeIndex, node: &str) -> NodeIndex {
+    fn add_child_if_necessary(&mut self, parent: NodeIndex, node: usize) -> NodeIndex {
         match self.find_child(parent, node) {
             Some(child_nidx) => child_nidx,
             None => self.add_child(parent, node),
         }
     }
 
-    fn add_child(&mut self, parent: NodeIndex, node: &str) -> NodeIndex {
-        let nidx = self.g.add_node(String::from(node));
+    fn add_child(&mut self, parent: NodeIndex, node: usize) -> NodeIndex {
+        let nidx = self.g.add_node(node);
         self.g.add_edge(parent, nidx, 1);
         nidx
     }
@@ -254,7 +241,7 @@ impl CCT {
         result
     }
 
-    fn find_child(&mut self, parent: NodeIndex, node: &str) -> Option<NodeIndex> {
+    fn find_child(&mut self, parent: NodeIndex, node: usize) -> Option<NodeIndex> {
         let mut matches = self
             .g
             .neighbors_directed(parent, Direction::Outgoing)

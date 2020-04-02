@@ -6,6 +6,7 @@ use crate::rpclib::set_all_client_tracepoints;
 use crate::rpclib::set_client_tracepoints;
 use crate::settings::Settings;
 use crate::trace::RequestType;
+use crate::trace::TRACEPOINT_ID_MAP;
 
 pub struct OSProfilerController {
     manifest_root: PathBuf,
@@ -20,10 +21,10 @@ impl OSProfilerController {
         }
     }
 
-    pub fn get_disabled<'a>(
+    pub fn get_disabled(
         &self,
-        points: &Vec<(&'a String, Option<RequestType>)>,
-    ) -> Vec<(&'a String, Option<RequestType>)> {
+        points: &Vec<(usize, Option<RequestType>)>,
+    ) -> Vec<(usize, Option<RequestType>)> {
         let mut result = Vec::new();
         for point in points {
             if self.is_disabled(point) {
@@ -33,23 +34,23 @@ impl OSProfilerController {
         result
     }
 
-    fn is_disabled(&self, point: &(&String, Option<RequestType>)) -> bool {
+    fn is_disabled(&self, point: &(usize, Option<RequestType>)) -> bool {
         !self.read_tracepoint(point.0, &point.1)
     }
 
-    pub fn enable(&self, points: &Vec<(&String, Option<RequestType>)>) {
+    pub fn enable(&self, points: &Vec<(usize, Option<RequestType>)>) {
         self.write_to_tracepoints(points, b"1");
     }
 
-    pub fn disable(&self, points: &Vec<(&String, Option<RequestType>)>) {
+    pub fn disable_by_name(&self, point: &str) {
+        self.write_to_tracepoint(point, &None, b"0");
+    }
+
+    pub fn disable(&self, points: &Vec<(usize, Option<RequestType>)>) {
         self.write_to_tracepoints(points, b"0");
     }
 
-    fn write_to_tracepoints(
-        &self,
-        points: &Vec<(&String, Option<RequestType>)>,
-        to_write: &[u8; 1],
-    ) {
+    fn write_to_tracepoints(&self, points: &Vec<(usize, Option<RequestType>)>, to_write: &[u8; 1]) {
         for client in self.client_list.iter() {
             set_client_tracepoints(
                 client,
@@ -112,17 +113,20 @@ impl OSProfilerController {
         }
     }
 
-    fn read_tracepoint(&self, tracepoint: &String, request_type: &Option<RequestType>) -> bool {
-        let contents = match std::fs::read_to_string(self.get_path(tracepoint, request_type)).ok() {
-            Some(x) => x,
-            None => return false,
-        };
+    fn read_tracepoint(&self, tracepoint: usize, request_type: &Option<RequestType>) -> bool {
+        let map = TRACEPOINT_ID_MAP.lock().unwrap();
+        let tracepoint_id = map.get_by_right(&tracepoint).unwrap();
+        let contents =
+            match std::fs::read_to_string(self.get_path(tracepoint_id, request_type)).ok() {
+                Some(x) => x,
+                None => return false,
+            };
         contents.parse::<i32>().unwrap() == 1
     }
 
     fn write_to_tracepoint(
         &self,
-        tracepoint: &String,
+        tracepoint: &str,
         request_type: &Option<RequestType>,
         to_write: &[u8; 1],
     ) {
@@ -135,7 +139,7 @@ impl OSProfilerController {
         }
     }
 
-    fn get_path(&self, tracepoint: &String, request_type: &Option<RequestType>) -> PathBuf {
+    fn get_path(&self, tracepoint: &str, request_type: &Option<RequestType>) -> PathBuf {
         let mut result = self.manifest_root.clone();
         if tracepoint.chars().nth(0).unwrap() == '/' {
             result.push(&tracepoint[1..]);

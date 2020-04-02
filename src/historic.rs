@@ -41,9 +41,9 @@ impl Edge {
 
 pub struct Historic {
     edges: Vec<Edge>,
-    entry_points: HashSet<String>,
+    entry_points: HashSet<usize>,
     edge_map: HashMap<PosetNode, HashMap<PosetNode, usize>>,
-    tried_tracepoints: RefCell<HashSet<String>>,
+    tried_tracepoints: RefCell<HashSet<usize>>,
     manifest: Manifest,
 }
 
@@ -77,10 +77,9 @@ impl Historic {
         let mut to_visit = IndexSet::new();
         to_visit.insert(trace.start_node);
         self.entry_points
-            .insert(trace.g[trace.start_node].tracepoint_id.clone());
+            .insert(trace.g[trace.start_node].tracepoint_id);
         for nidx in trace.possible_end_nodes() {
-            self.entry_points
-                .insert(trace.g[nidx].tracepoint_id.clone());
+            self.entry_points.insert(trace.g[nidx].tracepoint_id);
         }
         while let Some(nidx) = to_visit.pop() {
             let source = PosetNode::from_event(&trace.g[nidx]);
@@ -112,18 +111,13 @@ impl Historic {
         });
     }
 
-    fn get_entry_points(&self) -> Vec<&String> {
+    fn get_entry_points(&self) -> Vec<&usize> {
         self.entry_points.iter().collect()
     }
 }
 
 impl SearchStrategy for Historic {
-    fn search(
-        &self,
-        _group: &Group,
-        _edge: EdgeIndex,
-        budget: usize,
-    ) -> (Vec<&String>, SearchState) {
+    fn search(&self, _group: &Group, _edge: EdgeIndex, budget: usize) -> (Vec<usize>, SearchState) {
         if budget == 0 {
             panic!("The historic method cannot be used without a budget");
         }
@@ -139,13 +133,13 @@ impl SearchStrategy for Historic {
             if at_start {
                 if tried_tracepoints.get(&edge.start.tracepoint_id).is_none() {
                     tried_tracepoints.insert(edge.start.tracepoint_id.clone());
-                    result.insert(&edge.start.tracepoint_id);
+                    result.insert(edge.start.tracepoint_id);
                 }
                 at_start = false;
             } else {
                 if tried_tracepoints.get(&edge.end.tracepoint_id).is_none() {
                     tried_tracepoints.insert(edge.end.tracepoint_id.clone());
-                    result.insert(&edge.end.tracepoint_id);
+                    result.insert(edge.end.tracepoint_id);
                 }
                 at_start = true;
                 index += 1;

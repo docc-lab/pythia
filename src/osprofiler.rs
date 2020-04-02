@@ -20,6 +20,7 @@ use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::RequestType;
 use crate::trace::Trace;
+use crate::trace::TRACEPOINT_ID_MAP;
 use crate::trace::{DAGEdge, EdgeType};
 
 pub struct OSProfilerReader {
@@ -308,10 +309,19 @@ impl OSProfilerReader {
             assert!(prev_time <= event.timestamp);
             prev_time = event.timestamp;
             let mut mynode = Event::from_osp_span(event);
-            mynode.tracepoint_id = event.get_tracepoint_id(&mut tracepoint_id_map);
+            let current_tracepoint_id = event.get_tracepoint_id(&mut tracepoint_id_map);
+            let mut map = TRACEPOINT_ID_MAP.lock().unwrap();
+            mynode.tracepoint_id = match map.get_by_left(&current_tracepoint_id) {
+                Some(&id) => id,
+                None => {
+                    let id = map.len();
+                    map.insert(current_tracepoint_id.clone(), id);
+                    id
+                }
+            };
             if mynode.variant == EventType::Entry {
                 let matches: Vec<usize> = REQUEST_TYPE_REGEXES
-                    .matches(&mynode.tracepoint_id)
+                    .matches(&current_tracepoint_id)
                     .iter()
                     .collect();
                 if matches.len() > 0 {
@@ -615,9 +625,17 @@ fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
 
 impl Event {
     fn from_osp_span(event: &OSProfilerSpan) -> Event {
+        let mut map = TRACEPOINT_ID_MAP.lock().unwrap();
         Event {
             trace_id: event.trace_id,
-            tracepoint_id: event.tracepoint_id.clone(),
+            tracepoint_id: match map.get_by_left(&event.tracepoint_id) {
+                Some(&id) => id,
+                None => {
+                    let id = map.len();
+                    map.insert(event.tracepoint_id.clone(), id);
+                    id
+                }
+            },
             timestamp: event.timestamp,
             variant: match event.info {
                 OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {

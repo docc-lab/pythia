@@ -22,6 +22,7 @@ use crate::settings::Settings;
 use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::Trace;
+use crate::trace::TRACEPOINT_ID_MAP;
 use crate::trace::{DAGEdge, EdgeType};
 
 pub struct HDFSReader {}
@@ -205,9 +206,20 @@ impl Event {
     fn from_hdfs_node(event: &HDFSEvent) -> Event {
         Event {
             trace_id: eventid_to_uuid(&event.event_id),
-            tracepoint_id: match &event.variant {
-                HDFSEnum::WithSource(s) => s.source.clone(),
-                HDFSEnum::WithoutSource(_) => event.label.clone(),
+            tracepoint_id: {
+                let tracepoint_id = match &event.variant {
+                    HDFSEnum::WithSource(s) => s.source.clone(),
+                    HDFSEnum::WithoutSource(_) => event.label.clone(),
+                };
+                let mut map = TRACEPOINT_ID_MAP.lock().unwrap();
+                match map.get_by_left(&tracepoint_id) {
+                    Some(&id) => id,
+                    None => {
+                        let id = map.len();
+                        map.insert(tracepoint_id.clone(), id);
+                        id
+                    }
+                }
             },
             timestamp: convert_hdfs_timestamp(event.timestamp, event.hrt),
             variant: EventType::Annotation,

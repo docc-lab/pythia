@@ -18,17 +18,18 @@ use crate::search::SearchStrategy;
 use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::Trace;
+use crate::trace::TRACEPOINT_ID_MAP;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct PosetNode {
-    pub tracepoint_id: String,
+    pub tracepoint_id: usize,
     pub variant: EventType,
 }
 
 impl PosetNode {
     pub fn from_event(span: &Event) -> PosetNode {
         PosetNode {
-            tracepoint_id: span.tracepoint_id.clone(),
+            tracepoint_id: span.tracepoint_id,
             variant: span.variant,
         }
     }
@@ -38,14 +39,19 @@ impl Display for PosetNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         const LINE_WIDTH: usize = 75;
         // Break the tracepoint id into multiple lines so that the graphs look prettier
-        let mut result = String::with_capacity(self.tracepoint_id.len() + 10);
+        let tracepoint_id = TRACEPOINT_ID_MAP
+            .lock()
+            .unwrap()
+            .get_by_right(&self.tracepoint_id)
+            .unwrap().clone();
+        let mut result = String::with_capacity(tracepoint_id.len() + 10);
         let mut written = 0;
-        while written <= self.tracepoint_id.len() {
-            if written + LINE_WIDTH <= self.tracepoint_id.len() {
-                result.push_str(&self.tracepoint_id[written..written + LINE_WIDTH]);
+        while written <= tracepoint_id.len() {
+            if written + LINE_WIDTH <= tracepoint_id.len() {
+                result.push_str(&tracepoint_id[written..written + LINE_WIDTH]);
             // result.push_str("-\n");
             } else {
-                result.push_str(&self.tracepoint_id[written..self.tracepoint_id.len()]);
+                result.push_str(&tracepoint_id[written..tracepoint_id.len()]);
             }
             written += LINE_WIDTH;
         }
@@ -81,7 +87,7 @@ impl Poset {
         }
     }
 
-    fn get_entry_points(&self) -> Vec<&String> {
+    fn get_entry_points(&self) -> Vec<&usize> {
         let mut result = HashSet::new();
         result.extend(self.entry_points.keys().map(|x| &x.tracepoint_id));
         result.extend(self.exit_points.keys().map(|x| &x.tracepoint_id));
@@ -95,7 +101,7 @@ impl SearchStrategy for Poset {
         _group: &Group,
         _edge: EdgeIndex,
         _budget: usize,
-    ) -> (Vec<&String>, SearchState) {
+    ) -> (Vec<usize>, SearchState) {
         (Vec::new(), SearchState::NextEdge)
     }
 }

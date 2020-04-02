@@ -18,10 +18,10 @@ use crate::trace::Trace;
 
 pub struct FlatSpace {
     paths: HashMap<String, CriticalPath>, // key is the hash of the critical path
-    entry_points: HashSet<String>,
+    entry_points: HashSet<usize>,
     occurances: HashMap<String, usize>,
     tried_groups: RefCell<HashSet<String>>,
-    enabled_tracepoints: RefCell<HashSet<String>>,
+    enabled_tracepoints: RefCell<HashSet<usize>>,
     manifest: Manifest,
 }
 
@@ -32,13 +32,13 @@ impl FlatSpace {
         }
     }
 
-    fn get_entry_points(&self) -> Vec<&String> {
-        self.entry_points.iter().collect()
+    fn get_entry_points(&self) -> Vec<usize> {
+        self.entry_points.iter().cloned().collect()
     }
 }
 
 impl SearchStrategy for FlatSpace {
-    fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> (Vec<&String>, SearchState) {
+    fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> (Vec<usize>, SearchState) {
         let now = Instant::now();
         let mut matching_hashes = self
             .paths
@@ -81,7 +81,7 @@ impl SearchStrategy for FlatSpace {
                 );
                 for i in &result {
                     let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
-                    enabled_tracepoints.insert(i.to_string());
+                    enabled_tracepoints.insert(*i);
                 }
                 tried_groups.insert(current_hash.clone());
                 eprintln!("Finding middle took {}", now.elapsed().as_micros(),);
@@ -107,8 +107,8 @@ impl SearchStrategy for FlatSpace {
                             split_count,
                         );
                         tried_groups.insert(i.to_string());
-                        for t in tracepoints {
-                            result.insert(t);
+                        for t in &tracepoints {
+                            result.insert(*t);
                             if result.len() >= budget {
                                 break;
                             }
@@ -121,7 +121,7 @@ impl SearchStrategy for FlatSpace {
                     if split_count > budget {
                         for i in &result {
                             let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
-                            enabled_tracepoints.insert(i.to_string());
+                            enabled_tracepoints.insert(*i);
                         }
                         eprintln!("Finding middle took {}", now.elapsed().as_micros(),);
                         tried_groups.clear();
@@ -130,7 +130,7 @@ impl SearchStrategy for FlatSpace {
                 }
                 for i in &result {
                     let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
-                    enabled_tracepoints.insert(i.to_string());
+                    enabled_tracepoints.insert(*i);
                 }
                 eprintln!("Finding middle took {}", now.elapsed().as_micros(),);
                 if split_count > budget {
@@ -170,13 +170,13 @@ impl FlatSpace {
     }
 
     /// Find n tracepoints that equally separate the edge according to the path
-    fn split_group_by_n<'a>(
+    fn split_group_by_n(
         &self,
-        path: &'a CriticalPath, // Contains full search space
+        path: &CriticalPath, // Contains full search space
         group: &Group,
         edge: EdgeIndex,
         n: usize,
-    ) -> Vec<&'a String> {
+    ) -> Vec<usize> {
         let mut result = Vec::new();
         let (source, target) = group.g.edge_endpoints(edge).unwrap();
         let mut path_source = path.start_node;
@@ -239,7 +239,7 @@ impl FlatSpace {
                 println!("Already reached target node, breaking");
                 continue;
             }
-            result.push(&path.g.g[cur_path_idx].tracepoint_id);
+            result.push(path.g.g[cur_path_idx].tracepoint_id);
             assert_ne!(cur_path_idx, path_target);
             assert_ne!(cur_path_idx, path_source);
             cur_path_idx = path.next_node(cur_path_idx).unwrap();

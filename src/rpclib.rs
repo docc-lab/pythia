@@ -16,6 +16,7 @@ use crate::controller::OSProfilerController;
 use crate::osprofiler::{OSProfilerReader, OSProfilerSpan};
 use crate::settings::Settings;
 use crate::trace::RequestType;
+use crate::trace::TRACEPOINT_ID_MAP;
 
 #[rpc]
 pub trait PythiaAPI {
@@ -94,9 +95,19 @@ impl PythiaClient {
 
     fn set_tracepoints(
         &self,
-        settings: Vec<(String, Option<RequestType>, [u8; 1])>,
+        settings: Vec<(usize, Option<RequestType>, [u8; 1])>,
     ) -> impl Future<Item = (), Error = RpcError> {
-        self.0.call_method("set_tracepoints", "", (settings,))
+        let new_settings: Vec<(String, Option<RequestType>, [u8; 1])> = settings
+            .iter()
+            .map(|(x, y, z)| {
+                (
+                    TRACEPOINT_ID_MAP.lock().unwrap().get_by_right(&x).unwrap().clone(),
+                    y.clone(),
+                    z.clone(),
+                )
+            })
+            .collect();
+        self.0.call_method("set_tracepoints", "", (new_settings,))
     }
 }
 
@@ -175,7 +186,7 @@ pub fn set_all_client_tracepoints(client_uri: &str, to_write: [u8; 1]) {
 
 pub fn set_client_tracepoints(
     client_uri: &str,
-    settings: Vec<(String, Option<RequestType>, [u8; 1])>,
+    settings: Vec<(usize, Option<RequestType>, [u8; 1])>,
 ) {
     let (tx, mut rx) = futures::sync::mpsc::unbounded();
 

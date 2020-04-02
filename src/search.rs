@@ -11,10 +11,5 @@ pub enum SearchState {
 }
 
 pub trait SearchStrategy: Display {
-    fn search(
-        &self,
-        group: &Group,
-        edge: EdgeIndex,
-        budget: usize,
-    ) -> (Vec<&String>, SearchState);
+    fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> (Vec<usize>, SearchState);
 }

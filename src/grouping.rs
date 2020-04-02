@@ -27,14 +27,14 @@ pub struct Group {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct GroupNode {
-    pub tracepoint_id: String,
+    pub tracepoint_id: usize,
     pub variant: EventType,
 }
 
 impl GroupNode {
     fn from_event(e: &Event) -> GroupNode {
         GroupNode {
-            tracepoint_id: e.tracepoint_id.clone(),
+            tracepoint_id: e.tracepoint_id,
             variant: e.variant,
         }
     }

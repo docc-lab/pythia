@@ -1,9 +1,12 @@
 /// General trace implementation
 ///
+///
 use std::fmt;
 use std::fmt::Display;
+use std::sync::Mutex;
 use std::time::Duration;
 
+use bimap::BiMap;
 use chrono::NaiveDateTime;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
@@ -168,10 +171,11 @@ impl fmt::Display for RequestType {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Event {
     pub trace_id: Uuid,
-    pub tracepoint_id: String,
+    #[serde(with = "serde_tracepoint_id")]
+    pub tracepoint_id: usize,
     pub timestamp: NaiveDateTime,
     pub is_synthetic: bool,
     pub variant: EventType,
@@ -187,10 +191,34 @@ pub enum EventType {
 impl Display for Event {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.variant {
-            EventType::Entry => write!(f, "{} start: {}", self.trace_id, self.tracepoint_id),
-            EventType::Annotation => write!(f, "{}: {}", self.trace_id, self.tracepoint_id),
+            EventType::Entry => write!(
+                f,
+                "{} start: {}",
+                self.trace_id,
+                TRACEPOINT_ID_MAP
+                    .lock()
+                    .unwrap()
+                    .get_by_right(&self.tracepoint_id)
+                    .unwrap()
+            ),
+            EventType::Annotation => write!(
+                f,
+                "{}: {}",
+                self.trace_id,
+                TRACEPOINT_ID_MAP
+                    .lock()
+                    .unwrap()
+                    .get_by_right(&self.tracepoint_id)
+                    .unwrap()
+            ),
             EventType::Exit => write!(f, "{} end", self.trace_id),
         }
+    }
+}
+
+impl PartialEq<Event> for Event {
+    fn eq(&self, other: &Event) -> bool {
+        self.tracepoint_id == other.tracepoint_id && self.variant == other.variant
     }
 }
 
@@ -217,6 +245,57 @@ impl Display for DAGEdge {
         match &self.variant {
             EdgeType::ChildOf => write!(f, "{}: C", self.duration.as_nanos()),
             EdgeType::FollowsFrom => write!(f, "{}: F", self.duration.as_nanos()),
+        }
+    }
+}
+
+lazy_static! {
+    pub static ref TRACEPOINT_ID_MAP: Mutex<BiMap<String, usize>> = Mutex::new(BiMap::new());
+}
+
+pub mod serde_tracepoint_id {
+    use serde::de;
+    use serde::ser;
+    use std::fmt;
+
+    use crate::trace::TRACEPOINT_ID_MAP;
+
+    pub fn deserialize<'de, D>(d: D) -> Result<usize, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        d.deserialize_str(TracepointIDVisitor)
+    }
+
+    pub fn serialize<S>(t: &usize, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        s.serialize_str(TRACEPOINT_ID_MAP.lock().unwrap().get_by_right(t).unwrap())
+    }
+
+    struct TracepointIDVisitor;
+
+    impl<'de> de::Visitor<'de> for TracepointIDVisitor {
+        type Value = usize;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            write!(formatter, "a string representing a tracepoint id")
+        }
+
+        fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            let mut map = TRACEPOINT_ID_MAP.lock().unwrap();
+            Ok(match map.get_by_left(&s.to_string()) {
+                Some(&id) => id,
+                None => {
+                    let id = map.len();
+                    map.insert(s.to_string(), id);
+                    id
+                }
+            })
         }
     }
 }

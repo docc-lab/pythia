@@ -11,11 +11,12 @@ use crate::osprofiler::REQUEST_TYPE_REGEXES;
 use crate::searchspace::SearchSpace;
 use crate::trace::RequestType;
 use crate::trace::Trace;
+use crate::trace::TRACEPOINT_ID_MAP;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Manifest {
     pub per_request_type: HashMap<RequestType, SearchSpace>,
-    request_type_tracepoints: Vec<String>,
+    request_type_tracepoints: Vec<usize>,
 }
 
 impl Manifest {
@@ -49,14 +50,15 @@ impl Manifest {
     }
 
     fn add_request_type_tracepoints(&mut self, traces: &Vec<Trace>) {
+        let map = TRACEPOINT_ID_MAP.lock().unwrap();
         for trace in traces {
             self.request_type_tracepoints.extend(
                 trace
                     .g
                     .node_references()
-                    .map(|x| &x.1.tracepoint_id)
+                    .map(|x| map.get_by_right(&x.1.tracepoint_id).unwrap())
                     .filter(|x: &&String| REQUEST_TYPE_REGEXES.is_match(x))
-                    .map(|x| x.to_string()),
+                    .map(|x| map.get_by_left(x).unwrap()),
             );
         }
     }
@@ -84,7 +86,7 @@ impl Manifest {
         Ok(())
     }
 
-    pub fn entry_points(&self) -> Vec<&String> {
+    pub fn entry_points(&self) -> Vec<&usize> {
         let mut result = HashSet::new();
         for cct in self.per_request_type.values() {
             for tracepoint in cct.get_entry_points() {
