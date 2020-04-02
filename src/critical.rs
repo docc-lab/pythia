@@ -366,13 +366,6 @@ impl CriticalPath {
         unfinished
     }
 
-    pub fn next_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
-        let mut matches = self.g.g.neighbors_directed(nidx, Direction::Outgoing);
-        let result = matches.next();
-        assert!(matches.next().is_none());
-        result
-    }
-
     pub fn next_real_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
         let mut result;
         loop {
@@ -484,40 +477,54 @@ impl CriticalPath {
     }
 }
 
-pub trait HashablePath {
+pub trait Path {
+    fn get_hash(&self) -> RefCell<Option<String>>;
+    fn start_node(&self) -> NodeIndex;
+    fn tracepoint_id(&self, idx: NodeIndex) -> &str;
+    fn next_node(&self, idx: NodeIndex) -> Option<NodeIndex>;
+
     fn hash(&self) -> String {
         if !self.has_hash() {
             self.calculate_hash();
         }
-        self.get_hash()
+        self.get_hash().borrow().as_ref().unwrap().clone()
     }
 
-    fn calculate_hash(&self);
-
-    fn has_hash(&self) -> bool;
-
-    fn get_hash(&self) -> String;
-}
-
-impl HashablePath for CriticalPath {
     fn has_hash(&self) -> bool {
-        !self.hash.borrow().is_none()
-    }
-
-    fn get_hash(&self) -> String {
-        self.hash.borrow().as_ref().unwrap().clone()
+        !self.get_hash().borrow().is_none()
     }
 
     fn calculate_hash(&self) {
         let mut hasher = Sha256::new();
-        let mut cur_node = self.start_node;
+        let mut cur_node = self.start_node();
         loop {
-            hasher.input_str(&self.g.g[cur_node].tracepoint_id);
+            hasher.input_str(&self.tracepoint_id(cur_node));
             cur_node = match self.next_node(cur_node) {
                 Some(node) => node,
                 None => break,
             };
         }
-        *self.hash.borrow_mut() = Some(hasher.result_str());
+        *self.get_hash().borrow_mut() = Some(hasher.result_str());
+    }
+}
+
+impl Path for CriticalPath {
+    fn get_hash(&self) -> RefCell<Option<String>> {
+        self.hash
+    }
+
+    fn start_node(&self) -> NodeIndex {
+        self.start_node
+    }
+
+    fn tracepoint_id(&self, idx: NodeIndex) -> &str {
+        &self.g.g[idx].tracepoint_id
+    }
+
+    fn next_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
+        let mut matches = self.g.g.neighbors_directed(nidx, Direction::Outgoing);
+        let result = matches.next();
+        assert!(matches.next().is_none());
+        result
     }
 }

@@ -5,8 +5,6 @@ use std::fmt;
 use std::fmt::Display;
 use std::time::Duration;
 
-use crypto::digest::Digest;
-use crypto::sha2::Sha256;
 use petgraph::dot::Dot;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
@@ -17,7 +15,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::critical::CriticalPath;
-use crate::critical::HashablePath;
+use crate::critical::Path;
 use crate::trace::DAGEdge;
 use crate::trace::Event;
 use crate::trace::EventType;
@@ -161,15 +159,6 @@ impl HierarchicalCriticalPath {
             prev_node = next_node;
         }
     }
-
-    pub fn next_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
-        let visitor =
-            EdgeFiltered::from_fn(&self.g, |e| e.weight().variant == EdgeType::HappensBefore);
-        let mut matches = visitor.neighbors_directed(nidx, Direction::Outgoing);
-        let result = matches.next();
-        assert!(matches.next().is_none());
-        result
-    }
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -216,25 +205,25 @@ impl Display for SearchSpace {
     }
 }
 
-impl HashablePath for HierarchicalCriticalPath {
-    fn has_hash(&self) -> bool {
-        !self.hash.borrow().is_none()
+impl Path for HierarchicalCriticalPath {
+    fn get_hash(&self) -> RefCell<Option<String>> {
+        self.hash
     }
 
-    fn get_hash(&self) -> String {
-        self.hash.borrow().as_ref().unwrap().clone()
+    fn start_node(&self) -> NodeIndex {
+        self.start_node
     }
 
-    fn calculate_hash(&self) {
-        let mut hasher = Sha256::new();
-        let mut cur_node = self.start_node;
-        loop {
-            hasher.input_str(&self.g[cur_node].tracepoint_id);
-            cur_node = match self.next_node(cur_node) {
-                Some(node) => node,
-                None => break,
-            };
-        }
-        *self.hash.borrow_mut() = Some(hasher.result_str());
+    fn tracepoint_id(&self, idx: NodeIndex) -> &str {
+        &self.g[idx].tracepoint_id
+    }
+
+    fn next_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
+        let visitor =
+            EdgeFiltered::from_fn(&self.g, |e| e.weight().variant == EdgeType::HappensBefore);
+        let mut matches = visitor.neighbors_directed(nidx, Direction::Outgoing);
+        let result = matches.next();
+        assert!(matches.next().is_none());
+        result
     }
 }
