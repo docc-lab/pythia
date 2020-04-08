@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crypto::digest::Digest;
 use crypto::sha2::Sha256;
-use genawaiter::{stack::let_gen, stack::Gen, yield_};
+use genawaiter::{rc::gen, yield_};
 use petgraph::visit::EdgeRef;
 use petgraph::{dot::Dot, graph::NodeIndex, Direction};
 use serde::{Deserialize, Serialize};
@@ -68,8 +68,8 @@ impl CriticalPath {
         path
     }
 
-    pub fn all_possible_paths(dag: &Trace) -> Vec<CriticalPath> {
-        let_gen!(helper, {
+    pub fn all_possible_paths<'a>(dag: &'a Trace) -> impl Iterator<Item = CriticalPath> + 'a {
+        gen!({
             let mut p = CriticalPath {
                 g: Trace::new(&dag.base_id),
                 start_node: NodeIndex::end(),
@@ -104,19 +104,18 @@ impl CriticalPath {
                     }
                     let next_node = next_nodes.pop().unwrap();
                     for node in next_nodes {
-                        remaining_nodes.push((cur_node, next_node, next_nidx, p.clone()));
+                        remaining_nodes.push((cur_node, node, next_nidx, p.clone()));
                     }
                     cur_path_node = next_nidx;
                     prev_node = cur_node;
                     cur_node = next_node;
                 }
-                p.add_synthetic_nodes(dag);
+                p.add_synthetic_nodes(&dag);
                 p.filter_incomplete_spans();
                 yield_!(p);
             }
-        });
-
-        helper.into_iter().collect()
+        })
+        .into_iter()
     }
 
     /// This method returns all possible critical paths that

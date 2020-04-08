@@ -28,8 +28,8 @@ pub struct FlatSpace {
 
 impl FlatSpace {
     fn add_trace(&mut self, trace: &Trace) {
-        for path in &CriticalPath::all_possible_paths(trace) {
-            self.add_path(path);
+        for path in CriticalPath::all_possible_paths(trace) {
+            self.add_path(&path);
         }
     }
 

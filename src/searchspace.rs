@@ -62,16 +62,8 @@ struct HierarchicalCriticalPath {
 }
 
 impl HierarchicalCriticalPath {
-    pub fn all_possible_paths(trace: &Trace) -> Vec<Self> {
-        panic!(
-            "Paths from orig: {}, new: {}",
-            CriticalPath::orig_all_possible_paths(trace).len(),
-            CriticalPath::all_possible_paths(trace).len()
-        );
-        CriticalPath::all_possible_paths(trace)
-            .iter()
-            .map(|x| HierarchicalCriticalPath::from_path(x))
-            .collect()
+    pub fn all_possible_paths<'a>(trace: &'a Trace) -> impl Iterator<Item = Self> + 'a {
+        CriticalPath::all_possible_paths(trace).map(|x| HierarchicalCriticalPath::from_path(&x))
     }
 
     pub fn from_path(path: &CriticalPath) -> Self {
@@ -175,7 +167,7 @@ pub struct SearchSpace {
 
 impl SearchSpace {
     pub fn add_trace(&mut self, trace: &Trace) {
-        for path in &HierarchicalCriticalPath::all_possible_paths(trace) {
+        for path in HierarchicalCriticalPath::all_possible_paths(trace) {
             self.entry_points
                 .insert(path.g[path.start_node].tracepoint_id);
             self.entry_points
@@ -191,7 +183,7 @@ impl SearchSpace {
                                 paths_to_remove.push(p.hash());
                             }
                         } else if path.len() < p.len() {
-                            if p.contains(path) {
+                            if p.contains(&path) {
                                 add_path = false;
                             }
                         }
