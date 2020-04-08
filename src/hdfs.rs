@@ -162,9 +162,9 @@ fn eventid_to_uuid(id: &String) -> Uuid {
     Uuid::from_bytes(buf)
 }
 
-fn convert_hdfs_timestamp(timestamp: u64, _hrt: u64) -> NaiveDateTime {
-    let seconds: i64 = (timestamp / 1000).try_into().unwrap();
-    let nanos: u32 = ((timestamp % 1000) * 1000000).try_into().unwrap();
+fn convert_hdfs_timestamp(_timestamp: u64, hrt: u64) -> NaiveDateTime {
+    let seconds: i64 = (hrt / 1000).try_into().unwrap();
+    let nanos: u32 = ((hrt % 1000) * 1000000).try_into().unwrap();
     NaiveDateTime::from_timestamp(seconds, nanos)
 }
 
