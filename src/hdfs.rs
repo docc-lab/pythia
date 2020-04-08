@@ -25,7 +25,9 @@ use crate::trace::Trace;
 use crate::trace::TracepointID;
 use crate::trace::{DAGEdge, EdgeType};
 
-pub struct HDFSReader {}
+pub struct HDFSReader {
+    xtrace_url: String,
+}
 
 impl Reader for HDFSReader {
     fn get_recent_traces(&mut self) -> Vec<Trace> {
@@ -34,7 +36,7 @@ impl Reader for HDFSReader {
 
     fn get_trace_from_base_id(&mut self, id: &str) -> Option<Trace> {
         assert!(id.len() != 0);
-        let urn: String = format!("http://localhost:4080/interactive/reports/{}", id);
+        let urn: String = format!("{}/interactive/reports/{}", self.xtrace_url, id);
 
         let (tx, mut rx) = futures::sync::mpsc::unbounded();
 
@@ -88,8 +90,10 @@ impl Reader for HDFSReader {
 }
 
 impl HDFSReader {
-    pub fn from_settings(_settings: &Settings) -> Self {
-        HDFSReader {}
+    pub fn from_settings(settings: &Settings) -> Self {
+        HDFSReader {
+            xtrace_url: settings.xtrace_url.clone(),
+        }
     }
 
     fn from_json(&self, data: &mut HDFSTrace) -> Trace {

@@ -13,6 +13,7 @@ pub struct Settings {
     pub pythia_clients: Vec<String>,
     pub application: ApplicationType,
     pub manifest_method: ManifestMethod,
+    pub xtrace_url: String,
 }
 
 #[derive(Debug)]
@@ -79,6 +80,7 @@ impl Settings {
                 _ => panic!("Unknown application type"),
             },
             manifest_method: manifest_method,
+            xtrace_url: results.get("xtrace_url").unwrap().to_string(),
         }
     }
 }

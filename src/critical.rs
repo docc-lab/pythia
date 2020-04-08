@@ -102,9 +102,9 @@ impl CriticalPath {
                     if next_nodes.len() == 0 {
                         break;
                     }
-                    let next_node = next_nodes.pop();
+                    let next_node = next_nodes.pop().unwrap();
                     for node in next_nodes {
-                        remaining_nodes.insert(next_node, next_nidx, p.clone());
+                        remaining_nodes.push((cur_node, next_node, next_nidx, p.clone()));
                     }
                     cur_path_node = next_nidx;
                     prev_node = cur_node;
