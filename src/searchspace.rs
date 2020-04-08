@@ -63,6 +63,10 @@ struct HierarchicalCriticalPath {
 
 impl HierarchicalCriticalPath {
     pub fn all_possible_paths(trace: &Trace) -> Vec<Self> {
+        assert!(
+            CriticalPath::all_possible_paths(trace).len()
+                == CriticalPath::orig_all_possible_paths(trace).len()
+        );
         CriticalPath::all_possible_paths(trace)
             .iter()
             .map(|x| HierarchicalCriticalPath::from_path(x))
