@@ -2,6 +2,7 @@
 ///
 ///
 use std::fmt;
+use std::fmt::Debug;
 use std::fmt::Display;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -235,7 +236,7 @@ lazy_static! {
     static ref TRACEPOINT_ID_MAP: Mutex<BiMap<String, usize>> = Mutex::new(BiMap::new());
 }
 
-#[derive(Hash, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Hash, Clone, Copy, Eq, PartialEq)]
 pub struct TracepointID {
     id: usize,
 }
@@ -270,6 +271,15 @@ impl TracepointID {
 impl Display for TracepointID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.to_string())
+    }
+}
+
+impl Debug for TracepointID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("TracepointID")
+            .field("id", &self.id)
+            .field("full_name", &self.to_string())
+            .finish()
     }
 }
 
