@@ -8,6 +8,6 @@ xtrace_url = "http://localhost:4080"
 
 # Split by commas, of the form http://localhost:3030
 pythia_clients = "http://localhost:3030,http://cp-1:3030"
-application = "OpenStack" # can be HDFS, OpenStack
+application = "Uber" # can be HDFS, OpenStack
 
 manifest_method = "Flat" # can be CCT, Poset, Historic, Flat

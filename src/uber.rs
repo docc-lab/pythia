@@ -38,7 +38,7 @@ impl Reader for UberReader {
                 let reader = std::fs::File::open(filename).unwrap();
                 let mut t: UberTrace = serde_json::from_reader(reader).unwrap();
                 let mut trace = self.from_json(&mut t);
-                trace.prune();
+                // trace.prune();
                 trace
             }
         }
@@ -66,7 +66,7 @@ impl UberReader {
 
     fn from_json(&self, data: &mut UberTrace) -> Trace {
         assert!(data.data.len() == 1);
-        let mut trace = data.data[0];
+        let mut trace = &data.data[0];
         let mut mydag = Trace::new(&trace.traceID.to_uuid());
         let mut event_id_map = HashMap::new();
         let mut nidx = NodeIndex::end();
@@ -78,31 +78,31 @@ impl UberReader {
             if idx == 0 {
                 mydag.start_node = nidx;
             } else {
-                for parent in event.parent_event_id.iter() {
-                    match event_id_map.get(parent) {
-                        Some(&parent_nidx) => {
-                            mydag.g.add_edge(
-                                parent_nidx,
-                                nidx,
-                                DAGEdge {
-                                    duration: (mynode.timestamp - mydag.g[parent_nidx].timestamp)
-                                        .to_std()
-                                        .unwrap(),
-                                    variant: EdgeType::ChildOf,
-                                },
-                            );
-                        }
-                        None => {
-                            panic!("Couldn't find parent node {}", parent);
-                        }
-                    }
-                }
+                // for parent in event.parent_event_id.iter() {
+                //     match event_id_map.get(parent) {
+                //         Some(&parent_nidx) => {
+                //             mydag.g.add_edge(
+                //                 parent_nidx,
+                //                 nidx,
+                //                 DAGEdge {
+                //                     duration: (mynode.timestamp - mydag.g[parent_nidx].timestamp)
+                //                         .to_std()
+                //                         .unwrap(),
+                //                     variant: EdgeType::ChildOf,
+                //                 },
+                //             );
+                //         }
+                //         None => {
+                //             panic!("Couldn't find parent node {}", parent);
+                //         }
+                //     }
+                // }
             }
         }
-        mydag.end_node = nidx;
-        mydag.duration = (mydag.g[mydag.end_node].timestamp - mydag.g[mydag.start_node].timestamp)
-            .to_std()
-            .unwrap();
+        // mydag.end_node = nidx;
+        // mydag.duration = (mydag.g[mydag.end_node].timestamp - mydag.g[mydag.start_node].timestamp)
+        //     .to_std()
+        //     .unwrap();
         mydag
     }
 }
@@ -119,13 +119,15 @@ pub struct UberTrace {
 pub struct UberData {
     traceID: HDFSID,
     spans: Vec<UberSpan>,
-    processes: HashMap<HDFSID, UberProcess>,
+    #[serde(skip_deserializing)]
+    processes: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct UberSpan {
     traceID: HDFSID,
     spanID: HDFSID,
+    #[serde(default)]
     flags: u64,
     operationName: HDFSID,
     references: Vec<UberReference>,
@@ -134,7 +136,7 @@ pub struct UberSpan {
     tags: Vec<UberTag>,
     logs: Vec<String>,
     process: UberProcess,
-    warnings: String,
+    warnings: Option<String>,
     processID: HDFSID,
 }
 
