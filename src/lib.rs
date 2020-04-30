@@ -85,12 +85,12 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
     let mut reader = reader_from_settings(&settings);
     let now = Instant::now();
     let traces = reader.read_trace_file(epoch_file);
-    eprintln!("Reading traces took {}", now.elapsed().as_micros());
+    eprintln!("Reading traces took {}us", now.elapsed().as_micros());
     let critical_paths = traces.iter().map(|t| CriticalPath::from_trace(t)).collect();
     let now = Instant::now();
     let mut groups = Group::from_critical_paths(critical_paths);
     eprintln!(
-        "Extracting critical paths took {}",
+        "Extracting critical paths took {}us",
         now.elapsed().as_micros()
     );
     groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap()); // descending order
@@ -171,7 +171,10 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
         }
         group_index += 1;
     }
-    eprintln!("Searching plus enabling took {}", now.elapsed().as_micros());
+    eprintln!(
+        "Searching plus enabling took {}us",
+        now.elapsed().as_micros()
+    );
 }
 
 pub fn disable_all() {

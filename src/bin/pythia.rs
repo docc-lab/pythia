@@ -131,5 +131,5 @@ fn main() {
         }
         _ => panic!("Must provide a subcommand, see --help for commands"),
     };
-    eprintln!("Overall Pythia took {}", now.elapsed().as_micros());
+    eprintln!("Overall Pythia took {}us", now.elapsed().as_micros());
 }

@@ -168,6 +168,8 @@ pub struct SearchSpace {
 impl SearchSpace {
     pub fn add_trace(&mut self, trace: &Trace, verbose: bool) {
         let mut count = 0;
+        let mut overlaps = 0;
+        let mut added = 0;
         if verbose {
             eprintln!("Counting paths...");
             eprintln!(
@@ -198,17 +200,23 @@ impl SearchSpace {
                     }
                     for p in &paths_to_remove {
                         self.paths.remove(p);
+                        added -= 1;
+                        overlaps += 1;
                     }
                     if add_path {
                         self.paths.insert(path.hash().clone(), path.clone());
+                        added += 1;
+                    } else {
+                        overlaps += 1;
                     }
                 }
             }
             count += 1;
             if verbose && (count % 1000 == 0) {
-                eprintln!("Added {} paths", count);
+                eprintln!("Added {}/{} paths, overlaps = {}", added, count, overlaps);
             }
         }
+        eprintln!("Added {}/{} paths, removed {} overlaps", added, count, overlaps);
     }
 
     pub fn get_entry_points(&self) -> Vec<TracepointID> {
