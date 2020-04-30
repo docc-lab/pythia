@@ -4,6 +4,7 @@ use std::fmt;
 
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
+use chrono::Duration;
 use chrono::NaiveDateTime;
 use futures::future;
 use futures::future::Future;
@@ -53,6 +54,15 @@ impl Reader for UberReader {
     }
 }
 
+fn convert_uber_timestamp(start_time: u64, duration: i64) -> (NaiveDateTime, NaiveDateTime) {
+    let duration = Duration::microseconds(duration);
+
+    let seconds: i64 = (start_time / 1000000).try_into().unwrap();
+    let nanos: u32 = ((start_time % 1000000) * 1000).try_into().unwrap();
+    let start_time = NaiveDateTime::from_timestamp(seconds, nanos);
+    (start_time, start_time + duration)
+}
+
 impl UberReader {
     pub fn from_settings(settings: &Settings) -> Self {
         UberReader {}
@@ -61,6 +71,30 @@ impl UberReader {
     fn to_events_edges(&self, spans: &Vec<UberSpan>) -> (Vec<Event>, Vec<UberEdge>) {
         let mut events = Vec::new();
         let mut edges = Vec::new();
+        for span in spans {
+            let (start_time, end_time) = convert_uber_timestamp(span.startTime, span.duration);
+            events.push(Event {
+                trace_id: span.spanID.to_uuid(),
+                tracepoint_id: TracepointID::from_str(&span.operationName.to_string()),
+                timestamp: start_time,
+                is_synthetic: false,
+                variant: EventType::Entry,
+            });
+            events.push(Event {
+                trace_id: span.spanID.to_uuid(),
+                tracepoint_id: TracepointID::from_str(&span.operationName.to_string()),
+                timestamp: end_time,
+                is_synthetic: false,
+                variant: EventType::Exit,
+            });
+            for r in &span.references {
+                assert!(r.traceID == span.traceID);
+                edges.push(UberEdge {
+                    parent: r.spanID,
+                    child: span.spanID,
+                });
+            }
+        }
         (events, edges)
     }
 
@@ -132,7 +166,7 @@ pub struct UberSpan {
     operationName: HDFSID,
     references: Vec<UberReference>,
     startTime: u64,
-    duration: u64,
+    duration: i64,
     tags: Vec<UberTag>,
     logs: Vec<String>,
     process: UberProcess,

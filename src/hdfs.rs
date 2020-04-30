@@ -153,6 +153,10 @@ impl HDFSID {
         }
         Uuid::from_bytes(buf)
     }
+
+    pub fn to_string(&self) -> String {
+        format!("{:?}", self.id.unwrap())
+    }
 }
 
 fn eventid_to_uuid(id: &String) -> Uuid {
