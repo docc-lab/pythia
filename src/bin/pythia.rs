@@ -6,8 +6,8 @@ use std::time::Instant;
 
 use pythia::{
     disable_all, disable_tracepoint, dump_traces, enable_all, enable_skeleton, get_crit,
-    get_manifest, get_trace, make_decision, read_trace_file, run_controller, show_config,
-    show_key_value_pairs, show_manifest,
+    get_manifest, get_trace, make_decision, measure_search_space_feasibility, read_trace_file,
+    run_controller, show_config, show_key_value_pairs, show_manifest,
 };
 
 fn main() {
@@ -58,6 +58,10 @@ fn main() {
                 .arg(Arg::with_name("tracepoint-id").required(true).index(1)),
         )
         .subcommand(
+            SubCommand::with_name("try-manifest")
+                .arg(Arg::with_name("trace-file").required(true).index(1)),
+        )
+        .subcommand(
             SubCommand::with_name("show-manifest")
                 .arg(Arg::with_name("request-type").required(true).index(1)),
         )
@@ -75,6 +79,9 @@ fn main() {
         }
         ("read-file", Some(matches)) => {
             read_trace_file(matches.value_of("trace-file").unwrap());
+        }
+        ("try-manifest", Some(matches)) => {
+            measure_search_space_feasibility(matches.value_of("trace-file").unwrap());
         }
         ("show-manifest", Some(matches)) => {
             show_manifest(matches.value_of("request-type").unwrap());

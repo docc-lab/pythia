@@ -68,6 +68,30 @@ impl CriticalPath {
         path
     }
 
+    pub fn count_possible_paths(dag: &Trace) -> u64 {
+        let mut count = 0;
+        let mut remaining_nodes = vec![dag.start_node];
+        while !remaining_nodes.is_empty() {
+            let mut cur_node = remaining_nodes.pop().unwrap();
+            loop {
+                let mut next_nodes: Vec<_> = dag
+                    .g
+                    .neighbors_directed(cur_node, Direction::Outgoing)
+                    .collect();
+                if next_nodes.len() == 0 {
+                    break;
+                }
+                let next_node = next_nodes.pop().unwrap();
+                for node in next_nodes {
+                    remaining_nodes.push(node);
+                }
+                cur_node = next_node;
+            }
+            count += 1;
+        }
+        count
+    }
+
     pub fn all_possible_paths<'a>(dag: &'a Trace) -> impl Iterator<Item = CriticalPath> + 'a {
         gen!({
             let mut p = CriticalPath {

@@ -28,16 +28,34 @@ impl Manifest {
         }
     }
 
+    pub fn try_constructing(trace: &Trace) -> Manifest {
+        let mut map = HashMap::<RequestType, SearchSpace>::new();
+        match map.get_mut(&trace.request_type) {
+            Some(space) => {
+                space.add_trace(&trace, true);
+            }
+            None => {
+                let mut space = SearchSpace::default();
+                space.add_trace(&trace, true);
+                map.insert(trace.request_type, space);
+            }
+        }
+        Manifest {
+            per_request_type: map,
+            request_type_tracepoints: Vec::new(),
+        }
+    }
+
     pub fn from_trace_list(traces: &Vec<Trace>) -> Manifest {
         let mut map = HashMap::<RequestType, SearchSpace>::new();
         for trace in traces {
             match map.get_mut(&trace.request_type) {
                 Some(space) => {
-                    space.add_trace(&trace);
+                    space.add_trace(&trace, false);
                 }
                 None => {
                     let mut space = SearchSpace::default();
-                    space.add_trace(&trace);
+                    space.add_trace(&trace, false);
                     map.insert(trace.request_type, space);
                 }
             }

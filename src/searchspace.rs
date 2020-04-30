@@ -166,7 +166,15 @@ pub struct SearchSpace {
 }
 
 impl SearchSpace {
-    pub fn add_trace(&mut self, trace: &Trace) {
+    pub fn add_trace(&mut self, trace: &Trace, verbose: bool) {
+        let mut count = 0;
+        if verbose {
+            eprintln!("Counting paths...");
+            eprintln!(
+                "Starting to process {} paths",
+                CriticalPath::count_possible_paths(trace)
+            );
+        }
         for path in HierarchicalCriticalPath::all_possible_paths(trace) {
             self.entry_points
                 .insert(path.g[path.start_node].tracepoint_id);
@@ -195,6 +203,10 @@ impl SearchSpace {
                         self.paths.insert(path.hash().clone(), path.clone());
                     }
                 }
+            }
+            count += 1;
+            if verbose {
+                eprintln!("Added {} paths", count);
             }
         }
     }

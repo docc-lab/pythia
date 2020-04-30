@@ -276,6 +276,13 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
     manifest.to_file(manifest_file.as_path());
 }
 
+pub fn measure_search_space_feasibility(trace_file: &str) {
+    let settings = Settings::read();
+    let mut reader = reader_from_settings(&settings);
+    let trace = reader.read_file(trace_file);
+    println!("{}", Manifest::try_constructing(&trace));
+}
+
 pub fn read_trace_file(trace_file: &str) {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
