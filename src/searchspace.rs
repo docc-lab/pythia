@@ -205,7 +205,7 @@ impl SearchSpace {
                 }
             }
             count += 1;
-            if verbose {
+            if verbose && (count % 1000 == 0) {
                 eprintln!("Added {} paths", count);
             }
         }
