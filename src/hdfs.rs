@@ -137,13 +137,13 @@ impl HDFSReader {
     }
 }
 
-#[derive(Serialize, Debug, Clone, Eq, PartialEq, Copy)]
+#[derive(Serialize, Debug, Clone, Eq, PartialEq, Copy, Hash)]
 pub struct HDFSID {
     id: Option<[u8; 8]>,
 }
 
 impl HDFSID {
-    fn to_uuid(&self) -> Uuid {
+    pub fn to_uuid(&self) -> Uuid {
         let mut buf: [u8; 16] = [0; 16];
         match self.id {
             Some(bytes) => {

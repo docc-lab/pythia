@@ -17,6 +17,7 @@ pub mod search;
 pub mod searchspace;
 pub mod settings;
 pub mod trace;
+pub mod uber;
 
 use std::io::stdin;
 use std::thread::sleep;

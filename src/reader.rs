@@ -3,6 +3,7 @@ use crate::osprofiler::OSProfilerReader;
 use crate::settings::ApplicationType;
 use crate::settings::Settings;
 use crate::trace::Trace;
+use crate::uber::UberReader;
 
 pub trait Reader {
     fn read_file(&mut self, filename: &str) -> Trace;
@@ -28,5 +29,6 @@ pub fn reader_from_settings(settings: &Settings) -> Box<dyn Reader> {
     match &settings.application {
         ApplicationType::OpenStack => Box::new(OSProfilerReader::from_settings(settings)),
         ApplicationType::HDFS => Box::new(HDFSReader::from_settings(settings)),
+        ApplicationType::Uber => Box::new(UberReader::from_settings(settings)),
     }
 }

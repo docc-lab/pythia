@@ -20,6 +20,7 @@ pub struct Settings {
 pub enum ApplicationType {
     HDFS,
     OpenStack,
+    Uber,
 }
 
 #[derive(Debug)]
@@ -77,6 +78,7 @@ impl Settings {
             application: match results.get("application").unwrap().as_str() {
                 "OpenStack" => ApplicationType::OpenStack,
                 "HDFS" => ApplicationType::HDFS,
+                "Uber" => ApplicationType::Uber,
                 _ => panic!("Unknown application type"),
             },
             manifest_method: manifest_method,
