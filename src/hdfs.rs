@@ -12,6 +12,7 @@ use futures::Async;
 use hex;
 use hyper::rt;
 use hyper::Client;
+use itertools::Itertools;
 use petgraph::graph::NodeIndex;
 use serde::de;
 use serde::{Deserialize, Serialize};
@@ -155,7 +156,7 @@ impl HDFSID {
     }
 
     pub fn to_string(&self) -> String {
-        format!("{:?}", self.id.unwrap())
+        format!("{:02x}", self.id.unwrap().iter().format(""))
     }
 }
 
