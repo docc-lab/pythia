@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::error::Error;
 use std::fmt;
 
 use byteorder::BigEndian;
@@ -27,6 +28,17 @@ use crate::trace::Trace;
 use crate::trace::TracepointID;
 use crate::trace::{DAGEdge, EdgeType};
 
+#[derive(Debug)]
+struct UberError(String);
+
+impl fmt::Display for UberError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Uber error: {}", self.0)
+    }
+}
+
+impl Error for UberError {}
+
 pub struct UberReader {}
 
 impl Reader for UberReader {
@@ -38,9 +50,8 @@ impl Reader for UberReader {
             Err(_) => {
                 let reader = std::fs::File::open(filename).unwrap();
                 let mut t: UberTrace = serde_json::from_reader(reader).unwrap();
-                let mut trace = self.from_json(&mut t);
+                self.from_json(&mut t).unwrap()
                 // trace.prune();
-                trace
             }
         }
     }
@@ -63,54 +74,73 @@ fn convert_uber_timestamp(start_time: u64, duration: i64) -> (NaiveDateTime, Nai
     (start_time, start_time + duration)
 }
 
+fn raise(s: &str) -> Box<dyn Error> {
+    Box::new(UberError(s.into()))
+}
+
 impl UberReader {
     pub fn from_settings(settings: &Settings) -> Self {
         UberReader {}
     }
 
-    fn to_events_edges(&self, spans: &Vec<UberSpan>) -> (Vec<Event>, Vec<UberEdge>) {
+    fn to_events_edges(&self, spans: &Vec<UberSpan>) -> Result<Vec<UberEvent>, Box<dyn Error>> {
         let mut events = Vec::new();
-        let mut edges = Vec::new();
         for span in spans {
-            let (start_time, end_time) = convert_uber_timestamp(span.startTime, span.duration);
-            events.push(Event {
-                trace_id: span.spanID.to_uuid(),
-                tracepoint_id: TracepointID::from_str(&span.operationName.to_string()),
-                timestamp: start_time,
-                is_synthetic: false,
-                variant: EventType::Entry,
+            let parent = if span.references.len() == 1 {
+                let r = &span.references[0];
+                if r.trace_id != span.trace_id {
+                    return Err(raise(&format!(
+                        "Mismatch on trace ids {:?} and {:?}",
+                        r.trace_id, span.trace_id
+                    )));
+                }
+                Some(r.span_id)
+            } else if span.references.len() == 0 {
+                None
+            } else {
+                return Err(raise(&format!("Got {} references", span.references.len())));
+            };
+            let (start_time, end_time) = convert_uber_timestamp(span.start_time, span.duration);
+            events.push(UberEvent {
+                e: Event {
+                    trace_id: span.span_id.to_uuid(),
+                    tracepoint_id: TracepointID::from_str(&span.operation_name.to_string()),
+                    timestamp: start_time,
+                    is_synthetic: false,
+                    variant: EventType::Entry,
+                },
+                parent_id: parent,
             });
-            events.push(Event {
-                trace_id: span.spanID.to_uuid(),
-                tracepoint_id: TracepointID::from_str(&span.operationName.to_string()),
-                timestamp: end_time,
-                is_synthetic: false,
-                variant: EventType::Exit,
+            events.push(UberEvent {
+                e: Event {
+                    trace_id: span.span_id.to_uuid(),
+                    tracepoint_id: TracepointID::from_str(&span.operation_name.to_string()),
+                    timestamp: end_time,
+                    is_synthetic: false,
+                    variant: EventType::Exit,
+                },
+                parent_id: parent,
             });
-            for r in &span.references {
-                assert!(r.traceID == span.traceID);
-                edges.push(UberEdge {
-                    parent: r.spanID,
-                    child: span.spanID,
-                });
-            }
         }
-        (events, edges)
+        Ok(events)
     }
 
-    fn from_json(&self, data: &mut UberTrace) -> Trace {
+    fn from_json(&self, data: &mut UberTrace) -> Result<Trace, Box<dyn Error>> {
         assert!(data.data.len() == 1);
         let mut trace = &data.data[0];
-        let mut mydag = Trace::new(&trace.traceID.to_uuid());
+        let mut mydag = Trace::new(&trace.trace_id.to_uuid());
         let mut event_id_map = HashMap::new();
         let mut nidx = NodeIndex::end();
-        let (mut event_list, edge_list) = self.to_events_edges(&trace.spans);
-        event_list.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+        let mut event_list = self.to_events_edges(&trace.spans)?;
+        event_list.sort_by(|a, b| a.e.timestamp.cmp(&b.e.timestamp));
         for (idx, event) in event_list.iter().enumerate() {
-            nidx = mydag.g.add_node(event.clone());
-            event_id_map.insert(event.trace_id.clone(), nidx);
+            nidx = mydag.g.add_node(event.e.clone());
+            event_id_map.insert(event.e.trace_id.clone(), nidx);
             if idx == 0 {
                 mydag.start_node = nidx;
+                if !event.parent_id.is_none() {
+                    return Err(raise("Trace does not start with root span"));
+                }
             } else {
                 // for parent in event.parent_event_id.iter() {
                 //     match event_id_map.get(parent) {
@@ -137,8 +167,14 @@ impl UberReader {
         // mydag.duration = (mydag.g[mydag.end_node].timestamp - mydag.g[mydag.start_node].timestamp)
         //     .to_std()
         //     .unwrap();
-        mydag
+        Ok(mydag)
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+struct UberEvent {
+    e: Event,
+    parent_id: Option<HDFSID>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -151,27 +187,32 @@ pub struct UberTrace {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct UberData {
-    traceID: HDFSID,
+    #[serde(rename = "traceID")]
+    trace_id: HDFSID,
     spans: Vec<UberSpan>,
     #[serde(skip_deserializing)]
     processes: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct UberSpan {
-    traceID: HDFSID,
-    spanID: HDFSID,
+    #[serde(rename = "traceID")]
+    trace_id: HDFSID,
+    #[serde(rename = "spanID")]
+    span_id: HDFSID,
     #[serde(default)]
     flags: u64,
-    operationName: HDFSID,
+    operation_name: HDFSID,
     references: Vec<UberReference>,
-    startTime: u64,
+    start_time: u64,
     duration: i64,
     tags: Vec<UberTag>,
     logs: Vec<String>,
     process: UberProcess,
     warnings: Option<String>,
-    processID: HDFSID,
+    #[serde(rename = "processID")]
+    process_id: HDFSID,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -181,15 +222,19 @@ pub struct UberEdge {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct UberReference {
-    refType: String,
-    traceID: HDFSID,
-    spanID: HDFSID,
+    ref_type: String,
+    #[serde(rename = "traceID")]
+    trace_id: HDFSID,
+    #[serde(rename = "spanID")]
+    span_id: HDFSID,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct UberProcess {
-    serviceName: HDFSID,
+    service_name: HDFSID,
     tags: Vec<String>,
 }
 
