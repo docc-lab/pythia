@@ -29,15 +29,19 @@ use crate::trace::TracepointID;
 use crate::trace::{DAGEdge, EdgeType};
 
 #[derive(Debug)]
-struct UberError(String);
+struct UberParseError(String);
 
-impl fmt::Display for UberError {
+impl fmt::Display for UberParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Uber error: {}", self.0)
     }
 }
 
-impl Error for UberError {}
+impl Error for UberParseError {}
+
+fn raise(s: &str) -> Box<dyn Error> {
+    Box::new(UberParseError(s.into()))
+}
 
 pub struct UberReader {}
 
@@ -72,10 +76,6 @@ fn convert_uber_timestamp(start_time: u64, duration: i64) -> (NaiveDateTime, Nai
     let nanos: u32 = ((start_time % 1000000) * 1000).try_into().unwrap();
     let start_time = NaiveDateTime::from_timestamp(seconds, nanos);
     (start_time, start_time + duration)
-}
-
-fn raise(s: &str) -> Box<dyn Error> {
-    Box::new(UberError(s.into()))
 }
 
 impl UberReader {
@@ -127,41 +127,79 @@ impl UberReader {
 
     fn from_json(&self, data: &mut UberTrace) -> Result<Trace, Box<dyn Error>> {
         assert!(data.data.len() == 1);
-        let mut trace = &data.data[0];
+        let trace = &data.data[0];
         let mut mydag = Trace::new(&trace.trace_id.to_uuid());
-        let mut event_id_map = HashMap::new();
-        let mut nidx = NodeIndex::end();
+        let mut active_spans = HashMap::new();
+        let mut children_per_parent: HashMap<HDFSID, NodeIndex> = HashMap::new();
+        let mut last_nidx: Option<NodeIndex> = None;
         let mut event_list = self.to_events_edges(&trace.spans)?;
         event_list.sort_by(|a, b| a.e.timestamp.cmp(&b.e.timestamp));
         for (idx, event) in event_list.iter().enumerate() {
-            nidx = mydag.g.add_node(event.e.clone());
-            event_id_map.insert(event.e.trace_id.clone(), nidx);
+            let nidx = mydag.g.add_node(event.e.clone());
             if idx == 0 {
                 mydag.start_node = nidx;
                 if !event.parent_id.is_none() {
                     return Err(raise("Trace does not start with root span"));
                 }
-            } else {
-                // for parent in event.parent_event_id.iter() {
-                //     match event_id_map.get(parent) {
-                //         Some(&parent_nidx) => {
-                //             mydag.g.add_edge(
-                //                 parent_nidx,
-                //                 nidx,
-                //                 DAGEdge {
-                //                     duration: (mynode.timestamp - mydag.g[parent_nidx].timestamp)
-                //                         .to_std()
-                //                         .unwrap(),
-                //                     variant: EdgeType::ChildOf,
-                //                 },
-                //             );
-                //         }
-                //         None => {
-                //             panic!("Couldn't find parent node {}", parent);
-                //         }
-                //     }
-                // }
             }
+            match children_per_parent.get(&event.parent_id) {
+                Some(&i) => {
+                    mydag.g.add_edge(
+                        i,
+                        nidx,
+                        DAGEdge {
+                            duration: (event.e.timestamp - mydag.g[i].timestamp).to_std().unwrap(),
+                            variant: EdgeType::ChildOf,
+                        },
+                    );
+                }
+                None => {
+                    let prev_nidx = match event.parent_id {
+                        Some(p) => *active_spans.get(&p.to_uuid()).unwrap(),
+                        None => {
+                            match mydag.g[last_nidx.unwrap()].variant {
+                                EventType::Exit => {}
+                                _ => {
+                                    return Err(raise(
+                                        "Last node not exit and got parentless node",
+                                    ));
+                                }
+                            }
+                            last_nidx.unwrap()
+                        }
+                    };
+                    mydag.g.add_edge(
+                        prev_nidx,
+                        nidx,
+                        DAGEdge {
+                            duration: (event.e.timestamp - mydag.g[prev_nidx].timestamp)
+                                .to_std()
+                                .unwrap(),
+                            variant: EdgeType::ChildOf,
+                        },
+                    );
+                }
+            }
+            match &event.e.variant {
+                EventType::Entry => {
+                    active_spans.insert(event.e.trace_id, nidx);
+                }
+                EventType::Exit => {
+                    let start_nidx = match active_spans.get(&event.e.trace_id) {
+                        Some(i) => i,
+                        None => {
+                            return Err(raise(&format!(
+                                "Span {} started before ending",
+                                event.e.trace_id
+                            )));
+                        }
+                    };
+                }
+                EventType::Annotation => {
+                    return Err(raise("Uber does not support annotations"));
+                }
+            }
+            last_nidx = Some(nidx);
         }
         // mydag.end_node = nidx;
         // mydag.duration = (mydag.g[mydag.end_node].timestamp - mydag.g[mydag.start_node].timestamp)
