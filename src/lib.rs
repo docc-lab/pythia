@@ -19,6 +19,8 @@ pub mod settings;
 pub mod trace;
 pub mod uber;
 
+use std::error::Error;
+use std::fmt;
 use std::io::stdin;
 use std::thread::sleep;
 use std::time::Duration;
@@ -50,7 +52,10 @@ pub fn run_controller() {
     let now = Instant::now();
     loop {
         let traces = reader.get_recent_traces();
-        let critical_paths = traces.iter().map(|t| CriticalPath::from_trace(t)).collect();
+        let critical_paths = traces
+            .iter()
+            .map(|t| CriticalPath::from_trace(t).unwrap())
+            .collect();
         groups.update(&critical_paths);
         println!(
             "Got {} paths of duration {:?} at time {}us",
@@ -86,7 +91,10 @@ pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
     let now = Instant::now();
     let traces = reader.read_trace_file(epoch_file);
     eprintln!("Reading traces took {}us", now.elapsed().as_micros());
-    let critical_paths = traces.iter().map(|t| CriticalPath::from_trace(t)).collect();
+    let critical_paths = traces
+        .iter()
+        .map(|t| CriticalPath::from_trace(t).unwrap())
+        .collect();
     let now = Instant::now();
     let mut groups = Group::from_critical_paths(critical_paths);
     eprintln!(
@@ -286,6 +294,23 @@ pub fn measure_search_space_feasibility(trace_file: &str) {
     println!("{}", Manifest::try_constructing(&trace));
 }
 
+pub fn group_folder(trace_folder: &str) {
+    let settings = Settings::read();
+    let mut reader = reader_from_settings(&settings);
+    let traces = reader.read_dir(trace_folder);
+    println!("Read {} traces", traces.len());
+    let critical_paths = traces
+        .iter()
+        .filter_map(|t| {
+            println!("Pathing trace {:?}", t.base_id);
+            CriticalPath::from_trace(t).ok()
+        })
+        .collect::<Vec<CriticalPath>>();
+    println!("Got {} paths", critical_paths.len());
+    let groups = Group::from_critical_paths(critical_paths);
+    println!("Got {} groups", groups.len());
+}
+
 pub fn read_trace_file(trace_file: &str) {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
@@ -319,7 +344,7 @@ pub fn get_crit(trace_id: &str) {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
     let trace = reader.get_trace_from_base_id(trace_id).unwrap();
-    let crit = CriticalPath::from_trace(&trace);
+    let crit = CriticalPath::from_trace(&trace).unwrap();
     println!("{}", Dot::new(&crit.g.g));
 }
 
@@ -327,3 +352,14 @@ pub fn show_config() {
     let settings = Settings::read();
     println!("{:?}", settings);
 }
+
+#[derive(Debug)]
+pub struct PythiaError(String);
+
+impl fmt::Display for PythiaError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Uber error: {}", self.0)
+    }
+}
+
+impl Error for PythiaError {}

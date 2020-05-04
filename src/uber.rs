@@ -3,19 +3,9 @@ use std::convert::TryInto;
 use std::error::Error;
 use std::fmt;
 
-use byteorder::BigEndian;
-use byteorder::ByteOrder;
 use chrono::Duration;
 use chrono::NaiveDateTime;
-use futures::future;
-use futures::future::Future;
-use futures::stream::Stream;
-use futures::Async;
-use hex;
-use hyper::rt;
-use hyper::Client;
 use petgraph::graph::NodeIndex;
-use serde::de;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -48,25 +38,31 @@ pub struct UberReader {}
 
 impl Reader for UberReader {
     fn read_file(&mut self, filename: &str) -> Trace {
-        let reader = std::fs::File::open(filename).unwrap();
-        match serde_json::from_reader(reader) {
-            // We either have a saved file, or saved xtrace output
-            Ok(v) => v,
-            Err(_) => {
-                let reader = std::fs::File::open(filename).unwrap();
-                let mut t: UberTrace = serde_json::from_reader(reader).unwrap();
-                self.from_json(&mut t).unwrap()
-                // trace.prune();
-            }
-        }
+        self.try_read_file(filename).unwrap()
     }
 
-    fn get_trace_from_base_id(&mut self, id: &str) -> Option<Trace> {
+    fn get_trace_from_base_id(&mut self, _id: &str) -> Option<Trace> {
         None
     }
 
     fn get_recent_traces(&mut self) -> Vec<Trace> {
         Vec::new()
+    }
+
+    fn read_dir(&mut self, foldername: &str) -> Vec<Trace> {
+        let mut results = Vec::new();
+        for entry in std::fs::read_dir(foldername).unwrap() {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            eprintln!("Reading {}", path.to_str().unwrap());
+            match self.try_read_file(&path.to_str().unwrap()) {
+                Ok(t) => results.push(t),
+                Err(e) => {
+                    eprintln!("Parsing failed with {:?}", e);
+                }
+            }
+        }
+        results
     }
 }
 
@@ -88,8 +84,22 @@ struct UberParsingState {
 }
 
 impl UberReader {
-    pub fn from_settings(settings: &Settings) -> Self {
+    pub fn from_settings(_settings: &Settings) -> Self {
         UberReader {}
+    }
+
+    fn try_read_file(&mut self, filename: &str) -> Result<Trace, Box<dyn Error>> {
+        let reader = std::fs::File::open(filename).unwrap();
+        match serde_json::from_reader(reader) {
+            // We either have a saved file, or saved xtrace output
+            Ok(v) => Ok(v),
+            Err(_) => {
+                let reader = std::fs::File::open(filename).unwrap();
+                let mut t: UberTrace = serde_json::from_reader(reader).unwrap();
+                self.from_json(&mut t)
+                // trace.prune();
+            }
+        }
     }
 
     fn to_events_edges(&self, spans: &Vec<UberSpan>) -> Result<Vec<UberEvent>, Box<dyn Error>> {
@@ -164,8 +174,7 @@ impl UberReader {
                         Ok(_) => {
                             state.last_nidx = Some(state.nidx);
                         }
-                        Err(e) => {
-                            eprintln!("Failed deferred node with {:?}", e);
+                        Err(_) => {
                             mydag.g.remove_node(state.nidx);
                             deferred_events.insert(0, state.event.clone());
                         }
@@ -184,10 +193,10 @@ impl UberReader {
                 }
             }
         }
-        // mydag.end_node = nidx;
-        // mydag.duration = (mydag.g[mydag.end_node].timestamp - mydag.g[mydag.start_node].timestamp)
-        //     .to_std()
-        //     .unwrap();
+        mydag.end_node = state.last_nidx.unwrap();
+        mydag.duration = (mydag.g[mydag.end_node].timestamp - mydag.g[mydag.start_node].timestamp)
+            .to_std()
+            .unwrap();
         Ok(mydag)
     }
 

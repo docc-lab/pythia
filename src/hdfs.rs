@@ -88,6 +88,10 @@ impl Reader for HDFSReader {
             }
         }
     }
+
+    fn read_dir(&mut self, foldername: &str) -> Vec<Trace> {
+        Vec::new()
+    }
 }
 
 impl HDFSReader {

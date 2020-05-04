@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::error::Error;
 use std::time::Duration;
 
 use crypto::digest::Digest;
@@ -16,6 +17,7 @@ use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::RequestType;
 use crate::trace::Trace;
+use crate::PythiaError;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CriticalPath {
@@ -29,7 +31,7 @@ pub struct CriticalPath {
 }
 
 impl CriticalPath {
-    pub fn from_trace(dag: &Trace) -> CriticalPath {
+    pub fn from_trace(dag: &Trace) -> Result<CriticalPath, Box<dyn Error>> {
         let mut path = CriticalPath {
             duration: Duration::new(0, 0),
             g: Trace::new(&dag.base_id),
@@ -61,11 +63,11 @@ impl CriticalPath {
             cur_node = next_node;
             end_nidx = start_nidx;
         }
-        path.add_synthetic_nodes(dag);
+        path.add_synthetic_nodes(dag)?;
         path.duration = (path.g.g[path.end_node].timestamp - path.g.g[path.start_node].timestamp)
             .to_std()
             .unwrap();
-        path
+        Ok(path)
     }
 
     pub fn count_possible_paths(dag: &Trace) -> u64 {
@@ -134,7 +136,7 @@ impl CriticalPath {
                     prev_node = cur_node;
                     cur_node = next_node;
                 }
-                p.add_synthetic_nodes(&dag);
+                p.add_synthetic_nodes(&dag).ok();
                 p.filter_incomplete_spans();
                 yield_!(p);
             }
@@ -165,7 +167,7 @@ impl CriticalPath {
             ));
         }
         for i in &mut result {
-            i.add_synthetic_nodes(dag);
+            i.add_synthetic_nodes(dag).ok();
             i.filter_incomplete_spans();
         }
         result
@@ -273,7 +275,7 @@ impl CriticalPath {
     /// A_start -> B_start -> C_start -> C_end -> ... rest of the path
     ///                   \-> D_start -> B_end -> A_end
     /// We add B_end and A_end (in that order) right before C_start
-    fn add_synthetic_nodes(&mut self, dag: &Trace) {
+    fn add_synthetic_nodes(&mut self, dag: &Trace) -> Result<(), Box<dyn Error>> {
         let mut cur_nidx = self.start_node;
         let mut cur_dag_nidx = dag.start_node;
         let mut active_spans = Vec::new();
@@ -295,7 +297,7 @@ impl CriticalPath {
                             active_spans.remove(idx);
                         }
                         None => {
-                            self.add_synthetic_start_node(cur_nidx, cur_dag_nidx, dag);
+                            self.add_synthetic_start_node(cur_nidx, cur_dag_nidx, dag)?;
                         }
                     };
                 }
@@ -332,6 +334,7 @@ impl CriticalPath {
             }
             cur_nidx = next_nidx;
         }
+        Ok(())
     }
 
     /// We encountered an end node for a span that did not start on our critical path
@@ -342,7 +345,7 @@ impl CriticalPath {
         start_nidx: NodeIndex,
         start_dag_nidx: NodeIndex,
         dag: &Trace,
-    ) {
+    ) -> Result<(), Box<dyn Error>> {
         let span_to_add = self.g.g[start_nidx].clone();
         // Find synch. point
         let mut cur_nidx = start_nidx;
@@ -355,7 +358,19 @@ impl CriticalPath {
                 .collect::<Vec<_>>();
             let mut prev_nidx = cur_nidx;
             loop {
-                prev_nidx = self.prev_node(prev_nidx).unwrap();
+                prev_nidx = match self.prev_node(prev_nidx) {
+                    Some(id) => id,
+                    None => {
+                        return Err(Box::new(PythiaError(
+                            format!(
+                                "Failed to find prev node in trace {}\n{}",
+                                dag.base_id,
+                                Dot::new(&dag.g)
+                            )
+                            .into(),
+                        )));
+                    }
+                };
                 if !self.g.g[prev_nidx].is_synthetic {
                     break;
                 }
@@ -378,7 +393,7 @@ impl CriticalPath {
                 }
                 if found_start {
                     self.add_node_after(prev_nidx, &span_to_add);
-                    return;
+                    return Ok(());
                 }
             }
             cur_nidx = prev_nidx;

@@ -89,6 +89,10 @@ impl Reader for OSProfilerReader {
         dag
     }
 
+    fn read_dir(&mut self, foldername: &str) -> Vec<Trace> {
+        Vec::new()
+    }
+
     /*
     pub fn get_key_value_pairs(&mut self, id: &str) -> HashMap<String, String> {
         let base_id = Uuid::parse_str(id).ok().unwrap();
