@@ -40,6 +40,7 @@ impl fmt::Display for UberParseError {
 impl Error for UberParseError {}
 
 fn raise(s: &str) -> Box<dyn Error> {
+    // panic!(s.to_string());
     Box::new(UberParseError(s.into()))
 }
 
@@ -76,6 +77,14 @@ fn convert_uber_timestamp(start_time: u64, duration: i64) -> (NaiveDateTime, Nai
     let nanos: u32 = ((start_time % 1000000) * 1000).try_into().unwrap();
     let start_time = NaiveDateTime::from_timestamp(seconds, nanos);
     (start_time, start_time + duration)
+}
+
+struct UberParsingState {
+    nidx: NodeIndex,
+    event: UberEvent,
+    active_spans: HashMap<Uuid, NodeIndex>,
+    children_per_parent: HashMap<Uuid, NodeIndex>,
+    last_nidx: Option<NodeIndex>,
 }
 
 impl UberReader {
@@ -129,83 +138,137 @@ impl UberReader {
         assert!(data.data.len() == 1);
         let trace = &data.data[0];
         let mut mydag = Trace::new(&trace.trace_id.to_uuid());
-        let mut active_spans = HashMap::new();
-        let mut children_per_parent: HashMap<HDFSID, NodeIndex> = HashMap::new();
-        let mut last_nidx: Option<NodeIndex> = None;
         let mut event_list = self.to_events_edges(&trace.spans)?;
         event_list.sort_by(|a, b| a.e.timestamp.cmp(&b.e.timestamp));
-        for (idx, event) in event_list.iter().enumerate() {
-            let nidx = mydag.g.add_node(event.e.clone());
-            if idx == 0 {
-                mydag.start_node = nidx;
-                if !event.parent_id.is_none() {
-                    return Err(raise("Trace does not start with root span"));
-                }
-            }
-            match children_per_parent.get(&event.parent_id) {
-                Some(&i) => {
-                    mydag.g.add_edge(
-                        i,
-                        nidx,
-                        DAGEdge {
-                            duration: (event.e.timestamp - mydag.g[i].timestamp).to_std().unwrap(),
-                            variant: EdgeType::ChildOf,
-                        },
-                    );
-                }
-                None => {
-                    let prev_nidx = match event.parent_id {
-                        Some(p) => *active_spans.get(&p.to_uuid()).unwrap(),
-                        None => {
-                            match mydag.g[last_nidx.unwrap()].variant {
-                                EventType::Exit => {}
-                                _ => {
-                                    return Err(raise(
-                                        "Last node not exit and got parentless node",
-                                    ));
-                                }
-                            }
-                            last_nidx.unwrap()
+        let mut state = UberParsingState {
+            active_spans: HashMap::new(),
+            children_per_parent: HashMap::new(),
+            last_nidx: None,
+            event: event_list[0].clone(),
+            nidx: NodeIndex::end(),
+        };
+        let mut deferred_events: Vec<UberEvent> = Vec::new();
+        let mut deferred_timestamp = event_list[0].e.timestamp.clone();
+        for event in event_list.iter() {
+            state.event = event.clone();
+            if event.e.timestamp > deferred_timestamp {
+                let mut num_tries = deferred_events.len() + 1;
+                while deferred_events.len() != 0 {
+                    if num_tries == 0 {
+                        return Err(raise("Could not add deferred nodes"));
+                    }
+                    num_tries -= 1;
+                    state.event = deferred_events.pop().unwrap();
+                    state.nidx = mydag.g.add_node(event.e.clone());
+                    match self.try_add_node(&mut mydag, &mut state) {
+                        Ok(_) => {
+                            state.last_nidx = Some(state.nidx);
                         }
-                    };
-                    mydag.g.add_edge(
-                        prev_nidx,
-                        nidx,
-                        DAGEdge {
-                            duration: (event.e.timestamp - mydag.g[prev_nidx].timestamp)
-                                .to_std()
-                                .unwrap(),
-                            variant: EdgeType::ChildOf,
-                        },
-                    );
-                }
-            }
-            match &event.e.variant {
-                EventType::Entry => {
-                    active_spans.insert(event.e.trace_id, nidx);
-                }
-                EventType::Exit => {
-                    let start_nidx = match active_spans.get(&event.e.trace_id) {
-                        Some(i) => i,
-                        None => {
-                            return Err(raise(&format!(
-                                "Span {} started before ending",
-                                event.e.trace_id
-                            )));
+                        Err(e) => {
+                            eprintln!("Failed deferred node with {:?}", e);
+                            mydag.g.remove_node(state.nidx);
+                            deferred_events.insert(0, state.event.clone());
                         }
-                    };
-                }
-                EventType::Annotation => {
-                    return Err(raise("Uber does not support annotations"));
+                    }
                 }
             }
-            last_nidx = Some(nidx);
+            state.nidx = mydag.g.add_node(event.e.clone());
+            match self.try_add_node(&mut mydag, &mut state) {
+                Ok(_) => {
+                    state.last_nidx = Some(state.nidx);
+                }
+                Err(_) => {
+                    mydag.g.remove_node(state.nidx);
+                    deferred_events.push(event.clone());
+                    deferred_timestamp = event.e.timestamp.clone();
+                }
+            }
         }
         // mydag.end_node = nidx;
         // mydag.duration = (mydag.g[mydag.end_node].timestamp - mydag.g[mydag.start_node].timestamp)
         //     .to_std()
         //     .unwrap();
         Ok(mydag)
+    }
+
+    fn try_add_node(
+        &self,
+        mydag: &mut Trace,
+        s: &mut UberParsingState,
+    ) -> Result<(), Box<dyn Error>> {
+        if mydag.g.node_count() <= 1 {
+            mydag.start_node = s.nidx;
+            if !s.event.parent_id.is_none() {
+                return Err(raise("Trace does not start with root span"));
+            }
+        }
+        let prev_sibling = match &s.event.parent_id {
+            Some(id) => {
+                let result = match s.children_per_parent.get(&id.to_uuid()) {
+                    Some(&id) => Some(id.clone()),
+                    None => None,
+                };
+                s.children_per_parent.insert(id.to_uuid(), s.nidx);
+                result
+            }
+            None => None,
+        };
+        match prev_sibling {
+            Some(i) => {
+                mydag.g.add_edge(
+                    i,
+                    s.nidx,
+                    DAGEdge {
+                        duration: (s.event.e.timestamp - mydag.g[i].timestamp).to_std()?,
+                        variant: EdgeType::ChildOf,
+                    },
+                );
+            }
+            None => {
+                let prev_nidx = match &s.event.parent_id {
+                    Some(p) => match s.active_spans.get(&p.to_uuid()) {
+                        Some(&id) => Some(id),
+                        None => {
+                            return Err(raise("Parent did not start before current node"));
+                        }
+                    },
+                    None => {
+                        if mydag.g.node_count() > 1 {
+                            match mydag.g[s.last_nidx.unwrap()].variant {
+                                EventType::Exit => {}
+                                _ => {
+                                    if mydag.g[s.last_nidx.unwrap()].trace_id != s.event.e.trace_id
+                                    {
+                                        return Err(raise(
+                                            "Last node not exit and got parentless node",
+                                        ));
+                                    }
+                                }
+                            }
+                            s.last_nidx
+                        } else {
+                            None
+                        }
+                    }
+                };
+                match prev_nidx {
+                    Some(p) => {
+                        mydag.g.add_edge(
+                            p,
+                            s.nidx,
+                            DAGEdge {
+                                duration: (s.event.e.timestamp - mydag.g[p].timestamp).to_std()?,
+                                variant: EdgeType::ChildOf,
+                            },
+                        );
+                    }
+                    None => {}
+                }
+            }
+        }
+        s.active_spans.insert(s.event.e.trace_id, s.nidx);
+        s.children_per_parent.insert(s.event.e.trace_id, s.nidx);
+        Ok(())
     }
 }
 
