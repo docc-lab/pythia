@@ -26,6 +26,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use std::time::Instant;
 
+use itertools::Itertools;
 use petgraph::dot::Dot;
 use rand::seq::SliceRandom;
 
@@ -346,8 +347,11 @@ pub fn group_folder(trace_folder: &str) {
         );
     }
     println!(
-        "Length of each critical path: {:?}",
-        groups.iter().map(|x| x.g.node_count()).collect::<Vec<_>>()
+        "Group stats:\npath_len,trace_count,variance\n{}",
+        groups
+            .iter()
+            .map(|x| format!("{},{},{}", x.g.node_count(), x.traces.len(), x.variance))
+            .join("\n")
     );
 }
 
