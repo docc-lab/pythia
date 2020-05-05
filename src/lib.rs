@@ -302,10 +302,7 @@ pub fn group_folder(trace_folder: &str) {
     println!("Read {} traces", traces.len());
     let critical_paths = traces
         .iter()
-        .filter_map(|t| {
-            println!("Pathing trace {:?}", t.base_id);
-            CriticalPath::from_trace(t).ok()
-        })
+        .filter_map(|t| CriticalPath::from_trace(t).ok())
         .collect::<Vec<CriticalPath>>();
     println!("Got {} paths", critical_paths.len());
     let mut groups = Group::from_critical_paths(critical_paths);
@@ -347,10 +344,16 @@ pub fn group_folder(trace_folder: &str) {
         );
     }
     println!(
-        "Group stats:\npath_len,trace_count,variance\n{}",
+        "Group stats:\nbase_id,path_len,trace_count,variance\n{}",
         groups
             .iter()
-            .map(|x| format!("{},{},{}", x.g.node_count(), x.traces.len(), x.variance))
+            .map(|x| format!(
+                "{},{},{},{}",
+                x.traces[0].g.base_id,
+                x.g.node_count(),
+                x.traces.len(),
+                x.variance
+            ))
             .join("\n")
     );
 }
