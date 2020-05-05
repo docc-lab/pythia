@@ -307,8 +307,48 @@ pub fn group_folder(trace_folder: &str) {
         })
         .collect::<Vec<CriticalPath>>();
     println!("Got {} paths", critical_paths.len());
-    let groups = Group::from_critical_paths(critical_paths);
+    let mut groups = Group::from_critical_paths(critical_paths);
     println!("Got {} groups", groups.len());
+    groups.sort_by(|a, b| b.traces.len().partial_cmp(&a.traces.len()).unwrap()); // descending order
+    println!(
+        "Trace count and variance of each group: {:?}",
+        groups
+            .iter()
+            .map(|x| (x.traces.len(), x.variance))
+            .collect::<Vec<_>>()
+    );
+    println!("Top 5 variance groups");
+    groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap()); // descending order
+    for (idx, i) in groups.iter().enumerate() {
+        if idx > 5 {
+            break;
+        }
+        println!(
+            "Group length {}, variance {}, each trace duration {:?}\nsample trace: {}",
+            i.traces.len(),
+            i.variance,
+            i.traces.iter().map(|x| x.duration).collect::<Vec<_>>(),
+            Dot::new(&i.g)
+        );
+    }
+    println!("Top 5 groups with longest traces");
+    groups.sort_by(|a, b| b.g.node_count().partial_cmp(&a.g.node_count()).unwrap()); // descending order
+    for (idx, i) in groups.iter().enumerate() {
+        if idx > 5 {
+            break;
+        }
+        println!(
+            "Group length {}, variance {}, each trace duration {:?}\nsample trace: {}",
+            i.traces.len(),
+            i.variance,
+            i.traces.iter().map(|x| x.duration).collect::<Vec<_>>(),
+            Dot::new(&i.g)
+        );
+    }
+    println!(
+        "Length of each critical path: {:?}",
+        groups.iter().map(|x| x.g.node_count()).collect::<Vec<_>>()
+    );
 }
 
 pub fn read_trace_file(trace_file: &str) {
