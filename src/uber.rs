@@ -5,7 +5,8 @@ use std::fmt;
 
 use chrono::Duration;
 use chrono::NaiveDateTime;
-use petgraph::graph::NodeIndex;
+use petgraph::algo::connected_components;
+use petgraph::graph::{Graph, NodeIndex};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -197,7 +198,12 @@ impl UberReader {
         mydag.duration = (mydag.g[mydag.end_node].timestamp - mydag.g[mydag.start_node].timestamp)
             .to_std()
             .unwrap();
-        Ok(mydag)
+        let g: Graph<Event, DAGEdge> = mydag.g.clone().into();
+        if connected_components(&g) > 1 {
+            Err(raise("Too many connected components"))
+        } else {
+            Ok(mydag)
+        }
     }
 
     fn try_add_node(

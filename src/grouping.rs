@@ -80,9 +80,14 @@ impl Group {
                 }
             }
         }
+        let mut zeros = 0;
         for (_, group) in hash_map.iter_mut() {
             group.calculate_variance();
+            if group.variance == 0.0 {
+                zeros += 1;
+            }
         }
+        println!("{} groups had 0 variance", zeros);
         hash_map.values().cloned().collect::<Vec<Group>>()
     }
 
@@ -195,7 +200,9 @@ impl Group {
 
     fn calculate_variance(&mut self) {
         self.variance = variance(self.traces.iter().map(|x| x.duration.as_nanos()));
-        println!("Set variance of {} to {}", self.hash, self.variance);
+        if self.variance != 0.0 {
+            println!("Set variance of {} to {}", self.hash, self.variance);
+        }
     }
 }
 
