@@ -344,15 +344,15 @@ pub fn group_folder(trace_folder: &str) {
         );
     }
     println!(
-        "Group stats:\nbase_id,path_len,trace_count,variance\n{}",
+        "Group stats:\npath_len,trace_count,variance,trace_ids\n{}",
         groups
             .iter()
             .map(|x| format!(
-                "{},{},{},{}",
-                x.traces[0].g.base_id,
+                "{},{},{},\"{:?}\"",
                 x.g.node_count(),
                 x.traces.len(),
-                x.variance
+                x.variance,
+                x.traces.iter().map(|x| x.g.base_id).collect::<Vec<_>>()
             ))
             .join("\n")
     );
