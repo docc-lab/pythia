@@ -6,8 +6,9 @@ use std::time::Instant;
 
 use pythia::{
     disable_all, disable_tracepoint, dump_traces, enable_all, enable_skeleton, get_crit,
-    get_manifest, get_trace, group_folder, make_decision, measure_search_space_feasibility,
-    read_trace_file, run_controller, show_config, show_key_value_pairs, show_manifest,
+    get_manifest, get_trace, group_folder, group_from_ids, make_decision,
+    measure_search_space_feasibility, read_trace_file, run_controller, show_config,
+    show_key_value_pairs, show_manifest,
 };
 
 fn main() {
@@ -28,6 +29,10 @@ fn main() {
         .subcommand(
             SubCommand::with_name("group-folder")
                 .arg(Arg::with_name("trace-folder").required(true).index(1)),
+        )
+        .subcommand(
+            SubCommand::with_name("group-ids")
+                .arg(Arg::with_name("traceid-file").required(true).index(1)),
         )
         .subcommand(
             SubCommand::with_name("read-file")
@@ -83,6 +88,9 @@ fn main() {
         }
         ("group-folder", Some(matches)) => {
             group_folder(matches.value_of("trace-folder").unwrap());
+        }
+        ("group-ids", Some(matches)) => {
+            group_from_ids(matches.value_of("traceid-file").unwrap());
         }
         ("read-file", Some(matches)) => {
             read_trace_file(matches.value_of("trace-file").unwrap());

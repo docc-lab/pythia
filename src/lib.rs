@@ -21,7 +21,9 @@ pub mod uber;
 
 use std::error::Error;
 use std::fmt;
+use std::fs::File;
 use std::io::stdin;
+use std::io::{self, BufRead};
 use std::thread::sleep;
 use std::time::Duration;
 use std::time::Instant;
@@ -45,6 +47,7 @@ use crate::search::SearchStrategy;
 use crate::settings::ManifestMethod;
 use crate::settings::Settings;
 use crate::trace::RequestType;
+use crate::trace::Trace;
 
 pub fn run_controller() {
     let settings = Settings::read();
@@ -300,6 +303,22 @@ pub fn group_folder(trace_folder: &str) {
     let mut reader = reader_from_settings(&settings);
     let traces = reader.read_dir(trace_folder);
     println!("Read {} traces", traces.len());
+    group_traces(traces);
+}
+
+pub fn group_from_ids(id_file: &str) {
+    let settings = Settings::read();
+    let mut reader = reader_from_settings(&settings);
+    let file = File::open(id_file).unwrap();
+    let traces = io::BufReader::new(file)
+        .lines()
+        .map(|x| reader.get_trace_from_base_id(&x.unwrap()).unwrap())
+        .collect::<Vec<_>>();
+    println!("Read {} traces", traces.len());
+    group_traces(traces);
+}
+
+fn group_traces(traces: Vec<Trace>) {
     let critical_paths = traces
         .iter()
         .filter_map(|t| CriticalPath::from_trace(t).ok())
