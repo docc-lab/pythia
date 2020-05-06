@@ -1,6 +1,3 @@
-extern crate clap;
-extern crate pythia;
-
 use clap::{App, Arg, SubCommand};
 use std::time::Instant;
 
