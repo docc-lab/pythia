@@ -89,7 +89,7 @@ impl Reader for OSProfilerReader {
         dag
     }
 
-    fn read_dir(&mut self, foldername: &str) -> Vec<Trace> {
+    fn read_dir(&mut self, _foldername: &str) -> Vec<Trace> {
         Vec::new()
     }
 
