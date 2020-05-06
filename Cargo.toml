@@ -9,16 +9,16 @@ edition = "2018"
 redis = "*"
 serde = {version = "1.0", features = ["derive"] }
 serde_json = "*"
-rand = "0.7"
-uuid = { version = "0.7", features = ["v4", "serde"] }
-chrono = { version = "0.4", features = ["serde"] }
-petgraph = { version = "0.5.0", features = ["serde-1"] }
+rand = "*"
+uuid = { version = "*", features = ["v4", "serde"] }
+chrono = { version = "*", features = ["serde"] }
+petgraph = { version = "*", features = ["serde-1"] }
 clap = "*"
 config = "*"
 hex = "*"
 rust-crypto = "*"
 streaming-stats = "*"
-lazy_static = "1.4.0"
+lazy_static = "*"
 indexmap = "*"
 jsonrpc-core = "*"
 jsonrpc-core-client = "*"
