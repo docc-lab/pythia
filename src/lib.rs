@@ -382,9 +382,9 @@ fn group_traces(traces: Vec<Trace>) {
         let endpoints = groups[0].g.edge_endpoints(*edge).unwrap();
         println!(
             "({} -> {}): {}",
-            groups[group_index].g[endpoints.0],
-            groups[group_index].g[endpoints.1],
-            groups[group_index].g[*edge]
+            groups[0].g[endpoints.0],
+            groups[0].g[endpoints.1],
+            groups[0].g[*edge]
         );
     }
 }
