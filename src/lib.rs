@@ -375,6 +375,18 @@ fn group_traces(traces: Vec<Trace>) {
             ))
             .join("\n")
     );
+    groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap()); // descending order
+    println!("\n\nEdges sorted by variance:\n");
+    let problem_edges = groups[0].problem_edges();
+    for edge in &problem_edges {
+        let endpoints = groups[0].g.edge_endpoints(*edge).unwrap();
+        println!(
+            "({} -> {}): {}",
+            groups[group_index].g[endpoints.0],
+            groups[group_index].g[endpoints.1],
+            groups[group_index].g[*edge]
+        );
+    }
 }
 
 pub fn read_trace_file(trace_file: &str) {
