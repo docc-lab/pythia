@@ -690,6 +690,7 @@ enum AnnotationEnum {
     WaitFor(WaitAnnotationInfo),
     Child(ChildAnnotationInfo),
     Plain(PlainAnnotationInfo),
+    Log(LogAnnotationInfo),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -701,6 +702,16 @@ struct WaitAnnotationInfo {
     tracepoint_id: String,
     pid: u64,
     wait_for: Uuid,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+struct LogAnnotationInfo {
+    thread_id: u64,
+    host: String,
+    tracepoint_id: String,
+    pid: u64,
+    msg: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
