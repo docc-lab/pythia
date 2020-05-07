@@ -11,11 +11,12 @@ use petgraph::{dot::Dot, graph::NodeIndex, Direction};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use pythia_common::RequestType;
+
 use crate::trace::DAGEdge;
 use crate::trace::EdgeType;
 use crate::trace::Event;
 use crate::trace::EventType;
-use crate::trace::RequestType;
 use crate::trace::Trace;
 use crate::PythiaError;
 

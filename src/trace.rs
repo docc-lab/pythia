@@ -10,6 +10,7 @@ use std::time::Duration;
 use bimap::BiMap;
 use chrono::NaiveDateTime;
 use petgraph::graph::NodeIndex;
+use petgraph::dot::Dot;
 use petgraph::stable_graph::StableGraph;
 use petgraph::Direction;
 use serde::de;
@@ -17,6 +18,8 @@ use serde::ser;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use uuid::Uuid;
+
+use pythia_common::RequestType;
 
 use crate::grouping::GroupNode;
 
@@ -148,28 +151,9 @@ impl Trace {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Eq, PartialEq, Hash, Clone)]
-pub enum RequestType {
-    ServerCreate,
-    ServerDelete,
-    ServerList,
-    Unknown,
-}
-
-impl RequestType {
-    pub fn from_str(typ: &str) -> Result<RequestType, &str> {
-        match typ {
-            "ServerCreate" => Ok(RequestType::ServerCreate),
-            "ServerDelete" => Ok(RequestType::ServerDelete),
-            "ServerList" => Ok(RequestType::ServerList),
-            _ => Err("Unknown request type"),
-        }
-    }
-}
-
-impl fmt::Display for RequestType {
+impl fmt::Display for Trace {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{}", Dot::new(&self.g))
     }
 }
 

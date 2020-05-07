@@ -8,9 +8,10 @@ use petgraph::visit::IntoNodeReferences;
 use petgraph::visit::NodeRef;
 use serde::{Deserialize, Serialize};
 
+use pythia_common::RequestType;
+
 use crate::osprofiler::REQUEST_TYPE_REGEXES;
 use crate::searchspace::SearchSpace;
-use crate::trace::RequestType;
 use crate::trace::Trace;
 use crate::trace::TracepointID;
 

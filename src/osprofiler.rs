@@ -5,20 +5,22 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::Duration;
 
-use chrono::NaiveDateTime;
 use petgraph::graph::NodeIndex;
 use redis::Commands;
 use redis::Connection;
 use regex::RegexSet;
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+use pythia_common::AnnotationEnum;
+use pythia_common::OSProfilerEnum;
+use pythia_common::OSProfilerSpan;
+use pythia_common::RequestType;
+use pythia_common::Settings;
 
 use crate::reader::Reader;
 use crate::rpclib::get_events_from_client;
-use crate::settings::Settings;
 use crate::trace::Event;
 use crate::trace::EventType;
-use crate::trace::RequestType;
 use crate::trace::Trace;
 use crate::trace::TracepointID;
 use crate::trace::{DAGEdge, EdgeType};
@@ -244,37 +246,6 @@ impl OSProfilerReader {
             event_list.extend(get_events_from_client(node, span_id.clone()));
         }
         event_list
-    }
-
-    /// Public wrapper for get_matches_ that accepts string input and does not return RedisResult
-    pub fn get_matches(&mut self, span_id: &str) -> Vec<OSProfilerSpan> {
-        match Uuid::parse_str(span_id) {
-            Ok(uuid) => self.get_matches_(&uuid).unwrap(),
-            Err(_) => panic!("Malformed UUID as base id: {}", span_id),
-        }
-    }
-
-    /// Get matching events from local redis instance
-    fn get_matches_(&mut self, span_id: &Uuid) -> redis::RedisResult<Vec<OSProfilerSpan>> {
-        let to_parse: String = match self
-            .connection
-            .get("osprofiler:".to_string() + &span_id.to_hyphenated().to_string())
-        {
-            Ok(to_parse) => to_parse,
-            Err(_) => {
-                return Ok(Vec::new());
-            }
-        };
-        let mut result = Vec::new();
-        for dict_string in to_parse[1..to_parse.len() - 1].split("}{") {
-            match parse_field(&("{".to_string() + dict_string + "}")) {
-                Ok(span) => {
-                    result.push(span);
-                }
-                Err(e) => panic!("Problem while parsing {}: {}", dict_string, e),
-            }
-        }
-        Ok(result)
     }
 
     fn from_event_list(&mut self, id: Uuid, mut event_list: Vec<OSProfilerSpan>) -> Trace {
@@ -601,25 +572,6 @@ fn sort_event_list(event_list: &mut Vec<OSProfilerSpan>) {
     });
 }
 
-fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
-    let result: OSProfilerSpan = match serde_json::from_str(field) {
-        Ok(a) => a,
-        Err(e) => {
-            return Err(e.to_string());
-        }
-    };
-    if result.name == "asynch_request" || result.name == "asynch_wait" {
-        return match result.info {
-            OSProfilerEnum::Annotation(_) => Ok(result),
-            _ => {
-                println!("{:?}", result);
-                Err("".to_string())
-            }
-        };
-    }
-    Ok(result)
-}
-
 impl Event {
     fn from_osp_span(event: &OSProfilerSpan) -> Event {
         Event {
@@ -638,157 +590,6 @@ impl Event {
     }
 }
 
-impl OSProfilerSpan {
-    pub fn get_tracepoint_id(&self, map: &mut HashMap<Uuid, String>) -> String {
-        // The map needs to be initialized and passed to it from outside :(
-        match &self.info {
-            OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {
-                map.insert(self.trace_id, self.tracepoint_id.clone());
-                self.tracepoint_id.clone()
-            }
-            OSProfilerEnum::Annotation(_) => self.tracepoint_id.clone(),
-            OSProfilerEnum::Exit(_) => match map.remove(&self.trace_id) {
-                Some(s) => s,
-                None => {
-                    if self.name.starts_with("asynch_wait") {
-                        self.tracepoint_id.clone()
-                    } else {
-                        panic!("Couldn't find trace id for {:?}", self);
-                    }
-                }
-            },
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-pub struct OSProfilerSpan {
-    pub trace_id: Uuid,
-    pub parent_id: Uuid,
-    project: String,
-    pub name: String,
-    pub base_id: Uuid,
-    service: String,
-    pub tracepoint_id: String,
-    #[serde(with = "serde_timestamp")]
-    pub timestamp: NaiveDateTime,
-    info: OSProfilerEnum,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(untagged)]
-enum OSProfilerEnum {
-    Annotation(AnnotationEnum),
-    FunctionEntry(FunctionEntryInfo),
-    RequestEntry(RequestEntryInfo),
-    Exit(ExitEnum),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(untagged)]
-enum AnnotationEnum {
-    WaitFor(WaitAnnotationInfo),
-    Child(ChildAnnotationInfo),
-    Plain(PlainAnnotationInfo),
-    Log(LogAnnotationInfo),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-struct WaitAnnotationInfo {
-    function: FunctionEntryFunction,
-    thread_id: u64,
-    host: String,
-    tracepoint_id: String,
-    pid: u64,
-    wait_for: Uuid,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-struct LogAnnotationInfo {
-    thread_id: u64,
-    host: String,
-    tracepoint_id: String,
-    pid: u64,
-    msg: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-struct PlainAnnotationInfo {
-    thread_id: u64,
-    host: String,
-    tracepoint_id: String,
-    pid: u64,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-struct ChildAnnotationInfo {
-    thread_id: u64,
-    host: String,
-    tracepoint_id: String,
-    child_id: Uuid,
-    pid: u64,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-struct RequestEntryInfo {
-    request: RequestEntryRequest,
-    thread_id: u64,
-    host: String,
-    tracepoint_id: String,
-    pid: u64,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-struct RequestEntryRequest {
-    path: String,
-    scheme: String,
-    method: String,
-    query: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(untagged)]
-enum ExitEnum {
-    Normal(NormalExitInfo),
-    Error(ErrorExitInfo),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-struct NormalExitInfo {
-    host: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-struct ErrorExitInfo {
-    etype: String,
-    message: String,
-    host: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-struct FunctionEntryInfo {
-    function: FunctionEntryFunction,
-    thread_id: u64,
-    host: String,
-    tracepoint_id: String,
-    pid: u64,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-struct FunctionEntryFunction {
-    name: String,
-}
-
 lazy_static! {
     // The ordering of the below two structures should match each other
     pub static ref REQUEST_TYPE_REGEXES: RegexSet = RegexSet::new(&[
@@ -802,45 +603,4 @@ lazy_static! {
         RequestType::ServerList,
         RequestType::ServerDelete,
     ];
-}
-
-pub mod serde_timestamp {
-    use chrono::NaiveDateTime;
-    use serde::de;
-    use serde::ser;
-    use std::fmt;
-
-    pub fn deserialize<'de, D>(d: D) -> Result<NaiveDateTime, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        d.deserialize_str(NaiveDateTimeVisitor)
-    }
-
-    pub fn serialize<S>(t: &NaiveDateTime, s: S) -> Result<S::Ok, S::Error>
-    where
-        S: ser::Serializer,
-    {
-        s.serialize_str(&t.format("%Y-%m-%dT%H:%M:%S%.6f").to_string())
-    }
-
-    struct NaiveDateTimeVisitor;
-
-    impl<'de> de::Visitor<'de> for NaiveDateTimeVisitor {
-        type Value = NaiveDateTime;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            write!(formatter, "a string represents chrono::NaiveDateTime")
-        }
-
-        fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            match NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.6f") {
-                Ok(t) => Ok(t),
-                Err(_) => Err(de::Error::invalid_value(de::Unexpected::Str(s), &self)),
-            }
-        }
-    }
 }

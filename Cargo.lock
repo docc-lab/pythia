@@ -142,15 +142,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bstr"
-version = "0.2.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2889e6d50f394968c8bf4240dc3f2a7eb4680844d27308f798229ac9d4725f41"
-dependencies = [
- "memchr",
-]
-
-[[package]]
 name = "byteorder"
 version = "1.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -530,19 +521,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "globset"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ad1da430bd7281dde2576f44c84cc3f0f7b475e7202cd503042dff01a8c8120"
-dependencies = [
- "aho-corasick",
- "bstr",
- "fnv",
- "log 0.4.8",
- "regex",
-]
-
-[[package]]
 name = "h2"
 version = "0.1.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -619,7 +597,7 @@ dependencies = [
  "time",
  "traitobject",
  "typeable",
- "unicase 1.4.2",
+ "unicase",
  "url 1.7.2",
 ]
 
@@ -764,33 +742,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "jsonrpc-derive"
-version = "14.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8609af8f63b626e8e211f52441fcdb6ec54f1a446606b10d5c89ae9bf8a20058"
-dependencies = [
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "jsonrpc-http-server"
-version = "14.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d52860f0549694aa4abb12766856f56952ab46d3fb9f0815131b2db3d9cc2f29"
-dependencies = [
- "hyper 0.12.35",
- "jsonrpc-core",
- "jsonrpc-server-utils",
- "log 0.4.8",
- "net2",
- "parking_lot 0.10.2",
- "unicase 2.6.0",
-]
-
-[[package]]
 name = "jsonrpc-pubsub"
 version = "14.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -800,22 +751,6 @@ dependencies = [
  "log 0.4.8",
  "parking_lot 0.10.2",
  "serde 1.0.106",
-]
-
-[[package]]
-name = "jsonrpc-server-utils"
-version = "14.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f06add502b48351e05dd95814835327fb115e4e9f834ca42fd522d3b769d4d2"
-dependencies = [
- "bytes 0.4.12",
- "globset",
- "jsonrpc-core",
- "lazy_static",
- "log 0.4.8",
- "tokio 0.1.22",
- "tokio-codec",
- "unicase 2.6.0",
 ]
 
 [[package]]
@@ -1173,9 +1108,9 @@ dependencies = [
 
 [[package]]
 name = "pin-project-lite"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "237844750cfbb86f67afe27eee600dfbbcb6188d734139b534cbfbf4f96792ae"
+checksum = "f7505eeebd78492e0f6108f7171c4948dbb120ee8119d9d77d0afa5469bef67f"
 
 [[package]]
 name = "pin-utils"
@@ -1194,15 +1129,6 @@ name = "ppv-lite86"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74490b50b9fbe561ac330df47c08f3f33073d2d00c150f719147d7c54522fa1b"
-
-[[package]]
-name = "proc-macro-crate"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e10d4b51f154c8a7fb96fd6dad097cb74b863943ec010ac94b9fd1be8861fe1e"
-dependencies = [
- "toml",
-]
 
 [[package]]
 name = "proc-macro-error"
@@ -1253,7 +1179,6 @@ dependencies = [
  "byteorder",
  "chrono",
  "clap",
- "config",
  "dirs",
  "futures",
  "genawaiter",
@@ -1264,10 +1189,9 @@ dependencies = [
  "jsonrpc-client-transports",
  "jsonrpc-core",
  "jsonrpc-core-client",
- "jsonrpc-derive",
- "jsonrpc-http-server",
  "lazy_static",
  "petgraph",
+ "pythia_common",
  "rand 0.7.3",
  "redis",
  "regex",
@@ -1275,6 +1199,18 @@ dependencies = [
  "serde 1.0.106",
  "serde_json",
  "streaming-stats",
+ "uuid",
+]
+
+[[package]]
+name = "pythia_common"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "config",
+ "redis",
+ "serde 1.0.106",
+ "serde_json",
  "uuid",
 ]
 
@@ -1766,9 +1702,9 @@ checksum = "8ea5119cdb4c55b55d432abb513a0429384878c15dde60cc77b1c99de1a95a6a"
 
 [[package]]
 name = "syn"
-version = "1.0.18"
+version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "410a7488c0a728c7ceb4ad59b9567eb4053d02e8cc7f5c0e0eeeb39518369213"
+checksum = "e8e5aa70697bb26ee62214ae3288465ecec0000f05182f039b477001f08f5ae7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2113,15 +2049,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "unicase"
-version = "2.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50f37be617794602aabbeee0be4f259dc1778fabe05e2d67ee8f79326d5cb4f6"
-dependencies = [
- "version_check 0.9.1",
-]
-
-[[package]]
 name = "unicode-bidi"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2255,7 +2182,7 @@ dependencies = [
  "tokio-reactor",
  "tokio-tcp",
  "tokio-tls",
- "unicase 1.4.2",
+ "unicase",
  "url 1.7.2",
  "websocket-base",
 ]

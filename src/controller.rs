@@ -1,11 +1,12 @@
-use std::fs::{read_dir, File};
+use std::fs::File;
 use std::io::prelude::*;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+
+use pythia_common::RequestType;
+use pythia_common::Settings;
 
 use crate::rpclib::set_all_client_tracepoints;
 use crate::rpclib::set_client_tracepoints;
-use crate::settings::Settings;
-use crate::trace::RequestType;
 use crate::trace::TracepointID;
 
 pub struct OSProfilerController {
@@ -50,7 +51,11 @@ impl OSProfilerController {
         self.write_to_tracepoints(points, b"0");
     }
 
-    fn write_to_tracepoints(&self, points: &Vec<(TracepointID, Option<RequestType>)>, to_write: &[u8; 1]) {
+    fn write_to_tracepoints(
+        &self,
+        points: &Vec<(TracepointID, Option<RequestType>)>,
+        to_write: &[u8; 1],
+    ) {
         for client in self.client_list.iter() {
             set_client_tracepoints(
                 client,
@@ -68,10 +73,6 @@ impl OSProfilerController {
         }
     }
 
-    pub fn write_client_dir(&self, to_write: &[u8; 1]) {
-        self.write_dir(self.manifest_root.as_path(), to_write);
-    }
-
     /// Also removes request-type-specific controllers
     pub fn diable_all(&self) {
         self.set_all_tracepoints(b"0");
@@ -80,37 +81,6 @@ impl OSProfilerController {
     /// Also removes request-type-specific controllers
     pub fn enable_all(&self) {
         self.set_all_tracepoints(b"1");
-    }
-
-    pub fn apply_settings(&self, settings: Vec<(String, Option<RequestType>, [u8; 1])>) {
-        for (tracepoint, request_type, to_write) in settings.iter() {
-            self.write_to_tracepoint(tracepoint, request_type, to_write);
-        }
-    }
-
-    fn write_dir(&self, dir: &Path, to_write: &[u8; 1]) {
-        for f in read_dir(dir).unwrap() {
-            let path = f.unwrap().path();
-            if path.is_dir() {
-                self.write_dir(&path, to_write);
-            } else {
-                if RequestType::from_str(
-                    path.file_name()
-                        .unwrap()
-                        .to_string_lossy()
-                        .rsplit(":")
-                        .next()
-                        .unwrap(),
-                )
-                .is_ok()
-                {
-                    std::fs::remove_file(path).ok();
-                } else {
-                    let mut file = File::create(path).unwrap();
-                    file.write_all(to_write).unwrap();
-                }
-            }
-        }
     }
 
     fn read_tracepoint(

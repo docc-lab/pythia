@@ -9,11 +9,12 @@ use petgraph::stable_graph::StableGraph;
 use petgraph::Direction;
 use stats::variance;
 
+use pythia_common::RequestType;
+
 use crate::critical::CriticalPath;
 use crate::critical::Path;
 use crate::trace::Event;
 use crate::trace::EventType;
-use crate::trace::RequestType;
 use crate::trace::TracepointID;
 
 #[derive(Clone, Debug)]

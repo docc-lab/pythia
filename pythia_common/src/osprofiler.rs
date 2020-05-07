@@ -1,0 +1,292 @@
+/// Stuff related to working with osprofiler
+///
+use std::collections::HashMap;
+use std::fmt;
+
+use chrono::NaiveDateTime;
+use redis::Commands;
+use redis::Connection;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+use crate::settings::Settings;
+
+#[derive(Serialize, Deserialize, Debug, Copy, Eq, PartialEq, Hash, Clone)]
+pub enum RequestType {
+    ServerCreate,
+    ServerDelete,
+    ServerList,
+    Unknown,
+}
+
+impl RequestType {
+    pub fn from_str(typ: &str) -> Result<RequestType, &str> {
+        match typ {
+            "ServerCreate" => Ok(RequestType::ServerCreate),
+            "ServerDelete" => Ok(RequestType::ServerDelete),
+            "ServerList" => Ok(RequestType::ServerList),
+            _ => Err("Unknown request type"),
+        }
+    }
+}
+
+impl fmt::Display for RequestType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+pub struct OSProfilerReader {
+    connection: Connection,
+}
+
+impl OSProfilerReader {
+    pub fn from_settings(settings: &Settings) -> OSProfilerReader {
+        let redis_url = &settings.redis_url;
+        let client = redis::Client::open(&redis_url[..]).unwrap();
+        let con = client.get_connection().unwrap();
+        OSProfilerReader { connection: con }
+    }
+
+    /// Public wrapper for get_matches_ that accepts string input and does not return RedisResult
+    pub fn get_matches(&mut self, span_id: &str) -> Vec<OSProfilerSpan> {
+        match Uuid::parse_str(span_id) {
+            Ok(uuid) => self.get_matches_(&uuid).unwrap(),
+            Err(_) => panic!("Malformed UUID as base id: {}", span_id),
+        }
+    }
+
+    /// Get matching events from local redis instance
+    fn get_matches_(&mut self, span_id: &Uuid) -> redis::RedisResult<Vec<OSProfilerSpan>> {
+        let to_parse: String = match self
+            .connection
+            .get("osprofiler:".to_string() + &span_id.to_hyphenated().to_string())
+        {
+            Ok(to_parse) => to_parse,
+            Err(_) => {
+                return Ok(Vec::new());
+            }
+        };
+        let mut result = Vec::new();
+        for dict_string in to_parse[1..to_parse.len() - 1].split("}{") {
+            match parse_field(&("{".to_string() + dict_string + "}")) {
+                Ok(span) => {
+                    result.push(span);
+                }
+                Err(e) => panic!("Problem while parsing {}: {}", dict_string, e),
+            }
+        }
+        Ok(result)
+    }
+}
+
+fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
+    let result: OSProfilerSpan = match serde_json::from_str(field) {
+        Ok(a) => a,
+        Err(e) => {
+            return Err(e.to_string());
+        }
+    };
+    if result.name == "asynch_request" || result.name == "asynch_wait" {
+        return match result.info {
+            OSProfilerEnum::Annotation(_) => Ok(result),
+            _ => {
+                println!("{:?}", result);
+                Err("".to_string())
+            }
+        };
+    }
+    Ok(result)
+}
+
+impl OSProfilerSpan {
+    pub fn get_tracepoint_id(&self, map: &mut HashMap<Uuid, String>) -> String {
+        // The map needs to be initialized and passed to it from outside :(
+        match &self.info {
+            OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {
+                map.insert(self.trace_id, self.tracepoint_id.clone());
+                self.tracepoint_id.clone()
+            }
+            OSProfilerEnum::Annotation(_) => self.tracepoint_id.clone(),
+            OSProfilerEnum::Exit(_) => match map.remove(&self.trace_id) {
+                Some(s) => s,
+                None => {
+                    if self.name.starts_with("asynch_wait") {
+                        self.tracepoint_id.clone()
+                    } else {
+                        panic!("Couldn't find trace id for {:?}", self);
+                    }
+                }
+            },
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+pub struct OSProfilerSpan {
+    pub trace_id: Uuid,
+    pub parent_id: Uuid,
+    project: String,
+    pub name: String,
+    pub base_id: Uuid,
+    service: String,
+    pub tracepoint_id: String,
+    #[serde(with = "serde_timestamp")]
+    pub timestamp: NaiveDateTime,
+    pub info: OSProfilerEnum,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(untagged)]
+pub enum OSProfilerEnum {
+    Annotation(AnnotationEnum),
+    FunctionEntry(FunctionEntryInfo),
+    RequestEntry(RequestEntryInfo),
+    Exit(ExitEnum),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(untagged)]
+pub enum AnnotationEnum {
+    WaitFor(WaitAnnotationInfo),
+    Child(ChildAnnotationInfo),
+    Plain(PlainAnnotationInfo),
+    Log(LogAnnotationInfo),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct WaitAnnotationInfo {
+    function: FunctionEntryFunction,
+    thread_id: u64,
+    host: String,
+    tracepoint_id: String,
+    pid: u64,
+    pub wait_for: Uuid,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct LogAnnotationInfo {
+    thread_id: u64,
+    host: String,
+    tracepoint_id: String,
+    pid: u64,
+    msg: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct PlainAnnotationInfo {
+    thread_id: u64,
+    host: String,
+    tracepoint_id: String,
+    pid: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ChildAnnotationInfo {
+    thread_id: u64,
+    host: String,
+    tracepoint_id: String,
+    pub child_id: Uuid,
+    pid: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RequestEntryInfo {
+    request: RequestEntryRequest,
+    thread_id: u64,
+    host: String,
+    tracepoint_id: String,
+    pid: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+struct RequestEntryRequest {
+    path: String,
+    scheme: String,
+    method: String,
+    query: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(untagged)]
+pub enum ExitEnum {
+    Normal(NormalExitInfo),
+    Error(ErrorExitInfo),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct NormalExitInfo {
+    host: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ErrorExitInfo {
+    etype: String,
+    message: String,
+    host: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct FunctionEntryInfo {
+    function: FunctionEntryFunction,
+    thread_id: u64,
+    host: String,
+    tracepoint_id: String,
+    pid: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+struct FunctionEntryFunction {
+    name: String,
+}
+
+pub mod serde_timestamp {
+    use chrono::NaiveDateTime;
+    use serde::de;
+    use serde::ser;
+    use std::fmt;
+
+    pub fn deserialize<'de, D>(d: D) -> Result<NaiveDateTime, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        d.deserialize_str(NaiveDateTimeVisitor)
+    }
+
+    pub fn serialize<S>(t: &NaiveDateTime, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        s.serialize_str(&t.format("%Y-%m-%dT%H:%M:%S%.6f").to_string())
+    }
+
+    struct NaiveDateTimeVisitor;
+
+    impl<'de> de::Visitor<'de> for NaiveDateTimeVisitor {
+        type Value = NaiveDateTime;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            write!(formatter, "a string represents chrono::NaiveDateTime")
+        }
+
+        fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            match NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.6f") {
+                Ok(t) => Ok(t),
+                Err(_) => Err(de::Error::invalid_value(de::Unexpected::Str(s), &self)),
+            }
+        }
+    }
+}

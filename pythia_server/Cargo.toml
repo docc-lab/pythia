@@ -1,0 +1,14 @@
+[package]
+name = "pythia_server"
+version = "0.1.0"
+authors = ["Emre Ates <ates@bu.edu>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pythia_common = { path = "../pythia_common" }
+serde_json = "*"
+jsonrpc-core = "*"
+jsonrpc-derive = "*"
+jsonrpc-http-server = "*"

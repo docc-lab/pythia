@@ -15,7 +15,6 @@ pub mod reader;
 pub mod rpclib;
 pub mod search;
 pub mod searchspace;
-pub mod settings;
 pub mod trace;
 pub mod uber;
 
@@ -29,8 +28,11 @@ use std::time::Duration;
 use std::time::Instant;
 
 use itertools::Itertools;
-use petgraph::dot::Dot;
 use rand::seq::SliceRandom;
+
+use pythia_common::ManifestMethod;
+use pythia_common::RequestType;
+use pythia_common::Settings;
 
 use crate::cct::CCT;
 use crate::controller::OSProfilerController;
@@ -44,9 +46,6 @@ use crate::poset::Poset;
 use crate::reader::reader_from_settings;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
-use crate::settings::ManifestMethod;
-use crate::settings::Settings;
-use crate::trace::RequestType;
 use crate::trace::Trace;
 
 pub fn run_controller() {
@@ -345,7 +344,7 @@ fn group_traces(traces: Vec<Trace>) {
             i.traces.len(),
             i.variance,
             i.traces.iter().map(|x| x.duration).collect::<Vec<_>>(),
-            Dot::new(&i.g)
+            i
         );
     }
     println!("Top 5 groups with longest traces");
@@ -359,7 +358,7 @@ fn group_traces(traces: Vec<Trace>) {
             i.traces.len(),
             i.variance,
             i.traces.iter().map(|x| x.duration).collect::<Vec<_>>(),
-            Dot::new(&i.g)
+            i
         );
     }
     println!(
@@ -382,9 +381,7 @@ fn group_traces(traces: Vec<Trace>) {
         let endpoints = groups[0].g.edge_endpoints(*edge).unwrap();
         println!(
             "({} -> {}): {}",
-            groups[0].g[endpoints.0],
-            groups[0].g[endpoints.1],
-            groups[0].g[*edge]
+            groups[0].g[endpoints.0], groups[0].g[endpoints.1], groups[0].g[*edge]
         );
     }
 }
@@ -393,14 +390,14 @@ pub fn read_trace_file(trace_file: &str) {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
     let trace = reader.read_file(trace_file);
-    println!("{}", Dot::new(&trace.g));
+    println!("{}", trace);
 }
 
 pub fn get_trace(trace_id: &str, to_file: bool) {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
     let trace = reader.get_trace_from_base_id(trace_id).unwrap();
-    println!("{}", Dot::new(&trace.g));
+    println!("{}", trace);
     if to_file {
         let mut tracefile = dirs::home_dir().unwrap();
         tracefile.push(trace_id);
@@ -423,7 +420,7 @@ pub fn get_crit(trace_id: &str) {
     let mut reader = reader_from_settings(&settings);
     let trace = reader.get_trace_from_base_id(trace_id).unwrap();
     let crit = CriticalPath::from_trace(&trace).unwrap();
-    println!("{}", Dot::new(&crit.g.g));
+    println!("{}", crit.g);
 }
 
 pub fn show_config() {
