@@ -10,8 +10,7 @@ use petgraph::graph::{Graph, NodeIndex};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use pythia_common::Settings;
-
+use crate::settings::Settings;
 use crate::hdfs::HDFSID;
 use crate::reader::Reader;
 use crate::trace::Event;

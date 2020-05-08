@@ -1,6 +1,5 @@
-use pythia_common::ApplicationType;
-use pythia_common::Settings;
-
+use crate::settings::ApplicationType;
+use crate::settings::Settings;
 use crate::hdfs::HDFSReader;
 use crate::osprofiler::OSProfilerReader;
 use crate::trace::Trace;

@@ -8,9 +8,8 @@ pub struct Settings {
     pub server_address: String,
     pub pythia_cache: PathBuf,
     pub manifest_file: PathBuf,
-    pub manifest_root: PathBuf,
-    pub redis_url: String,
     pub pythia_clients: Vec<String>,
+    pub redis_url: String,
     pub application: ApplicationType,
     pub manifest_method: ManifestMethod,
     pub xtrace_url: String,
@@ -35,10 +34,7 @@ impl Settings {
     pub fn read() -> Settings {
         let mut settings = Config::default();
         settings
-            .merge(File::new(
-                "/opt/stack/reconstruction/Settings.toml",
-                FileFormat::Toml,
-            ))
+            .merge(File::new("/etc/pythia/controller.toml", FileFormat::Toml))
             .unwrap();
         let results = settings.try_into::<HashMap<String, String>>().unwrap();
         let mut manifest_file = PathBuf::from(results.get("pythia_cache").unwrap());
@@ -65,10 +61,9 @@ impl Settings {
         trace_cache.push("traces");
         Settings {
             server_address: results.get("server_address").unwrap().to_string(),
-            pythia_cache: trace_cache,
             manifest_file: manifest_file,
+            pythia_cache: trace_cache,
             redis_url: results.get("redis_url").unwrap().to_string(),
-            manifest_root: PathBuf::from(results.get("manifest_root").unwrap()),
             pythia_clients: results
                 .get("pythia_clients")
                 .unwrap()
@@ -81,8 +76,8 @@ impl Settings {
                 "Uber" => ApplicationType::Uber,
                 _ => panic!("Unknown application type"),
             },
-            manifest_method: manifest_method,
             xtrace_url: results.get("xtrace_url").unwrap().to_string(),
+            manifest_method: manifest_method,
         }
     }
 }

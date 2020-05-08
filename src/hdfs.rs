@@ -18,9 +18,8 @@ use serde::de;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use pythia_common::Settings;
-
 use crate::reader::Reader;
+use crate::settings::Settings;
 use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::Trace;

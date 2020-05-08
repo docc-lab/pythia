@@ -3,7 +3,8 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 use pythia_common::RequestType;
-use pythia_common::Settings;
+
+use crate::settings::Settings;
 
 pub struct OSProfilerController {
     manifest_root: PathBuf,

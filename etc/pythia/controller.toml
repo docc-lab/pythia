@@ -1,7 +1,4 @@
-server_address = "0.0.0.0:3030"
-
 pythia_cache = "/opt/stack/pythia_cache"
-manifest_root = "/opt/stack/manifest"
 
 redis_url = "redis://localhost:6379"
 xtrace_url = "http://localhost:4080"

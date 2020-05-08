@@ -92,19 +92,6 @@ impl Manifest {
         serde_json::from_reader(reader).unwrap()
     }
 
-    fn ingest_dir(&mut self, file: &Path) -> std::io::Result<()> {
-        for entry in std::fs::read_dir(file)? {
-            let entry = entry?;
-            let path = entry.path();
-            let request_type = RequestType::from_str(path.file_stem().unwrap().to_str().unwrap())
-                .expect("Couldn't parse request type");
-            let reader = std::fs::File::open(path)?;
-            self.per_request_type
-                .insert(request_type, serde_json::from_reader(reader).unwrap());
-        }
-        Ok(())
-    }
-
     pub fn entry_points(&self) -> Vec<TracepointID> {
         let mut result = HashSet::new();
         for cct in self.per_request_type.values() {

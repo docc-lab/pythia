@@ -1,5 +1,3 @@
-mod controller;
-
 use std::sync::{Arc, Mutex};
 
 use jsonrpc_core::{IoHandler, Result, Value};
@@ -7,11 +5,11 @@ use jsonrpc_derive::rpc;
 use jsonrpc_http_server::ServerBuilder;
 use serde_json;
 
-use pythia_common::OSProfilerReader;
 use pythia_common::RequestType;
-use pythia_common::Settings;
 
-use crate::controller::OSProfilerController;
+use pythia_server::controller::OSProfilerController;
+use pythia_server::osprofiler::OSProfilerReader;
+use pythia_server::settings::Settings;
 
 #[rpc(server)]
 pub trait PythiaAPI {
