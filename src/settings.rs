@@ -5,7 +5,6 @@ use config::{Config, File, FileFormat};
 
 #[derive(Debug)]
 pub struct Settings {
-    pub server_address: String,
     pub pythia_cache: PathBuf,
     pub manifest_file: PathBuf,
     pub pythia_clients: Vec<String>,
@@ -60,7 +59,6 @@ impl Settings {
         let mut trace_cache = PathBuf::from(results.get("pythia_cache").unwrap());
         trace_cache.push("traces");
         Settings {
-            server_address: results.get("server_address").unwrap().to_string(),
             manifest_file: manifest_file,
             pythia_cache: trace_cache,
             redis_url: results.get("redis_url").unwrap().to_string(),
