@@ -28,15 +28,6 @@ use itertools::Itertools;
 
 use pythia_common::RequestType;
 
-// use rand::seq::SliceRandom;
-// use crate::cct::CCT;
-// use crate::flat::FlatSpace;
-// use crate::historic::Historic;
-// use crate::poset::Poset;
-// use crate::search::SearchState;
-// use crate::search::SearchStrategy;
-// use crate::settings::ManifestMethod;
-
 use crate::controller::OSProfilerController;
 use crate::critical::CriticalPath;
 use crate::grouping::Group;
@@ -77,6 +68,15 @@ pub fn run_controller() {
 pub fn make_decision(_epoch_file: &str, _dry_run: bool, _budget: usize) {
     panic!("This broke while transitioning to continuously running loop");
 }
+// use rand::seq::SliceRandom;
+// use crate::cct::CCT;
+// use crate::flat::FlatSpace;
+// use crate::historic::Historic;
+// use crate::poset::Poset;
+// use crate::search::SearchState;
+// use crate::search::SearchStrategy;
+// use crate::settings::ManifestMethod;
+//
 // /// Make a single instrumentation decision.
 // pub fn make_decision(epoch_file: &str, dry_run: bool, budget: usize) {
 //     let settings = Settings::read();
