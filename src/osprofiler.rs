@@ -16,9 +16,9 @@ use pythia_common::OSProfilerEnum;
 use pythia_common::OSProfilerSpan;
 use pythia_common::RequestType;
 
-use crate::settings::Settings;
 use crate::reader::Reader;
 use crate::rpclib::get_events_from_client;
+use crate::settings::Settings;
 use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::Trace;
@@ -595,12 +595,18 @@ lazy_static! {
     pub static ref REQUEST_TYPE_REGEXES: RegexSet = RegexSet::new(&[
         r"openstackclient\.compute\.v2\.server\.CreateServer\.take_action",
         r"openstackclient\.compute\.v2\.server\.ListServer\.take_action",
-        r"openstackclient\.compute\.v2\.server\.DeleteServer\.take_action"
+        r"openstackclient\.compute\.v2\.server\.DeleteServer\.take_action",
+        r"openstackclient\.network\.v2\.floating_ip\.CreateFloatingIP\.take_action_network",
+        r"openstackclient\.network\.v2\.floating_ip\.ListFloatingIP\.take_action_network",
+        r"openstackclient\.network\.v2\.floating_ip\.DeleteFloatingIP\.take_action_network",
     ])
     .unwrap();
     static ref REQUEST_TYPES: Vec<RequestType> = vec![
         RequestType::ServerCreate,
         RequestType::ServerList,
         RequestType::ServerDelete,
+        RequestType::FloatingIPCreate,
+        RequestType::FloatingIPList,
+        RequestType::FloatingIPDelete,
     ];
 }
