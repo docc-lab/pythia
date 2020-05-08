@@ -43,6 +43,7 @@ pub fn run_controller() {
     let mut reader = reader_from_settings(&settings);
     let mut groups = GroupManager::new();
     let now = Instant::now();
+    let mut last_decision = Instant::now();
     loop {
         let traces = reader.get_recent_traces();
         let critical_paths = traces
@@ -60,6 +61,12 @@ pub fn run_controller() {
             now.elapsed().as_micros()
         );
         println!("Groups: {}", groups);
+
+        if last_decision.elapsed() > settings.decision_epoch {
+            // make decision
+
+            last_decision = Instant::now();
+        }
 
         sleep(Duration::from_secs(5));
     }

@@ -1,17 +1,17 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use config::{Config, File, FileFormat};
 
 #[derive(Debug)]
 pub struct Settings {
-    pub pythia_cache: PathBuf,
     pub manifest_file: PathBuf,
     pub pythia_clients: Vec<String>,
     pub redis_url: String,
     pub application: ApplicationType,
-    pub manifest_method: ManifestMethod,
     pub xtrace_url: String,
+    pub decision_epoch: Duration,
 }
 
 #[derive(Debug)]
@@ -21,14 +21,6 @@ pub enum ApplicationType {
     Uber,
 }
 
-#[derive(Debug)]
-pub enum ManifestMethod {
-    Flat,
-    CCT,
-    Poset,
-    Historic,
-}
-
 impl Settings {
     pub fn read() -> Settings {
         let mut settings = Config::default();
@@ -36,31 +28,9 @@ impl Settings {
             .merge(File::new("/etc/pythia/controller.toml", FileFormat::Toml))
             .unwrap();
         let results = settings.try_into::<HashMap<String, String>>().unwrap();
-        let mut manifest_file = PathBuf::from(results.get("pythia_cache").unwrap());
-        let manifest_method = match results.get("manifest_method").unwrap().as_str() {
-            "CCT" => {
-                manifest_file.push("cct_manifest");
-                ManifestMethod::CCT
-            }
-            "Poset" => {
-                manifest_file.push("poset_manifest");
-                ManifestMethod::Poset
-            }
-            "Historic" => {
-                manifest_file.push("historic_manifest");
-                ManifestMethod::Historic
-            }
-            "Flat" => {
-                manifest_file.push("flat_manifest");
-                ManifestMethod::Flat
-            }
-            _ => panic!("Unsupported manifest method"),
-        };
-        let mut trace_cache = PathBuf::from(results.get("pythia_cache").unwrap());
-        trace_cache.push("traces");
+        let manifest_file = PathBuf::from(results.get("manifest_file").unwrap());
         Settings {
             manifest_file: manifest_file,
-            pythia_cache: trace_cache,
             redis_url: results.get("redis_url").unwrap().to_string(),
             pythia_clients: results
                 .get("pythia_clients")
@@ -75,7 +45,7 @@ impl Settings {
                 _ => panic!("Unknown application type"),
             },
             xtrace_url: results.get("xtrace_url").unwrap().to_string(),
-            manifest_method: manifest_method,
+            decision_epoch: Duration::from_secs(120),
         }
     }
 }

@@ -18,6 +18,7 @@ use crate::trace::EdgeType;
 use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::Trace;
+use crate::trace::TracepointID;
 use crate::PythiaError;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -571,7 +572,7 @@ impl CriticalPath {
 pub trait Path {
     fn get_hash(&self) -> &RefCell<Option<String>>;
     fn start_node(&self) -> NodeIndex;
-    fn at(&self, idx: NodeIndex) -> &Event;
+    fn at(&self, idx: NodeIndex) -> TracepointID;
     fn next_node(&self, idx: NodeIndex) -> Option<NodeIndex>;
     fn len(&self) -> usize;
 
@@ -590,7 +591,7 @@ pub trait Path {
         let mut hasher = Sha256::new();
         let mut cur_node = self.start_node();
         loop {
-            hasher.input(&self.at(cur_node).tracepoint_id.bytes());
+            hasher.input(&self.at(cur_node).bytes());
             cur_node = match self.next_node(cur_node) {
                 Some(node) => node,
                 None => break,
@@ -634,8 +635,8 @@ impl Path for CriticalPath {
         self.start_node
     }
 
-    fn at(&self, idx: NodeIndex) -> &Event {
-        &self.g.g[idx]
+    fn at(&self, idx: NodeIndex) -> TracepointID {
+        self.g.g[idx].tracepoint_id
     }
 
     fn next_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {

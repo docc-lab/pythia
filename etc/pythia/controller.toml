@@ -1,10 +1,7 @@
-pythia_cache = "/opt/stack/pythia_cache"
-
+application = "OpenStack" # can be HDFS, OpenStack, Uber
+manifest_file = "/opt/stack/manifest.json"
 redis_url = "redis://localhost:6379"
 xtrace_url = "http://localhost:4080"
 
 # Split by commas, of the form http://localhost:3030
 pythia_clients = "http://localhost:3030,http://cp-1:3030"
-application = "OpenStack" # can be HDFS, OpenStack, Uber
-
-manifest_method = "Flat" # can be CCT, Poset, Historic, Flat

@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
-use std::time::Duration;
 
 use petgraph::dot::Dot;
 use petgraph::graph::NodeIndex;
@@ -24,7 +23,6 @@ use crate::trace::TracepointID;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 struct HierarchicalEdge {
-    duration: Duration,
     variant: EdgeType,
 }
 
@@ -32,7 +30,7 @@ impl Display for HierarchicalEdge {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.variant {
             EdgeType::Hierarchical => write!(f, "Hierarchical",),
-            EdgeType::HappensBefore => write!(f, "{}", self.duration.as_nanos()),
+            EdgeType::HappensBefore => write!(f, ""),
         }
     }
 }
@@ -44,20 +42,43 @@ enum EdgeType {
 }
 
 impl HierarchicalEdge {
-    fn from_dag_edge(e: &DAGEdge) -> Self {
+    fn from_dag_edge(_: &DAGEdge) -> Self {
         HierarchicalEdge {
-            duration: e.duration,
             variant: EdgeType::HappensBefore,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+struct HierarchicalNode {
+    tracepoint_id: TracepointID,
+    variant: EventType,
+}
+
+impl HierarchicalNode {
+    fn from_event(event: &Event) -> Self {
+        HierarchicalNode {
+            tracepoint_id: event.tracepoint_id,
+            variant: event.variant,
+        }
+    }
+}
+
+impl Display for HierarchicalNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.variant {
+            EventType::Entry => write!(f, "{}: start", self.tracepoint_id),
+            EventType::Exit => write!(f, "{}: end", self.tracepoint_id),
+            EventType::Annotation => write!(f, "{}", self.tracepoint_id),
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct HierarchicalCriticalPath {
-    g: StableGraph<Event, HierarchicalEdge>,
+    g: StableGraph<HierarchicalNode, HierarchicalEdge>,
     start_node: NodeIndex,
     end_node: NodeIndex,
-    duration: Duration,
     hash: RefCell<Option<String>>,
 }
 
@@ -70,14 +91,14 @@ impl HierarchicalCriticalPath {
         let mut g = StableGraph::new();
         // Add all nodes and happens before edges to the graph
         let mut prev_path_node = path.start_node;
-        let mut prev_node = g.add_node(path.g.g[prev_path_node].clone());
+        let mut prev_node = g.add_node(HierarchicalNode::from_event(&path.g.g[prev_path_node]));
         let start_node = prev_node;
         loop {
             let cur_path_node = match path.next_node(prev_path_node) {
                 Some(node) => node,
                 None => break,
             };
-            let new_node = g.add_node(path.g.g[cur_path_node].clone());
+            let new_node = g.add_node(HierarchicalNode::from_event(&path.g.g[cur_path_node]));
             g.add_edge(
                 prev_node,
                 new_node,
@@ -92,7 +113,6 @@ impl HierarchicalCriticalPath {
             g: g,
             start_node: start_node,
             end_node: prev_node,
-            duration: path.duration,
             hash: RefCell::new(None),
         };
         result.add_hierarchical_edges();
@@ -134,7 +154,6 @@ impl HierarchicalCriticalPath {
                             nidx,
                             next_node,
                             HierarchicalEdge {
-                                duration: Duration::new(0, 0),
                                 variant: EdgeType::Hierarchical,
                             },
                         );
@@ -216,7 +235,10 @@ impl SearchSpace {
                 eprintln!("Added {}/{} paths, overlaps = {}", added, count, overlaps);
             }
         }
-        eprintln!("Added {}/{} paths, removed {} overlaps", added, count, overlaps);
+        eprintln!(
+            "Added {}/{} paths, removed {} overlaps",
+            added, count, overlaps
+        );
     }
 
     pub fn get_entry_points(&self) -> Vec<TracepointID> {
@@ -250,8 +272,8 @@ impl Path for HierarchicalCriticalPath {
         self.start_node
     }
 
-    fn at(&self, idx: NodeIndex) -> &Event {
-        &self.g[idx]
+    fn at(&self, idx: NodeIndex) -> TracepointID {
+        self.g[idx].tracepoint_id
     }
 
     fn next_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
