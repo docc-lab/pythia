@@ -235,15 +235,21 @@ impl GroupManager {
             self.groups.get_mut(&h).unwrap().calculate_variance();
         }
     }
+
+    pub fn problem_groups(&self) -> Vec<&Group> {
+        let mut sorted_groups: Vec<&Group> = self.groups.values().collect();
+        sorted_groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap());
+        sorted_groups
+    }
 }
 
 impl Display for Group {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Group<{}: {}, {:?}>",
-            self.request_type,
+            "Group<{} {} traces, {:?}>",
             self.traces.len(),
+            self.request_type,
             self.hash
         )
     }

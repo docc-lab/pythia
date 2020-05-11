@@ -10,9 +10,9 @@ use petgraph::graph::{Graph, NodeIndex};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::settings::Settings;
-use crate::hdfs::HDFSID;
+use crate::reader::HexID;
 use crate::reader::Reader;
+use crate::settings::Settings;
 use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::Trace;
@@ -290,7 +290,7 @@ impl UberReader {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 struct UberEvent {
     e: Event,
-    parent_id: Option<HDFSID>,
+    parent_id: Option<HexID>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -304,7 +304,7 @@ pub struct UberTrace {
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct UberData {
     #[serde(rename = "traceID")]
-    trace_id: HDFSID,
+    trace_id: HexID,
     spans: Vec<UberSpan>,
     #[serde(skip_deserializing)]
     processes: String,
@@ -314,12 +314,12 @@ pub struct UberData {
 #[serde(rename_all = "camelCase")]
 pub struct UberSpan {
     #[serde(rename = "traceID")]
-    trace_id: HDFSID,
+    trace_id: HexID,
     #[serde(rename = "spanID")]
-    span_id: HDFSID,
+    span_id: HexID,
     #[serde(default)]
     flags: u64,
-    operation_name: HDFSID,
+    operation_name: HexID,
     references: Vec<UberReference>,
     start_time: u64,
     duration: i64,
@@ -328,13 +328,13 @@ pub struct UberSpan {
     process: UberProcess,
     warnings: Option<String>,
     #[serde(rename = "processID")]
-    process_id: HDFSID,
+    process_id: HexID,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct UberEdge {
-    parent: HDFSID,
-    child: HDFSID,
+    parent: HexID,
+    child: HexID,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -342,15 +342,15 @@ pub struct UberEdge {
 pub struct UberReference {
     ref_type: String,
     #[serde(rename = "traceID")]
-    trace_id: HDFSID,
+    trace_id: HexID,
     #[serde(rename = "spanID")]
-    span_id: HDFSID,
+    span_id: HexID,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct UberProcess {
-    service_name: HDFSID,
+    service_name: HexID,
     tags: Vec<String>,
 }
 

@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::fmt;
 
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
@@ -9,15 +8,13 @@ use futures::future;
 use futures::future::Future;
 use futures::stream::Stream;
 use futures::Async;
-use hex;
 use hyper::rt;
 use hyper::Client;
-use itertools::Itertools;
 use petgraph::graph::NodeIndex;
-use serde::de;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::reader::HexID;
 use crate::reader::Reader;
 use crate::settings::Settings;
 use crate::trace::Event;
@@ -142,28 +139,6 @@ impl HDFSReader {
     }
 }
 
-#[derive(Serialize, Debug, Clone, Eq, PartialEq, Copy, Hash)]
-pub struct HDFSID {
-    id: Option<[u8; 8]>,
-}
-
-impl HDFSID {
-    pub fn to_uuid(&self) -> Uuid {
-        let mut buf: [u8; 16] = [0; 16];
-        match self.id {
-            Some(bytes) => {
-                buf[..8].copy_from_slice(&bytes);
-            }
-            None => {}
-        }
-        Uuid::from_bytes(buf)
-    }
-
-    pub fn to_string(&self) -> String {
-        format!("{:02x}", self.id.unwrap().iter().format(""))
-    }
-}
-
 fn eventid_to_uuid(id: &String) -> Uuid {
     let id = id.parse::<i64>().unwrap();
     let mut buf = [0; 16];
@@ -175,39 +150,6 @@ fn convert_hdfs_timestamp(_timestamp: u64, hrt: u64) -> NaiveDateTime {
     let seconds: i64 = (hrt / 1000).try_into().unwrap();
     let nanos: u32 = ((hrt % 1000) * 1000000).try_into().unwrap();
     NaiveDateTime::from_timestamp(seconds, nanos)
-}
-
-impl<'de> Deserialize<'de> for HDFSID {
-    fn deserialize<D>(deserializer: D) -> Result<HDFSID, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        deserializer.deserialize_str(HDFSIDVisitor)
-    }
-}
-
-struct HDFSIDVisitor;
-
-impl<'de> de::Visitor<'de> for HDFSIDVisitor {
-    type Value = HDFSID;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a string representing HDFSID")
-    }
-
-    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        if value == "0" {
-            return Ok(HDFSID { id: None });
-        }
-        let decoded = hex::decode(value).unwrap();
-        let mut result = [0; 8];
-        let decoded = &decoded[..result.len()];
-        result.copy_from_slice(decoded);
-        Ok(HDFSID { id: Some(result) })
-    }
 }
 
 fn sort_event_list(event_list: &mut Vec<HDFSEvent>) {
@@ -232,7 +174,7 @@ impl Event {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct HDFSTrace {
-    pub id: HDFSID,
+    pub id: HexID,
     pub reports: Vec<HDFSEvent>,
 }
 
@@ -242,7 +184,7 @@ pub struct HDFSEvent {
     agent: String,
     process_name: String,
     #[serde(rename = "TaskID")]
-    task_id: HDFSID,
+    task_id: HexID,
     #[serde(rename = "ParentEventID")]
     parent_event_id: Vec<String>,
     label: String,

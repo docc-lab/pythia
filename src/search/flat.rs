@@ -14,10 +14,11 @@ use crate::grouping::Group;
 use crate::manifest::Manifest;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
+use crate::settings::Settings;
 use crate::trace::Trace;
 use crate::trace::TracepointID;
 
-pub struct FlatSpace {
+pub struct FlatSearch {
     paths: HashMap<String, CriticalPath>, // key is the hash of the critical path
     entry_points: HashSet<TracepointID>,
     occurances: HashMap<String, usize>,
@@ -26,7 +27,7 @@ pub struct FlatSpace {
     manifest: Manifest,
 }
 
-impl FlatSpace {
+impl FlatSearch {
     fn add_trace(&mut self, trace: &Trace) {
         for path in CriticalPath::all_possible_paths(trace) {
             self.add_path(&path);
@@ -38,7 +39,7 @@ impl FlatSpace {
     }
 }
 
-impl SearchStrategy for FlatSpace {
+impl SearchStrategy for FlatSearch {
     fn search(
         &self,
         group: &Group,
@@ -150,9 +151,9 @@ impl SearchStrategy for FlatSpace {
     }
 }
 
-impl Default for FlatSpace {
+impl Default for FlatSearch {
     fn default() -> Self {
-        FlatSpace {
+        FlatSearch {
             paths: HashMap::new(),
             entry_points: HashSet::new(),
             occurances: HashMap::new(),
@@ -163,9 +164,20 @@ impl Default for FlatSpace {
     }
 }
 
-impl FlatSpace {
+impl FlatSearch {
+    pub fn from_settings(s: &Settings) -> Self {
+        FlatSearch {
+            paths: HashMap::new(),
+            entry_points: HashSet::new(),
+            occurances: HashMap::new(),
+            tried_groups: RefCell::new(HashSet::new()),
+            enabled_tracepoints: RefCell::new(HashSet::new()),
+            manifest: Manifest::new(),
+        }
+    }
+
     pub fn new(m: Manifest) -> Self {
-        FlatSpace {
+        FlatSearch {
             paths: HashMap::new(),
             entry_points: HashSet::new(),
             occurances: HashMap::new(),
@@ -298,7 +310,7 @@ impl FlatSpace {
     }
 }
 
-impl Display for FlatSpace {
+impl Display for FlatSearch {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Occurances: {:?}\n", self.occurances)?;
         for (i, (h, p)) in self.paths.iter().enumerate() {

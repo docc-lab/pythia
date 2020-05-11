@@ -4,16 +4,12 @@ extern crate lazy_static;
 pub mod controller;
 pub mod critical;
 pub mod grouping;
-pub mod hdfs;
 pub mod manifest;
-pub mod osprofiler;
 pub mod reader;
 pub mod rpclib;
 pub mod search;
-pub mod searchspace;
 pub mod settings;
 pub mod trace;
-pub mod uber;
 
 use std::error::Error;
 use std::fmt;
@@ -34,6 +30,7 @@ use crate::grouping::Group;
 use crate::grouping::GroupManager;
 use crate::manifest::Manifest;
 use crate::reader::reader_from_settings;
+use crate::search::strategy_from_settings;
 use crate::settings::Settings;
 use crate::trace::Trace;
 
@@ -41,6 +38,7 @@ use crate::trace::Trace;
 pub fn run_controller() {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
+    let strategy = strategy_from_settings(&settings);
     let mut groups = GroupManager::new();
     let now = Instant::now();
     let mut last_decision = Instant::now();
@@ -64,6 +62,23 @@ pub fn run_controller() {
 
         if last_decision.elapsed() > settings.decision_epoch {
             // make decision
+            let problem_groups = groups.problem_groups();
+            println!("Making decision. Top 10 problem groups:");
+            for g in problem_groups.iter().take(10) {
+                println!("{}", g);
+            }
+            for g in problem_groups.iter() {
+                let problem_edges = g.problem_edges();
+
+                println!("Top 10 edges of group {}:", g);
+                for edge in problem_edges.iter().take(10) {
+                    let endpoints = g.g.edge_endpoints(*edge).unwrap();
+                    println!(
+                        "({} -> {}): {}",
+                        g.g[endpoints.0], g.g[endpoints.1], g.g[*edge]
+                    );
+                }
+            }
 
             last_decision = Instant::now();
         }

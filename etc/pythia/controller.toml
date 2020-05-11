@@ -1,4 +1,6 @@
 application = "OpenStack" # can be HDFS, OpenStack, Uber
+search_strategy = "Flat" # can be Flat
+
 manifest_file = "/opt/stack/manifest.json"
 redis_url = "redis://localhost:6379"
 xtrace_url = "http://localhost:4080"

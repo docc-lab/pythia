@@ -8,7 +8,6 @@ use std::time::Duration;
 use petgraph::graph::NodeIndex;
 use redis::Commands;
 use redis::Connection;
-use regex::RegexSet;
 use uuid::Uuid;
 
 use pythia_common::AnnotationEnum;
@@ -17,6 +16,8 @@ use pythia_common::OSProfilerSpan;
 use pythia_common::RequestType;
 
 use crate::reader::Reader;
+use crate::reader::REQUEST_TYPE_REGEXES;
+use crate::reader::REQUEST_TYPES;
 use crate::rpclib::get_events_from_client;
 use crate::settings::Settings;
 use crate::trace::Event;
@@ -588,25 +589,4 @@ impl Event {
             is_synthetic: false,
         }
     }
-}
-
-lazy_static! {
-    // The ordering of the below two structures should match each other
-    pub static ref REQUEST_TYPE_REGEXES: RegexSet = RegexSet::new(&[
-        r"openstackclient\.compute\.v2\.server\.CreateServer\.take_action",
-        r"openstackclient\.compute\.v2\.server\.ListServer\.take_action",
-        r"openstackclient\.compute\.v2\.server\.DeleteServer\.take_action",
-        r"openstackclient\.network\.v2\.floating_ip\.CreateFloatingIP\.take_action_network",
-        r"openstackclient\.network\.v2\.floating_ip\.ListFloatingIP\.take_action_network",
-        r"openstackclient\.network\.v2\.floating_ip\.DeleteFloatingIP\.take_action_network",
-    ])
-    .unwrap();
-    static ref REQUEST_TYPES: Vec<RequestType> = vec![
-        RequestType::ServerCreate,
-        RequestType::ServerList,
-        RequestType::ServerDelete,
-        RequestType::FloatingIPCreate,
-        RequestType::FloatingIPList,
-        RequestType::FloatingIPDelete,
-    ];
 }

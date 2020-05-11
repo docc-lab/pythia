@@ -1,3 +1,5 @@
+mod searchspace;
+
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
@@ -10,8 +12,8 @@ use serde::{Deserialize, Serialize};
 
 use pythia_common::RequestType;
 
-use crate::osprofiler::REQUEST_TYPE_REGEXES;
-use crate::searchspace::SearchSpace;
+use crate::reader::REQUEST_TYPE_REGEXES;
+use crate::manifest::searchspace::SearchSpace;
 use crate::trace::Trace;
 use crate::trace::TracepointID;
 

@@ -4,6 +4,8 @@ use std::time::Duration;
 
 use config::{Config, File, FileFormat};
 
+use crate::search::SearchStrategyType;
+
 #[derive(Debug)]
 pub struct Settings {
     pub manifest_file: PathBuf,
@@ -12,6 +14,7 @@ pub struct Settings {
     pub application: ApplicationType,
     pub xtrace_url: String,
     pub decision_epoch: Duration,
+    pub search_strategy: SearchStrategyType,
 }
 
 #[derive(Debug)]
@@ -46,6 +49,10 @@ impl Settings {
             },
             xtrace_url: results.get("xtrace_url").unwrap().to_string(),
             decision_epoch: Duration::from_secs(120),
+            search_strategy: match results.get("search_strategy").unwrap().as_str() {
+                "Flat" => SearchStrategyType::Flat,
+                _ => panic!("Unknown search strategy"),
+            },
         }
     }
 }
