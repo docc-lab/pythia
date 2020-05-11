@@ -46,6 +46,7 @@ impl PythiaAPI for PythiaAPIImpl {
 }
 
 fn main() {
+    eprintln!("Did you remember to run as root?");
     let settings = Settings::read();
     let reader = Arc::new(Mutex::new(OSProfilerReader::from_settings(&settings)));
     let controller = Arc::new(Mutex::new(OSProfilerController::from_settings(&settings)));
