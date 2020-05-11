@@ -36,13 +36,23 @@ use crate::trace::Trace;
 
 /// Main Pythia function that runs in a loop and makes decisions
 pub fn run_controller() {
+    let now = Instant::now();
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
     let strategy = strategy_from_settings(&settings);
+    let controller = OSProfilerController::from_settings(&settings);
     let mut groups = GroupManager::new();
-    let now = Instant::now();
     let mut last_decision = Instant::now();
+
+    // Enable skeleton
+    controller.diable_all();
+    let to_enable = manifest.entry_points();
+    controller.enable(&to_enable.iter().map(|&a| (a.clone(), None)).collect());
+    println!("Enabled following tracepoints: {:?}", to_enable);
+
+    // Main pythia loop
     loop {
+        // Collect traces, increment groups
         let traces = reader.get_recent_traces();
         let critical_paths = traces
             .iter()
@@ -61,7 +71,7 @@ pub fn run_controller() {
         println!("Groups: {}", groups);
 
         if last_decision.elapsed() > settings.decision_epoch {
-            // make decision
+            // Make decision
             let problem_groups = groups.problem_groups();
             println!("Making decision. Top 10 problem groups:");
             for g in problem_groups.iter().take(10) {
