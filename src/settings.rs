@@ -6,15 +6,21 @@ use config::{Config, File, FileFormat};
 
 use crate::search::SearchStrategyType;
 
+const SETTINGS_PATH: &str = "/etc/pythia/controller.toml";
+const DECISION_EPOCH: Duration = Duration::from_secs(120);
+const TRACEPOINTS_PER_EPOCH: usize = 3;
+
 #[derive(Debug)]
 pub struct Settings {
+    pub application: ApplicationType,
     pub manifest_file: PathBuf,
     pub pythia_clients: Vec<String>,
     pub redis_url: String,
-    pub application: ApplicationType,
     pub xtrace_url: String,
-    pub decision_epoch: Duration,
+
     pub search_strategy: SearchStrategyType,
+    pub decision_epoch: Duration,
+    pub tracepoints_per_epoch: usize,
 }
 
 #[derive(Debug)]
@@ -28,7 +34,7 @@ impl Settings {
     pub fn read() -> Settings {
         let mut settings = Config::default();
         settings
-            .merge(File::new("/etc/pythia/controller.toml", FileFormat::Toml))
+            .merge(File::new(SETTINGS_PATH, FileFormat::Toml))
             .unwrap();
         let results = settings.try_into::<HashMap<String, String>>().unwrap();
         let manifest_file = PathBuf::from(results.get("manifest_file").unwrap());
@@ -48,11 +54,12 @@ impl Settings {
                 _ => panic!("Unknown application type"),
             },
             xtrace_url: results.get("xtrace_url").unwrap().to_string(),
-            decision_epoch: Duration::from_secs(120),
+            decision_epoch: DECISION_EPOCH,
             search_strategy: match results.get("search_strategy").unwrap().as_str() {
                 "Flat" => SearchStrategyType::Flat,
                 _ => panic!("Unknown search strategy"),
             },
+            tracepoints_per_epoch: TRACEPOINTS_PER_EPOCH,
         }
     }
 }
