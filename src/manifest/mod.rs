@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 
 use pythia_common::RequestType;
 
-use crate::reader::REQUEST_TYPE_REGEXES;
 use crate::manifest::searchspace::SearchSpace;
+use crate::reader::REQUEST_TYPE_REGEXES;
 use crate::trace::Trace;
 use crate::trace::TracepointID;
 
@@ -103,27 +103,6 @@ impl Manifest {
         }
         result.iter().cloned().collect()
     }
-
-    // pub fn search<'a>(
-    //     &'a self,
-    //     group: &Group,
-    //     edge: EdgeIndex,
-    //     budget: usize,
-    // ) -> (Vec<(&'a String, Option<RequestType>)>, SearchState) {
-    //     let (tracepoints, state) = self.strategy.search(
-    //         self.per_request_type.get(&group.request_type).unwrap(),
-    //         group,
-    //         edge,
-    //         budget,
-    //     );
-    //     (
-    //         tracepoints
-    //             .iter()
-    //             .map(|&a| (a, Some(group.request_type)))
-    //             .collect(),
-    //         state,
-    //     )
-    // }
 }
 
 impl Display for Manifest {

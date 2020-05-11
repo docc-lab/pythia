@@ -8,6 +8,7 @@ use std::time::Instant;
 use petgraph::dot::Dot;
 use petgraph::graph::EdgeIndex;
 
+use crate::controller::OSProfilerController;
 use crate::critical::CriticalPath;
 use crate::critical::Path;
 use crate::grouping::Group;
@@ -19,24 +20,9 @@ use crate::trace::Trace;
 use crate::trace::TracepointID;
 
 pub struct FlatSearch {
-    paths: HashMap<String, CriticalPath>, // key is the hash of the critical path
-    entry_points: HashSet<TracepointID>,
-    occurances: HashMap<String, usize>,
     tried_groups: RefCell<HashSet<String>>,
-    enabled_tracepoints: RefCell<HashSet<TracepointID>>,
-    manifest: Manifest,
-}
-
-impl FlatSearch {
-    fn add_trace(&mut self, trace: &Trace) {
-        for path in CriticalPath::all_possible_paths(trace) {
-            self.add_path(&path);
-        }
-    }
-
-    fn get_entry_points(&self) -> Vec<TracepointID> {
-        self.entry_points.iter().cloned().collect()
-    }
+    controller: &'static OSProfilerController,
+    manifest: &'static Manifest,
 }
 
 impl SearchStrategy for FlatSearch {
@@ -154,9 +140,6 @@ impl SearchStrategy for FlatSearch {
 impl Default for FlatSearch {
     fn default() -> Self {
         FlatSearch {
-            paths: HashMap::new(),
-            entry_points: HashSet::new(),
-            occurances: HashMap::new(),
             tried_groups: RefCell::new(HashSet::new()),
             enabled_tracepoints: RefCell::new(HashSet::new()),
             manifest: Manifest::new(),
