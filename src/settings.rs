@@ -8,6 +8,8 @@ use crate::search::SearchStrategyType;
 
 const SETTINGS_PATH: &str = "/etc/pythia/controller.toml";
 const DECISION_EPOCH: Duration = Duration::from_secs(120);
+const PYTHIA_JIFFY: Duration = Duration::from_secs(5);
+const GC_EPOCH: Duration = Duration::from_secs(120);
 const TRACEPOINTS_PER_EPOCH: usize = 3;
 
 #[derive(Debug)]
@@ -19,7 +21,9 @@ pub struct Settings {
     pub xtrace_url: String,
 
     pub search_strategy: SearchStrategyType,
+    pub jiffy: Duration,
     pub decision_epoch: Duration,
+    pub gc_epoch: Duration,
     pub tracepoints_per_epoch: usize,
 }
 
@@ -60,6 +64,8 @@ impl Settings {
                 _ => panic!("Unknown search strategy"),
             },
             tracepoints_per_epoch: TRACEPOINTS_PER_EPOCH,
+            jiffy: PYTHIA_JIFFY,
+            gc_epoch: GC_EPOCH,
         }
     }
 }

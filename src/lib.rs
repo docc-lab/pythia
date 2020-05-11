@@ -40,14 +40,22 @@ pub fn run_controller() {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
     let strategy = strategy_from_settings(&settings);
-    let controller = OSProfilerController::from_settings(&settings);
+    let mut controller = OSProfilerController::from_settings(&settings);
+    let manifest =
+        Manifest::from_file(&settings.manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let mut groups = GroupManager::new();
     let mut last_decision = Instant::now();
+    let mut last_gc = Instant::now();
 
     // Enable skeleton
     controller.diable_all();
-    let to_enable = manifest.entry_points();
-    controller.enable(&to_enable.iter().map(|&a| (a.clone(), None)).collect());
+    let to_enable = manifest
+        .entry_points()
+        .iter()
+        .map(|&a| (a.clone(), None))
+        .collect();
+    controller.enable(&to_enable);
+
     println!("Enabled following tracepoints: {:?}", to_enable);
 
     // Main pythia loop
@@ -69,6 +77,11 @@ pub fn run_controller() {
             now.elapsed().as_micros()
         );
         println!("Groups: {}", groups);
+
+        if last_gc.elapsed() > settings.gc_epoch {
+            // Run garbage collection
+            last_gc = Instant::now();
+        }
 
         if last_decision.elapsed() > settings.decision_epoch {
             // Make decision
@@ -93,7 +106,7 @@ pub fn run_controller() {
             last_decision = Instant::now();
         }
 
-        sleep(Duration::from_secs(5));
+        sleep(settings.jiffy);
     }
 }
 
@@ -245,7 +258,7 @@ pub fn enable_skeleton() {
     let manifest_file = &settings.manifest_file;
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
-    let controller = OSProfilerController::from_settings(&settings);
+    let mut controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
     let to_enable = manifest.entry_points();
     controller.enable(&to_enable.iter().map(|&a| (a.clone(), None)).collect());

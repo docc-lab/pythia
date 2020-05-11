@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use pythia_common::RequestType;
 
 use crate::rpclib::set_all_client_tracepoints;
@@ -7,25 +9,44 @@ use crate::trace::TracepointID;
 
 pub struct OSProfilerController {
     client_list: Vec<String>,
+
+    enabled_tracepoints: HashSet<(TracepointID, RequestType)>,
+    // This should only be valid after disable_all is called
 }
 
 impl OSProfilerController {
     pub fn from_settings(settings: &Settings) -> OSProfilerController {
         OSProfilerController {
             client_list: settings.pythia_clients.clone(),
+            enabled_tracepoints: HashSet::new(),
         }
     }
 
-    pub fn enable(&self, points: &Vec<(TracepointID, Option<RequestType>)>) {
+    pub fn enable(&mut self, points: &Vec<(TracepointID, Option<RequestType>)>) {
+        for p in points {
+            if p.1.is_none() {
+                eprintln!("Someone enabled a tracepoint without request type, tracking does not work anymore");
+                continue;
+            }
+            self.enabled_tracepoints.insert((p.0, p.1.unwrap()));
+        }
         self.write_to_tracepoints(points, b"1");
     }
 
-    pub fn disable(&self, points: &Vec<(TracepointID, Option<RequestType>)>) {
+    pub fn disable(&mut self, points: &Vec<(TracepointID, Option<RequestType>)>) {
+        for p in points {
+            if p.1.is_none() {
+                eprintln!("Someone disabled a tracepoint without request type, tracking does not work anymore");
+                continue;
+            }
+            self.enabled_tracepoints.remove(&(p.0, p.1.unwrap()));
+        }
         self.write_to_tracepoints(points, b"0");
     }
 
     pub fn disable_by_name(&self, point: &str) {
-        self.disable(&vec![(TracepointID::from_str(point), None)]);
+        eprintln!("Someone disabled a tracepoint by name, tracking does not work anymore");
+        self.write_to_tracepoints(&vec![(TracepointID::from_str(point), None)], b"0");
     }
 
     fn write_to_tracepoints(
