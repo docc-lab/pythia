@@ -3,8 +3,10 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
+use std::time::Instant;
 
 use petgraph::dot::Dot;
+use petgraph::graph::EdgeIndex;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
 use petgraph::visit::EdgeFiltered;
@@ -15,14 +17,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::critical::CriticalPath;
 use crate::critical::Path;
+use crate::grouping::Group;
 use crate::trace::DAGEdge;
-use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::Trace;
+use crate::trace::TraceNode;
 use crate::trace::TracepointID;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
-struct HierarchicalEdge {
+pub struct HierarchicalEdge {
     variant: EdgeType,
 }
 
@@ -36,7 +39,7 @@ impl Display for HierarchicalEdge {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, PartialEq)]
-enum EdgeType {
+pub enum EdgeType {
     Hierarchical,
     HappensBefore,
 }
@@ -49,36 +52,11 @@ impl HierarchicalEdge {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
-struct HierarchicalNode {
-    tracepoint_id: TracepointID,
-    variant: EventType,
-}
-
-impl HierarchicalNode {
-    fn from_event(event: &Event) -> Self {
-        HierarchicalNode {
-            tracepoint_id: event.tracepoint_id,
-            variant: event.variant,
-        }
-    }
-}
-
-impl Display for HierarchicalNode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.variant {
-            EventType::Entry => write!(f, "{}: start", self.tracepoint_id),
-            EventType::Exit => write!(f, "{}: end", self.tracepoint_id),
-            EventType::Annotation => write!(f, "{}", self.tracepoint_id),
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct HierarchicalCriticalPath {
-    g: StableGraph<HierarchicalNode, HierarchicalEdge>,
-    start_node: NodeIndex,
-    end_node: NodeIndex,
+pub struct HierarchicalCriticalPath {
+    pub g: StableGraph<TraceNode, HierarchicalEdge>,
+    pub start_node: NodeIndex,
+    pub end_node: NodeIndex,
     hash: RefCell<Option<String>>,
 }
 
@@ -91,14 +69,14 @@ impl HierarchicalCriticalPath {
         let mut g = StableGraph::new();
         // Add all nodes and happens before edges to the graph
         let mut prev_path_node = path.start_node;
-        let mut prev_node = g.add_node(HierarchicalNode::from_event(&path.g.g[prev_path_node]));
+        let mut prev_node = g.add_node(TraceNode::from_event(&path.g.g[prev_path_node]));
         let start_node = prev_node;
         loop {
             let cur_path_node = match path.next_node(prev_path_node) {
                 Some(node) => node,
                 None => break,
             };
-            let new_node = g.add_node(HierarchicalNode::from_event(&path.g.g[cur_path_node]));
+            let new_node = g.add_node(TraceNode::from_event(&path.g.g[cur_path_node]));
             g.add_edge(
                 prev_node,
                 new_node,
@@ -181,10 +159,63 @@ impl HierarchicalCriticalPath {
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct SearchSpace {
     paths: HashMap<String, HierarchicalCriticalPath>, // key is the hash of the critical path
+    occurances: HashMap<String, usize>,
     entry_points: HashSet<TracepointID>,
 }
 
 impl SearchSpace {
+    pub fn find_matches(&self, group: &Group, edge: EdgeIndex) -> Vec<&HierarchicalCriticalPath> {
+        let now = Instant::now();
+        let mut matching_hashes = self
+            .paths
+            .iter()
+            .filter(|&(_, v)| self.is_match(group, v))
+            .map(|(k, _)| k)
+            .collect::<Vec<&String>>();
+        matching_hashes.sort_by(|&a, &b| {
+            self.occurances
+                .get(b)
+                .unwrap()
+                .cmp(&self.occurances.get(a).unwrap())
+        });
+        eprintln!(
+            "Finding {} matching groups took {}, group size {}",
+            self.paths.len(),
+            now.elapsed().as_micros(),
+            group.g.node_count()
+        );
+        Vec::new()
+    }
+
+    /// Check if group is a subset of path
+    fn is_match(&self, group: &Group, path: &HierarchicalCriticalPath) -> bool {
+        let mut cur_path_idx = path.start_node;
+        let mut cur_group_idx = group.start_node;
+        let mut matches = 0;
+        let result;
+        loop {
+            if path.g[cur_path_idx] == group.g[cur_group_idx] {
+                matches += 1;
+                cur_group_idx = match group.next_node(cur_group_idx) {
+                    Some(nidx) => nidx,
+                    None => {
+                        result = true;
+                        break;
+                    }
+                }
+            }
+            cur_path_idx = match path.next_node(cur_path_idx) {
+                Some(nidx) => nidx,
+                None => {
+                    result = false;
+                    break;
+                }
+            }
+        }
+        println!("Match score: {}", matches);
+        return result;
+    }
+
     pub fn add_trace(&mut self, trace: &Trace, verbose: bool) {
         let mut count = 0;
         let mut overlaps = 0;
@@ -201,6 +232,7 @@ impl SearchSpace {
                 .insert(path.g[path.start_node].tracepoint_id);
             self.entry_points
                 .insert(path.g[path.end_node].tracepoint_id);
+            let mut occurances = 1;
             match self.paths.get(&path.hash()) {
                 Some(_) => {}
                 None => {
@@ -210,20 +242,24 @@ impl SearchSpace {
                         if p.len() < path.len() {
                             if path.contains(p) {
                                 paths_to_remove.push(p.hash());
+                                occurances += self.occurances.get(&p.hash()).unwrap();
                             }
                         } else if path.len() < p.len() {
                             if p.contains(&path) {
                                 add_path = false;
+                                *self.occurances.get(&p.hash()).unwrap() += 1;
                             }
                         }
                     }
                     for p in &paths_to_remove {
                         self.paths.remove(p);
+                        self.occurances.remove(p);
                         added -= 1;
                         overlaps += 1;
                     }
                     if add_path {
                         self.paths.insert(path.hash().clone(), path.clone());
+                        self.occurances.insert(path.hash().clone(), occurances);
                         added += 1;
                     } else {
                         overlaps += 1;
@@ -254,8 +290,9 @@ impl Display for SearchSpace {
         for (hash, path) in self.paths.iter() {
             write!(
                 f,
-                "{}:\n{}",
+                "{} x {}:\n{}",
                 hash,
+                self.occurances.get(hash).unwrap(),
                 RE.replace_all(&format!("{}", Dot::new(&path.g)), "style=\"dashed\"")
             )?;
         }

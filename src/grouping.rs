@@ -13,44 +13,16 @@ use pythia_common::RequestType;
 
 use crate::critical::CriticalPath;
 use crate::critical::Path;
-use crate::trace::Event;
-use crate::trace::EventType;
-use crate::trace::TracepointID;
+use crate::trace::TraceNode;
 
 #[derive(Clone, Debug)]
 pub struct Group {
-    pub g: StableGraph<GroupNode, GroupEdge>,
+    pub g: StableGraph<TraceNode, GroupEdge>,
     hash: String,
     pub start_node: NodeIndex,
     pub request_type: RequestType,
     pub traces: Vec<CriticalPath>,
     pub variance: f64,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct GroupNode {
-    pub tracepoint_id: TracepointID,
-    pub variant: EventType,
-}
-
-impl GroupNode {
-    fn from_event(e: &Event) -> GroupNode {
-        GroupNode {
-            tracepoint_id: e.tracepoint_id,
-            variant: e.variant,
-        }
-    }
-}
-
-impl Display for GroupNode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.tracepoint_id).ok();
-        match self.variant {
-            EventType::Annotation => Ok(()),
-            EventType::Entry => write!(f, " start"),
-            EventType::Exit => write!(f, " end"),
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -93,13 +65,13 @@ impl Group {
     }
 
     fn new(path: CriticalPath) -> Group {
-        let mut dag = StableGraph::<GroupNode, GroupEdge>::new();
+        let mut dag = StableGraph::<TraceNode, GroupEdge>::new();
         let mut cur_node = path.start_node;
         let mut prev_node = None;
         let mut prev_dag_nidx = None;
         let mut start_node = None;
         loop {
-            let dag_nidx = dag.add_node(GroupNode::from_event(&path.g.g[cur_node]));
+            let dag_nidx = dag.add_node(TraceNode::from_event(&path.g.g[cur_node]));
             if prev_node.is_none() {
                 start_node = Some(dag_nidx);
             } else {

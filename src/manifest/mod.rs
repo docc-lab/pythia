@@ -6,16 +6,20 @@ use std::fmt;
 use std::fmt::Display;
 use std::path::Path;
 
+use petgraph::graph::EdgeIndex;
 use petgraph::visit::IntoNodeReferences;
 use petgraph::visit::NodeRef;
 use serde::{Deserialize, Serialize};
 
 use pythia_common::RequestType;
 
+use crate::grouping::Group;
 use crate::manifest::searchspace::SearchSpace;
 use crate::reader::REQUEST_TYPE_REGEXES;
 use crate::trace::Trace;
 use crate::trace::TracepointID;
+
+pub use crate::manifest::searchspace::HierarchicalCriticalPath;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Manifest {
@@ -24,6 +28,18 @@ pub struct Manifest {
 }
 
 impl Manifest {
+    pub fn find_matches(&self, group: &Group, edge: EdgeIndex) -> Vec<&HierarchicalCriticalPath> {
+        match self.per_request_type.get(&group.request_type) {
+            Some(&ss) => ss.find_matches(group, edge),
+            None => {
+                panic!(
+                    "Request type {} not present in manifest",
+                    group.request_type
+                );
+            }
+        }
+    }
+
     pub fn new() -> Manifest {
         Manifest {
             per_request_type: HashMap::new(),

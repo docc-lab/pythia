@@ -9,8 +9,8 @@ use std::time::Duration;
 
 use bimap::BiMap;
 use chrono::NaiveDateTime;
-use petgraph::graph::NodeIndex;
 use petgraph::dot::Dot;
+use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
 use petgraph::Direction;
 use serde::de;
@@ -20,8 +20,6 @@ use std::path::Path;
 use uuid::Uuid;
 
 use pythia_common::RequestType;
-
-use crate::grouping::GroupNode;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Trace {
@@ -189,12 +187,6 @@ impl PartialEq<Event> for Event {
     }
 }
 
-impl PartialEq<GroupNode> for Event {
-    fn eq(&self, other: &GroupNode) -> bool {
-        self.tracepoint_id == other.tracepoint_id && self.variant == other.variant
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct DAGEdge {
     pub duration: Duration,
@@ -213,6 +205,37 @@ impl Display for DAGEdge {
             EdgeType::ChildOf => write!(f, "{}: C", self.duration.as_nanos()),
             EdgeType::FollowsFrom => write!(f, "{}: F", self.duration.as_nanos()),
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, PartialEq)]
+pub struct TraceNode {
+    pub tracepoint_id: TracepointID,
+    pub variant: EventType,
+}
+
+impl TraceNode {
+    pub fn from_event(event: &Event) -> Self {
+        TraceNode {
+            tracepoint_id: event.tracepoint_id,
+            variant: event.variant,
+        }
+    }
+}
+
+impl Display for TraceNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.variant {
+            EventType::Entry => write!(f, "{}: start", self.tracepoint_id),
+            EventType::Exit => write!(f, "{}: end", self.tracepoint_id),
+            EventType::Annotation => write!(f, "{}", self.tracepoint_id),
+        }
+    }
+}
+
+impl PartialEq<TraceNode> for Event {
+    fn eq(&self, other: &TraceNode) -> bool {
+        self.tracepoint_id == other.tracepoint_id && self.variant == other.variant
     }
 }
 

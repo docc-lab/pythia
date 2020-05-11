@@ -16,7 +16,6 @@ use crate::manifest::Manifest;
 use crate::search::SearchState;
 use crate::search::SearchStrategy;
 use crate::settings::Settings;
-use crate::trace::Trace;
 use crate::trace::TracepointID;
 
 pub struct FlatSearch {
@@ -246,35 +245,6 @@ impl FlatSearch {
             cur_path_idx = path.next_node(cur_path_idx).unwrap();
         }
         result
-    }
-
-    /// Check if group is a subset of path
-    fn is_match(&self, group: &Group, path: &CriticalPath) -> bool {
-        let mut cur_path_idx = path.start_node;
-        let mut cur_group_idx = group.start_node;
-        let mut matches = 0;
-        let result;
-        loop {
-            if path.g.g[cur_path_idx] == group.g[cur_group_idx] {
-                matches += 1;
-                cur_group_idx = match group.next_node(cur_group_idx) {
-                    Some(nidx) => nidx,
-                    None => {
-                        result = true;
-                        break;
-                    }
-                }
-            }
-            cur_path_idx = match path.next_node(cur_path_idx) {
-                Some(nidx) => nidx,
-                None => {
-                    result = false;
-                    break;
-                }
-            }
-        }
-        println!("Match score: {}", matches);
-        return result;
     }
 
     fn add_path(&mut self, path: &CriticalPath) {
