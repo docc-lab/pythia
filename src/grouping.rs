@@ -209,7 +209,12 @@ impl GroupManager {
     }
 
     pub fn problem_groups(&self) -> Vec<&Group> {
-        let mut sorted_groups: Vec<&Group> = self.groups.values().collect();
+        let mut sorted_groups: Vec<&Group> = self
+            .groups
+            .values()
+            .filter(|&g| g.variance != 0.0)
+            .filter(|&g| g.traces.len() > 3)
+            .collect();
         sorted_groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap());
         sorted_groups
     }
