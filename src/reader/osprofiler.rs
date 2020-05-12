@@ -99,9 +99,6 @@ impl Reader for OSProfilerReader {
         let reader = std::fs::File::open(file).unwrap();
         let t: Vec<OSProfilerSpan> = serde_json::from_reader(reader).unwrap();
         let mut dag = self.from_event_list(Uuid::nil(), t);
-        if self.for_searchspace {
-            dag.prune();
-        }
         dag
     }
 
@@ -236,9 +233,6 @@ impl Reader for OSProfilerReader {
             - result.g[result.start_node].timestamp)
             .to_std()
             .unwrap();
-        if self.for_searchspace {
-            result.prune();
-        }
         Some(result)
     }
 }
