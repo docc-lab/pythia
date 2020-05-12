@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
-use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use petgraph::dot::Dot;
@@ -16,7 +15,6 @@ use serde::{Deserialize, Serialize};
 
 use pythia_common::RequestType;
 
-use crate::critical::serde_hash;
 use crate::critical::CriticalPath;
 use crate::critical::Path;
 use crate::grouping::Group;
@@ -60,8 +58,7 @@ pub struct HierarchicalCriticalPath {
     pub start_node: NodeIndex,
     pub end_node: NodeIndex,
     pub request_type: Option<RequestType>,
-    #[serde(with = "serde_hash")]
-    hash: Arc<Mutex<Option<String>>>,
+    hash: String,
 }
 
 impl HierarchicalCriticalPath {
@@ -95,10 +92,11 @@ impl HierarchicalCriticalPath {
             g: g,
             start_node: start_node,
             end_node: prev_node,
-            hash: Arc::new(Mutex::new(None)),
+            hash: "".to_string(),
             request_type: path.request_type,
         };
         result.add_hierarchical_edges();
+        result.calculate_hash();
         result
     }
 
@@ -241,37 +239,34 @@ impl SearchSpace {
             self.entry_points
                 .insert(path.g[path.end_node].tracepoint_id);
             let mut occurances = 1;
-            match self.paths.get(&path.hash()) {
-                Some(_) => {}
-                None => {
-                    let mut add_path = true;
-                    let mut paths_to_remove = Vec::new();
-                    for p in self.paths.values() {
-                        if p.len() < path.len() {
-                            if path.contains(p) {
-                                paths_to_remove.push(p.hash());
-                                occurances += self.occurances.get(&p.hash()).unwrap();
-                            }
-                        } else if path.len() < p.len() {
-                            if p.contains(&path) {
-                                add_path = false;
-                                *self.occurances.get_mut(&p.hash()).unwrap() += 1;
-                            }
+            if self.paths.get(path.hash()).is_none() {
+                let mut add_path = true;
+                let mut paths_to_remove: Vec<String> = Vec::new();
+                for p in self.paths.values() {
+                    if p.len() < path.len() {
+                        if path.contains(p) {
+                            paths_to_remove.push(p.hash().to_string());
+                            occurances += self.occurances.get(p.hash()).unwrap();
+                        }
+                    } else if path.len() < p.len() {
+                        if p.contains(&path) {
+                            add_path = false;
+                            *self.occurances.get_mut(p.hash()).unwrap() += 1;
                         }
                     }
-                    for p in &paths_to_remove {
-                        self.paths.remove(p);
-                        self.occurances.remove(p);
-                        added -= 1;
-                        overlaps += 1;
-                    }
-                    if add_path {
-                        self.paths.insert(path.hash().clone(), path.clone());
-                        self.occurances.insert(path.hash().clone(), occurances);
-                        added += 1;
-                    } else {
-                        overlaps += 1;
-                    }
+                }
+                for p in paths_to_remove {
+                    self.paths.remove(&p);
+                    self.occurances.remove(&p);
+                    added -= 1;
+                    overlaps += 1;
+                }
+                if add_path {
+                    self.paths.insert(path.hash().to_string(), path.clone());
+                    self.occurances.insert(path.hash().to_string(), occurances);
+                    added += 1;
+                } else {
+                    overlaps += 1;
                 }
             }
             count += 1;
@@ -309,8 +304,12 @@ impl Display for SearchSpace {
 }
 
 impl Path for HierarchicalCriticalPath {
-    fn get_hash(&self) -> &Arc<Mutex<Option<String>>> {
+    fn get_hash(&self) -> &str {
         &self.hash
+    }
+
+    fn set_hash(&mut self, hash: &str) {
+        self.hash = hash.to_string()
     }
 
     fn start_node(&self) -> NodeIndex {

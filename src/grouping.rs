@@ -46,7 +46,7 @@ impl Group {
     pub fn from_critical_paths(paths: Vec<CriticalPath>) -> Vec<Group> {
         let mut hash_map = HashMap::<String, Group>::new();
         for path in paths {
-            match hash_map.get_mut(&path.hash()) {
+            match hash_map.get_mut(path.hash()) {
                 Some(v) => v.add_trace(&path),
                 None => {
                     hash_map.insert(path.hash().to_string(), Group::new(path));
@@ -194,7 +194,7 @@ impl GroupManager {
     pub fn update(&mut self, paths: &Vec<CriticalPath>) {
         let mut updated_groups = Vec::new();
         for path in paths {
-            match self.groups.get_mut(&path.hash()) {
+            match self.groups.get_mut(path.hash()) {
                 Some(v) => v.add_trace(&path),
                 None => {
                     self.groups
@@ -204,7 +204,7 @@ impl GroupManager {
             updated_groups.push(path.hash().clone());
         }
         for h in updated_groups {
-            self.groups.get_mut(&h).unwrap().calculate_variance();
+            self.groups.get_mut(h).unwrap().calculate_variance();
         }
     }
 
