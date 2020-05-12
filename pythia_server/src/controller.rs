@@ -74,7 +74,7 @@ impl OSProfilerController {
         } else {
             result.push(tracepoint);
         }
-        match request_type {
+        match *request_type {
             Some(t) => {
                 if t != RequestType::Unknown {
                     let mut newname = result.file_name().unwrap().to_os_string();
