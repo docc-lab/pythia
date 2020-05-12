@@ -81,7 +81,7 @@ impl OSProfilerController {
     }
 
     /// Also removes request-type-specific controllers
-    pub fn diable_all(&self) {
+    pub fn disable_all(&self) {
         self.set_all_tracepoints(b"0");
     }
 

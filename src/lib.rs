@@ -157,7 +157,7 @@ pub fn make_decision(_epoch_file: &str, _dry_run: bool, _budget: usize) {
 pub fn disable_all() {
     let settings = Settings::read();
     let controller = OSProfilerController::from_settings(&settings);
-    controller.diable_all();
+    controller.disable_all();
 }
 
 pub fn enable_all() {
@@ -178,7 +178,7 @@ pub fn enable_skeleton() {
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let controller = OSProfilerController::from_settings(&settings);
-    controller.diable_all();
+    controller.disable_all();
     let to_enable = manifest.entry_points();
     controller.enable(&to_enable.iter().map(|&a| (a.clone(), None)).collect());
     println!("Enabled following tracepoints: {:?}", to_enable);

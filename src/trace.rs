@@ -135,9 +135,6 @@ impl Trace {
                     .g
                     .neighbors_directed(cur_node, Direction::Incoming)
                     .collect::<Vec<_>>();
-                if neighbors.len() == 0 {
-                    panic!("Pruning ran to a start node from {}", self.g[cur_node]);
-                }
                 self.g.remove_node(cur_node);
                 removed_count += 1;
                 for n in neighbors {

@@ -30,7 +30,7 @@ fn main() {
     let mut last_gc = Instant::now();
 
     // Enable skeleton
-    CONTROLLER.diable_all();
+    CONTROLLER.disable_all();
     let to_enable = MANIFEST
         .entry_points()
         .iter()
