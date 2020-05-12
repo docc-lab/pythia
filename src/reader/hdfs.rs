@@ -25,9 +25,14 @@ use crate::trace::{DAGEdge, EdgeType};
 
 pub struct HDFSReader {
     xtrace_url: String,
+    for_searchspace: bool,
 }
 
 impl Reader for HDFSReader {
+    fn for_searchspace(&mut self) {
+        self.for_searchspace = true;
+    }
+
     fn reset_state(&mut self) {}
     fn get_recent_traces(&mut self) -> Vec<Trace> {
         Vec::new()
@@ -67,7 +72,9 @@ impl Reader for HDFSReader {
         let mut t: Vec<HDFSTrace> = serde_json::from_str(&result).unwrap();
         assert!(t.len() == 1);
         let mut trace = self.from_json(&mut t[0]);
-        trace.prune();
+        if self.for_searchspace {
+            trace.prune();
+        }
         Some(trace)
     }
 
@@ -81,7 +88,9 @@ impl Reader for HDFSReader {
                 let mut t: Vec<HDFSTrace> = serde_json::from_reader(reader).unwrap();
                 assert!(t.len() == 1);
                 let mut trace = self.from_json(&mut t[0]);
-                trace.prune();
+                if self.for_searchspace {
+                    trace.prune();
+                }
                 trace
             }
         }
@@ -96,6 +105,7 @@ impl HDFSReader {
     pub fn from_settings(settings: &Settings) -> Self {
         HDFSReader {
             xtrace_url: settings.xtrace_url.clone(),
+            for_searchspace: false,
         }
     }
 

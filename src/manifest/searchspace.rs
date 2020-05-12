@@ -182,7 +182,8 @@ impl SearchSpace {
                 .cmp(&self.occurances.get(a).unwrap())
         });
         eprintln!(
-            "Finding {} matching groups took {}, group size {}",
+            "Finding {} matching groups out of {} took {}, group size {}",
+            matching_hashes.len(),
             self.paths.len(),
             now.elapsed().as_micros(),
             group.g.node_count()

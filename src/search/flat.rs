@@ -28,7 +28,11 @@ impl SearchStrategy for FlatSearch {
             group.g.node_count()
         );
         if matches.len() == 0 {
-            println!("No critical path matches the group {}", group);
+            println!(
+                "No critical path matches the group {}:\n{}",
+                group,
+                group.dot()
+            );
         }
         let mut result = HashSet::new();
         for m in matches {

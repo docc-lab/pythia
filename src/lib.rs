@@ -235,6 +235,7 @@ pub fn dump_traces(tracefile: &str) {
 pub fn get_manifest(manfile: &str, overwrite: bool) {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
+    reader.for_searchspace();
     let traces = reader.read_trace_file(manfile);
     let manifest = Manifest::from_trace_list(&traces);
     println!("{}", manifest);
@@ -259,6 +260,7 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
 pub fn measure_search_space_feasibility(trace_file: &str) {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
+    reader.for_searchspace();
     let trace = reader.read_file(trace_file);
     println!("{}", Manifest::try_constructing(&trace));
 }

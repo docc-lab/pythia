@@ -30,9 +30,14 @@ pub struct OSProfilerReader {
     connection: Connection,
     client_list: Vec<String>,
     prev_traces: HashMap<String, Duration>,
+    for_searchspace: bool,
 }
 
 impl Reader for OSProfilerReader {
+    fn for_searchspace(&mut self) {
+        self.for_searchspace = true;
+    }
+
     fn reset_state(&mut self) {
         redis::cmd("flushall")
             .query::<()>(&mut self.connection)
@@ -94,7 +99,9 @@ impl Reader for OSProfilerReader {
         let reader = std::fs::File::open(file).unwrap();
         let t: Vec<OSProfilerSpan> = serde_json::from_reader(reader).unwrap();
         let mut dag = self.from_event_list(Uuid::nil(), t);
-        dag.prune();
+        if self.for_searchspace {
+            dag.prune();
+        }
         dag
     }
 
@@ -229,7 +236,9 @@ impl Reader for OSProfilerReader {
             - result.g[result.start_node].timestamp)
             .to_std()
             .unwrap();
-        result.prune();
+        if self.for_searchspace {
+            result.prune();
+        }
         Some(result)
     }
 }
@@ -243,6 +252,7 @@ impl OSProfilerReader {
             connection: con,
             client_list: settings.pythia_clients.clone(),
             prev_traces: HashMap::new(),
+            for_searchspace: false,
         }
     }
 

@@ -3,6 +3,7 @@ use std::fmt;
 use std::fmt::Display;
 use std::time::Duration;
 
+use petgraph::dot::Dot;
 use petgraph::graph::EdgeIndex;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
@@ -43,6 +44,10 @@ impl Display for GroupEdge {
 }
 
 impl Group {
+    pub fn dot(&self) -> String {
+        format!("{}", Dot::new(&self.g))
+    }
+
     pub fn from_critical_paths(paths: Vec<CriticalPath>) -> Vec<Group> {
         let mut hash_map = HashMap::<String, Group>::new();
         for path in paths {

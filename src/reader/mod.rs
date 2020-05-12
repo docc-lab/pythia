@@ -23,6 +23,7 @@ pub trait Reader {
     fn get_recent_traces(&mut self) -> Vec<Trace>;
     fn reset_state(&mut self);
     fn read_dir(&mut self, foldername: &str) -> Vec<Trace>;
+    fn for_searchspace(&mut self);
 
     fn read_trace_file(&mut self, tracefile: &str) -> Vec<Trace> {
         let trace_ids = std::fs::read_to_string(tracefile).unwrap();
