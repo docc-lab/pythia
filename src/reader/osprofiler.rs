@@ -33,6 +33,12 @@ pub struct OSProfilerReader {
 }
 
 impl Reader for OSProfilerReader {
+    fn reset_state(&mut self) {
+        redis::cmd("flushall")
+            .query::<()>(&mut self.connection)
+            .ok();
+    }
+
     fn get_recent_traces(&mut self) -> Vec<Trace> {
         let mut traces = Vec::new();
         let mut first_trace = None;

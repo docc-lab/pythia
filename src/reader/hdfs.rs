@@ -28,6 +28,7 @@ pub struct HDFSReader {
 }
 
 impl Reader for HDFSReader {
+    fn reset_state(&mut self) {}
     fn get_recent_traces(&mut self) -> Vec<Trace> {
         Vec::new()
     }

@@ -21,6 +21,7 @@ pub trait Reader {
     fn read_file(&mut self, filename: &str) -> Trace;
     fn get_trace_from_base_id(&mut self, id: &str) -> Option<Trace>;
     fn get_recent_traces(&mut self) -> Vec<Trace>;
+    fn reset_state(&mut self);
     fn read_dir(&mut self, foldername: &str) -> Vec<Trace>;
 
     fn read_trace_file(&mut self, tracefile: &str) -> Vec<Trace> {

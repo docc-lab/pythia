@@ -32,11 +32,12 @@ fn main() {
     // Enable skeleton
     CONTROLLER.disable_all();
     let to_enable = MANIFEST
-        .entry_points()
+        .skeleton()
         .iter()
         .map(|&a| (a.clone(), None))
         .collect();
     CONTROLLER.enable(&to_enable);
+    reader.reset_state();
 
     println!("Enabled following tracepoints: {:?}", to_enable);
 

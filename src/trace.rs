@@ -107,7 +107,10 @@ impl Trace {
         let mut removed_count = 0;
         loop {
             let mut iter = self.g.externals(Direction::Outgoing);
-            let mut end_node = iter.next().unwrap();
+            let mut end_node = match iter.next() {
+                Some(nidx) => nidx,
+                None => {break;}
+            };
             if end_node == self.end_node {
                 end_node = match iter.next() {
                     None => {

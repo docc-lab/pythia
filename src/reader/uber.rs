@@ -38,6 +38,7 @@ fn raise(s: &str) -> Box<dyn Error> {
 pub struct UberReader {}
 
 impl Reader for UberReader {
+    fn reset_state(&mut self) {}
     fn read_file(&mut self, filename: &str) -> Trace {
         self.try_read_file(filename).unwrap()
     }

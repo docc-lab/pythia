@@ -109,13 +109,14 @@ impl Manifest {
         serde_json::from_reader(reader).unwrap()
     }
 
-    pub fn entry_points(&self) -> Vec<TracepointID> {
+    pub fn skeleton(&self) -> Vec<TracepointID> {
         let mut result = HashSet::new();
         for cct in self.per_request_type.values() {
             for tracepoint in cct.get_entry_points() {
                 result.insert(tracepoint);
             }
         }
+        result.extend(self.request_type_tracepoints.iter());
         result.iter().cloned().collect()
     }
 }
