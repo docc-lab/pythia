@@ -98,8 +98,7 @@ impl Reader for OSProfilerReader {
     fn read_file(&mut self, file: &str) -> Trace {
         let reader = std::fs::File::open(file).unwrap();
         let t: Vec<OSProfilerSpan> = serde_json::from_reader(reader).unwrap();
-        let mut dag = self.from_event_list(Uuid::nil(), t);
-        dag
+        self.from_event_list(Uuid::nil(), t)
     }
 
     fn read_dir(&mut self, _foldername: &str) -> Vec<Trace> {
