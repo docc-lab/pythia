@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 
 use pythia_common::RequestType;
 
@@ -10,7 +11,7 @@ use crate::trace::TracepointID;
 pub struct OSProfilerController {
     client_list: Vec<String>,
 
-    enabled_tracepoints: HashSet<(TracepointID, RequestType)>,
+    pub enabled_tracepoints: Arc<Mutex<HashSet<(TracepointID, Option<RequestType>)>>>,
     // This should only be valid after disable_all is called
 }
 
@@ -18,35 +19,28 @@ impl OSProfilerController {
     pub fn from_settings(settings: &Settings) -> OSProfilerController {
         OSProfilerController {
             client_list: settings.pythia_clients.clone(),
-            enabled_tracepoints: HashSet::new(),
+            enabled_tracepoints: Arc::new(Mutex::new(HashSet::new())),
         }
     }
 
-    pub fn enable(&mut self, points: &Vec<(TracepointID, Option<RequestType>)>) {
+    pub fn enable(&self, points: &Vec<(TracepointID, Option<RequestType>)>) {
+        let mut enabled_tracepoints = self.enabled_tracepoints.lock().unwrap();
         for p in points {
-            if p.1.is_none() {
-                eprintln!("Someone enabled a tracepoint without request type, tracking does not work anymore");
-                continue;
-            }
-            self.enabled_tracepoints.insert((p.0, p.1.unwrap()));
+            enabled_tracepoints.insert(p.clone());
         }
         self.write_to_tracepoints(points, b"1");
     }
 
-    pub fn disable(&mut self, points: &Vec<(TracepointID, Option<RequestType>)>) {
+    pub fn disable(&self, points: &Vec<(TracepointID, Option<RequestType>)>) {
+        let mut enabled_tracepoints = self.enabled_tracepoints.lock().unwrap();
         for p in points {
-            if p.1.is_none() {
-                eprintln!("Someone disabled a tracepoint without request type, tracking does not work anymore");
-                continue;
-            }
-            self.enabled_tracepoints.remove(&(p.0, p.1.unwrap()));
+            enabled_tracepoints.remove(p);
         }
         self.write_to_tracepoints(points, b"0");
     }
 
     pub fn disable_by_name(&self, point: &str) {
-        eprintln!("Someone disabled a tracepoint by name, tracking does not work anymore");
-        self.write_to_tracepoints(&vec![(TracepointID::from_str(point), None)], b"0");
+        self.disable(&vec![(TracepointID::from_str(point), None)]);
     }
 
     fn write_to_tracepoints(

@@ -1,12 +1,11 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use petgraph::dot::Dot;
-use petgraph::graph::EdgeIndex;
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
 use petgraph::visit::EdgeFiltered;
@@ -15,6 +14,9 @@ use petgraph::Direction;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use pythia_common::RequestType;
+
+use crate::critical::serde_hash;
 use crate::critical::CriticalPath;
 use crate::critical::Path;
 use crate::grouping::Group;
@@ -57,7 +59,9 @@ pub struct HierarchicalCriticalPath {
     pub g: StableGraph<TraceNode, HierarchicalEdge>,
     pub start_node: NodeIndex,
     pub end_node: NodeIndex,
-    hash: RefCell<Option<String>>,
+    pub request_type: Option<RequestType>,
+    #[serde(with = "serde_hash")]
+    hash: Arc<Mutex<Option<String>>>,
 }
 
 impl HierarchicalCriticalPath {
@@ -91,7 +95,8 @@ impl HierarchicalCriticalPath {
             g: g,
             start_node: start_node,
             end_node: prev_node,
-            hash: RefCell::new(None),
+            hash: Arc::new(Mutex::new(None)),
+            request_type: path.request_type,
         };
         result.add_hierarchical_edges();
         result
@@ -164,7 +169,7 @@ pub struct SearchSpace {
 }
 
 impl SearchSpace {
-    pub fn find_matches(&self, group: &Group, edge: EdgeIndex) -> Vec<&HierarchicalCriticalPath> {
+    pub fn find_matches(&self, group: &Group) -> Vec<&HierarchicalCriticalPath> {
         let now = Instant::now();
         let mut matching_hashes = self
             .paths
@@ -184,7 +189,10 @@ impl SearchSpace {
             now.elapsed().as_micros(),
             group.g.node_count()
         );
-        Vec::new()
+        matching_hashes
+            .iter()
+            .map(|&h| self.paths.get(h).unwrap())
+            .collect()
     }
 
     /// Check if group is a subset of path
@@ -247,7 +255,7 @@ impl SearchSpace {
                         } else if path.len() < p.len() {
                             if p.contains(&path) {
                                 add_path = false;
-                                *self.occurances.get(&p.hash()).unwrap() += 1;
+                                *self.occurances.get_mut(&p.hash()).unwrap() += 1;
                             }
                         }
                     }
@@ -301,7 +309,7 @@ impl Display for SearchSpace {
 }
 
 impl Path for HierarchicalCriticalPath {
-    fn get_hash(&self) -> &RefCell<Option<String>> {
+    fn get_hash(&self) -> &Arc<Mutex<Option<String>>> {
         &self.hash
     }
 
@@ -317,6 +325,15 @@ impl Path for HierarchicalCriticalPath {
         let visitor =
             EdgeFiltered::from_fn(&self.g, |e| e.weight().variant == EdgeType::HappensBefore);
         let mut matches = visitor.neighbors_directed(nidx, Direction::Outgoing);
+        let result = matches.next();
+        assert!(matches.next().is_none());
+        result
+    }
+
+    fn prev_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
+        let visitor =
+            EdgeFiltered::from_fn(&self.g, |e| e.weight().variant == EdgeType::HappensBefore);
+        let mut matches = visitor.neighbors_directed(nidx, Direction::Incoming);
         let result = matches.next();
         assert!(matches.next().is_none());
         result

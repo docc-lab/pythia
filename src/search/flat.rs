@@ -1,170 +1,54 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::collections::HashSet;
-use std::fmt;
-use std::fmt::Display;
 use std::time::Instant;
 
-use petgraph::dot::Dot;
 use petgraph::graph::EdgeIndex;
 
 use crate::controller::OSProfilerController;
-use crate::critical::CriticalPath;
 use crate::critical::Path;
 use crate::grouping::Group;
+use crate::manifest::HierarchicalCriticalPath;
 use crate::manifest::Manifest;
-use crate::search::SearchState;
 use crate::search::SearchStrategy;
 use crate::settings::Settings;
 use crate::trace::TracepointID;
 
 pub struct FlatSearch {
-    tried_groups: RefCell<HashSet<String>>,
     controller: &'static OSProfilerController,
     manifest: &'static Manifest,
 }
 
 impl SearchStrategy for FlatSearch {
-    fn search(
-        &self,
-        group: &Group,
-        edge: EdgeIndex,
-        budget: usize,
-    ) -> (Vec<TracepointID>, SearchState) {
+    fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> Vec<TracepointID> {
         let now = Instant::now();
-        let mut matching_hashes = self
-            .paths
-            .iter()
-            .filter(|&(_, v)| self.is_match(group, v))
-            .map(|(k, _)| k)
-            .collect::<Vec<&String>>();
-        matching_hashes.sort_by(|&a, &b| {
-            self.occurances
-                .get(b)
-                .unwrap()
-                .cmp(&self.occurances.get(a).unwrap())
-        });
+        let matches = self.manifest.find_matches(group);
         eprintln!(
             "Finding {} matching groups took {}, group size {}",
-            self.paths.len(),
+            matches.len(),
             now.elapsed().as_micros(),
             group.g.node_count()
         );
-        let mut tried_groups = self.tried_groups.borrow_mut();
-        let now = Instant::now();
-        return match matching_hashes.len() {
-            0 => {
-                println!("No critical path matches the group {}", Dot::new(&group.g));
-                return (Vec::new(), SearchState::NextEdge);
-            }
-            1 => {
-                let mut current_hash = matching_hashes[0];
-                for h in matching_hashes {
-                    if tried_groups.get(h).is_none() {
-                        current_hash = h;
-                        break;
-                    }
-                }
-                let result = self.split_group_by_n(
-                    self.paths.get(current_hash).unwrap(),
-                    group,
-                    edge,
-                    budget,
-                );
-                for i in &result {
-                    let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
-                    enabled_tracepoints.insert(*i);
-                }
-                tried_groups.insert(current_hash.clone());
-                eprintln!("Finding middle took {}", now.elapsed().as_micros(),);
-                if result.len() < budget {
-                    tried_groups.clear();
-                    (result, SearchState::NextEdge)
-                } else {
-                    (result, SearchState::DepletedBudget)
-                }
-            }
-            _ => {
-                let mut result = HashSet::new();
-                let mut split_count = 1;
-                loop {
-                    for i in &matching_hashes {
-                        if !tried_groups.get(*i).is_none() {
-                            continue;
-                        }
-                        let tracepoints = self.split_group_by_n(
-                            self.paths.get(*i).unwrap(),
-                            group,
-                            edge,
-                            split_count,
-                        );
-                        tried_groups.insert(i.to_string());
-                        for t in &tracepoints {
-                            result.insert(*t);
-                            if result.len() >= budget {
-                                break;
-                            }
-                        }
-                    }
-                    if result.len() >= budget {
-                        break;
-                    }
-                    split_count += 1;
-                    if split_count > budget {
-                        for i in &result {
-                            let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
-                            enabled_tracepoints.insert(*i);
-                        }
-                        eprintln!("Finding middle took {}", now.elapsed().as_micros(),);
-                        tried_groups.clear();
-                        return (result.drain().collect(), SearchState::NextEdge);
-                    }
-                }
-                for i in &result {
-                    let mut enabled_tracepoints = self.enabled_tracepoints.borrow_mut();
-                    enabled_tracepoints.insert(*i);
-                }
-                eprintln!("Finding middle took {}", now.elapsed().as_micros(),);
-                if split_count > budget {
-                    tried_groups.clear();
-                    (result.drain().collect(), SearchState::NextEdge)
-                } else {
-                    (result.drain().collect(), SearchState::DepletedBudget)
-                }
-            }
-        };
-    }
-}
-
-impl Default for FlatSearch {
-    fn default() -> Self {
-        FlatSearch {
-            tried_groups: RefCell::new(HashSet::new()),
-            enabled_tracepoints: RefCell::new(HashSet::new()),
-            manifest: Manifest::new(),
+        if matches.len() == 0 {
+            println!("No critical path matches the group {}", group);
         }
+        let mut result = HashSet::new();
+        for m in matches {
+            let now = Instant::now();
+            let remaining_budget = budget - result.len();
+            result.extend(
+                self.split_group_by_n(m, group, edge, remaining_budget)
+                    .iter()
+                    .take(remaining_budget),
+            );
+            eprintln!("Finding middle took {}", now.elapsed().as_micros(),);
+        }
+        result.drain().collect()
     }
 }
 
 impl FlatSearch {
-    pub fn from_settings(s: &Settings) -> Self {
+    pub fn new(_s: &Settings, m: &'static Manifest, c: &'static OSProfilerController) -> Self {
         FlatSearch {
-            paths: HashMap::new(),
-            entry_points: HashSet::new(),
-            occurances: HashMap::new(),
-            tried_groups: RefCell::new(HashSet::new()),
-            enabled_tracepoints: RefCell::new(HashSet::new()),
-            manifest: Manifest::new(),
-        }
-    }
-
-    pub fn new(m: Manifest) -> Self {
-        FlatSearch {
-            paths: HashMap::new(),
-            entry_points: HashSet::new(),
-            occurances: HashMap::new(),
-            tried_groups: RefCell::new(HashSet::new()),
-            enabled_tracepoints: RefCell::new(HashSet::new()),
+            controller: c,
             manifest: m,
         }
     }
@@ -172,7 +56,7 @@ impl FlatSearch {
     /// Find n tracepoints that equally separate the edge according to the path
     fn split_group_by_n(
         &self,
-        path: &CriticalPath, // Contains full search space
+        path: &HierarchicalCriticalPath, // Contains full search space
         group: &Group,
         edge: EdgeIndex,
         n: usize,
@@ -184,8 +68,9 @@ impl FlatSearch {
         let mut nodes_between = 0;
         let mut cur_path_idx = path.start_node;
         let mut cur_group_idx = group.start_node;
+        let enabled_tracepoints = self.controller.enabled_tracepoints.lock().unwrap();
         loop {
-            if path.g.g[cur_path_idx] == group.g[cur_group_idx] {
+            if path.g[cur_path_idx] == group.g[cur_group_idx] {
                 if cur_group_idx == source {
                     path_source = cur_path_idx;
                     nodes_between = 0;
@@ -219,10 +104,8 @@ impl FlatSearch {
                 cur_path_idx = path.next_node(cur_path_idx).unwrap();
                 assert_ne!(cur_path_idx, path_target);
             }
-            if !self
-                .enabled_tracepoints
-                .borrow()
-                .get(&path.g.g[cur_path_idx].tracepoint_id)
+            if !enabled_tracepoints
+                .get(&(path.g[cur_path_idx].tracepoint_id, path.request_type))
                 .is_none()
             {
                 cur_path_idx = path.next_node(cur_path_idx).unwrap();
@@ -239,36 +122,16 @@ impl FlatSearch {
                 println!("Already reached target node, breaking");
                 continue;
             }
-            result.push(path.g.g[cur_path_idx].tracepoint_id);
+            result.push(path.g[cur_path_idx].tracepoint_id);
             assert_ne!(cur_path_idx, path_target);
             assert_ne!(cur_path_idx, path_source);
             cur_path_idx = path.next_node(cur_path_idx).unwrap();
         }
+        for tp in &result {
+            assert!(enabled_tracepoints
+                .get(&(tp.clone(), path.request_type))
+                .is_none());
+        }
         result
-    }
-
-    fn add_path(&mut self, path: &CriticalPath) {
-        self.entry_points
-            .insert(path.g.g[path.start_node].tracepoint_id.clone());
-        self.entry_points
-            .insert(path.g.g[path.end_node].tracepoint_id.clone());
-        match self.paths.get(&path.hash()) {
-            Some(_) => {}
-            None => {
-                self.paths.insert(path.hash().clone(), path.clone());
-                self.occurances.insert(path.hash().clone(), 0);
-            }
-        }
-        *self.occurances.get_mut(&path.hash()).unwrap() += 1;
-    }
-}
-
-impl Display for FlatSearch {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Occurances: {:?}\n", self.occurances)?;
-        for (i, (h, p)) in self.paths.iter().enumerate() {
-            write!(f, "Path {}: {}\n{}", i, h, Dot::new(&p.g.g))?;
-        }
-        Ok(())
     }
 }

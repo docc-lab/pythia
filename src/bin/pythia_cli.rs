@@ -4,8 +4,8 @@ use std::time::Instant;
 use pythia::{
     disable_all, disable_tracepoint, dump_traces, enable_all, enable_skeleton, get_crit,
     get_manifest, get_trace, group_folder, group_from_ids, make_decision,
-    measure_search_space_feasibility, read_trace_file, run_controller, show_config,
-    show_key_value_pairs, show_manifest,
+    measure_search_space_feasibility, read_trace_file, show_config, show_key_value_pairs,
+    show_manifest,
 };
 
 fn main() {
@@ -137,9 +137,6 @@ fn main() {
         }
         ("show-config", Some(_)) => {
             show_config();
-        }
-        ("run", Some(_)) => {
-            run_controller();
         }
         _ => panic!("Must provide a subcommand, see --help for commands"),
     };

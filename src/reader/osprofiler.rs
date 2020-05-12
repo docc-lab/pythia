@@ -13,11 +13,10 @@ use uuid::Uuid;
 use pythia_common::AnnotationEnum;
 use pythia_common::OSProfilerEnum;
 use pythia_common::OSProfilerSpan;
-use pythia_common::RequestType;
 
 use crate::reader::Reader;
-use crate::reader::REQUEST_TYPE_REGEXES;
 use crate::reader::REQUEST_TYPES;
+use crate::reader::REQUEST_TYPE_REGEXES;
 use crate::rpclib::get_events_from_client;
 use crate::settings::Settings;
 use crate::trace::Event;
@@ -216,7 +215,7 @@ impl Reader for OSProfilerReader {
                 panic!("Malformed UUID received as base ID: {}", id);
             }
         };
-        if let RequestType::Unknown = result.request_type {
+        if result.request_type.is_none() {
             eprintln!("Warning: couldn't get type for request {}", id);
         }
         result.duration = (result.g[result.end_node].timestamp
@@ -295,8 +294,8 @@ impl OSProfilerReader {
                     .collect();
                 if matches.len() > 0 {
                     assert!(matches.len() == 1);
-                    assert!(dag.request_type == RequestType::Unknown);
-                    dag.request_type = REQUEST_TYPES[matches[0]];
+                    assert!(dag.request_type.is_none());
+                    dag.request_type = Some(REQUEST_TYPES[matches[0]]);
                 }
             }
             // Don't add asynch_wait into the DAGs

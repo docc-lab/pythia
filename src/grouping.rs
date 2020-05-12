@@ -20,7 +20,7 @@ pub struct Group {
     pub g: StableGraph<TraceNode, GroupEdge>,
     hash: String,
     pub start_node: NodeIndex,
-    pub request_type: RequestType,
+    pub request_type: Option<RequestType>,
     pub traces: Vec<CriticalPath>,
     pub variance: f64,
 }
@@ -219,7 +219,7 @@ impl Display for Group {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Group<{} {} traces, {:?}>",
+            "Group<{} {:?} traces, {:?}>",
             self.traces.len(),
             self.request_type,
             self.hash

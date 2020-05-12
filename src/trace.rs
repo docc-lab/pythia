@@ -27,7 +27,7 @@ pub struct Trace {
     pub base_id: Uuid,
     pub start_node: NodeIndex,
     pub end_node: NodeIndex,
-    pub request_type: RequestType,
+    pub request_type: Option<RequestType>,
     pub duration: Duration,
 }
 
@@ -38,7 +38,7 @@ impl Trace {
             base_id: base_id.clone(),
             start_node: NodeIndex::end(),
             end_node: NodeIndex::end(),
-            request_type: RequestType::Unknown,
+            request_type: None,
             duration: Duration::new(0, 0),
         }
     }

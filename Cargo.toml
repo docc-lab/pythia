@@ -3,6 +3,7 @@ name = "pythia"
 version = "0.1.0"
 authors = ["Emre Ates <ates@bu.edu>"]
 edition = "2018"
+default-run = "pythia_cli"
 
 [dependencies]
 pythia_common = { path = "./pythia_common" }

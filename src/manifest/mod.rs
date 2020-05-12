@@ -6,7 +6,6 @@ use std::fmt;
 use std::fmt::Display;
 use std::path::Path;
 
-use petgraph::graph::EdgeIndex;
 use petgraph::visit::IntoNodeReferences;
 use petgraph::visit::NodeRef;
 use serde::{Deserialize, Serialize};
@@ -23,17 +22,17 @@ pub use crate::manifest::searchspace::HierarchicalCriticalPath;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Manifest {
-    pub per_request_type: HashMap<RequestType, SearchSpace>,
+    pub per_request_type: HashMap<Option<RequestType>, SearchSpace>,
     request_type_tracepoints: Vec<TracepointID>,
 }
 
 impl Manifest {
-    pub fn find_matches(&self, group: &Group, edge: EdgeIndex) -> Vec<&HierarchicalCriticalPath> {
+    pub fn find_matches<'a>(&'a self, group: &Group) -> Vec<&'a HierarchicalCriticalPath> {
         match self.per_request_type.get(&group.request_type) {
-            Some(&ss) => ss.find_matches(group, edge),
+            Some(ss) => ss.find_matches(group),
             None => {
                 panic!(
-                    "Request type {} not present in manifest",
+                    "Request type {:?} not present in manifest",
                     group.request_type
                 );
             }
@@ -48,7 +47,7 @@ impl Manifest {
     }
 
     pub fn try_constructing(trace: &Trace) -> Manifest {
-        let mut map = HashMap::<RequestType, SearchSpace>::new();
+        let mut map = HashMap::<Option<RequestType>, SearchSpace>::new();
         match map.get_mut(&trace.request_type) {
             Some(space) => {
                 space.add_trace(&trace, true);
@@ -66,7 +65,7 @@ impl Manifest {
     }
 
     pub fn from_trace_list(traces: &Vec<Trace>) -> Manifest {
-        let mut map = HashMap::<RequestType, SearchSpace>::new();
+        let mut map = HashMap::<Option<RequestType>, SearchSpace>::new();
         for trace in traces {
             match map.get_mut(&trace.request_type) {
                 Some(space) => {

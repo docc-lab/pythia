@@ -16,9 +16,6 @@ use std::fmt;
 use std::fs::File;
 use std::io::stdin;
 use std::io::{self, BufRead};
-use std::thread::sleep;
-use std::time::Duration;
-use std::time::Instant;
 
 use itertools::Itertools;
 
@@ -27,88 +24,10 @@ use pythia_common::RequestType;
 use crate::controller::OSProfilerController;
 use crate::critical::CriticalPath;
 use crate::grouping::Group;
-use crate::grouping::GroupManager;
 use crate::manifest::Manifest;
 use crate::reader::reader_from_settings;
-use crate::search::strategy_from_settings;
 use crate::settings::Settings;
 use crate::trace::Trace;
-
-/// Main Pythia function that runs in a loop and makes decisions
-pub fn run_controller() {
-    let now = Instant::now();
-    let settings = Settings::read();
-    let mut reader = reader_from_settings(&settings);
-    let strategy = strategy_from_settings(&settings);
-    let mut controller = OSProfilerController::from_settings(&settings);
-    let manifest =
-        Manifest::from_file(&settings.manifest_file.as_path()).expect("Couldn't read manifest from cache");
-    let mut groups = GroupManager::new();
-    let mut last_decision = Instant::now();
-    let mut last_gc = Instant::now();
-
-    // Enable skeleton
-    controller.diable_all();
-    let to_enable = manifest
-        .entry_points()
-        .iter()
-        .map(|&a| (a.clone(), None))
-        .collect();
-    controller.enable(&to_enable);
-
-    println!("Enabled following tracepoints: {:?}", to_enable);
-
-    // Main pythia loop
-    loop {
-        // Collect traces, increment groups
-        let traces = reader.get_recent_traces();
-        let critical_paths = traces
-            .iter()
-            .map(|t| CriticalPath::from_trace(t).unwrap())
-            .collect();
-        groups.update(&critical_paths);
-        println!(
-            "Got {} paths of duration {:?} at time {}us",
-            traces.len(),
-            critical_paths
-                .iter()
-                .map(|p| p.duration)
-                .collect::<Vec<Duration>>(),
-            now.elapsed().as_micros()
-        );
-        println!("Groups: {}", groups);
-
-        if last_gc.elapsed() > settings.gc_epoch {
-            // Run garbage collection
-            last_gc = Instant::now();
-        }
-
-        if last_decision.elapsed() > settings.decision_epoch {
-            // Make decision
-            let problem_groups = groups.problem_groups();
-            println!("Making decision. Top 10 problem groups:");
-            for g in problem_groups.iter().take(10) {
-                println!("{}", g);
-            }
-            for g in problem_groups.iter() {
-                let problem_edges = g.problem_edges();
-
-                println!("Top 10 edges of group {}:", g);
-                for edge in problem_edges.iter().take(10) {
-                    let endpoints = g.g.edge_endpoints(*edge).unwrap();
-                    println!(
-                        "({} -> {}): {}",
-                        g.g[endpoints.0], g.g[endpoints.1], g.g[*edge]
-                    );
-                }
-            }
-
-            last_decision = Instant::now();
-        }
-
-        sleep(settings.jiffy);
-    }
-}
 
 pub fn make_decision(_epoch_file: &str, _dry_run: bool, _budget: usize) {
     panic!("This broke while transitioning to continuously running loop");
@@ -258,7 +177,7 @@ pub fn enable_skeleton() {
     let manifest_file = &settings.manifest_file;
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
-    let mut controller = OSProfilerController::from_settings(&settings);
+    let controller = OSProfilerController::from_settings(&settings);
     controller.diable_all();
     let to_enable = manifest.entry_points();
     controller.enable(&to_enable.iter().map(|&a| (a.clone(), None)).collect());
@@ -276,7 +195,7 @@ pub fn show_manifest(request_type: &str) {
                 "{}",
                 manifest
                     .per_request_type
-                    .get(&RequestType::ServerCreate)
+                    .get(&Some(RequestType::ServerCreate))
                     .unwrap()
             );
         }
@@ -285,7 +204,7 @@ pub fn show_manifest(request_type: &str) {
                 "{}",
                 manifest
                     .per_request_type
-                    .get(&RequestType::ServerList)
+                    .get(&Some(RequestType::ServerList))
                     .unwrap()
             );
         }
@@ -294,7 +213,7 @@ pub fn show_manifest(request_type: &str) {
                 "{}",
                 manifest
                     .per_request_type
-                    .get(&RequestType::ServerDelete)
+                    .get(&Some(RequestType::ServerDelete))
                     .unwrap()
             );
         }

@@ -1,6 +1,6 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::error::Error;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crypto::digest::Digest;
@@ -28,8 +28,9 @@ pub struct CriticalPath {
     pub end_node: NodeIndex,
     pub duration: Duration,
     pub is_hypothetical: bool,
-    pub request_type: RequestType,
-    hash: RefCell<Option<String>>,
+    pub request_type: Option<RequestType>,
+    #[serde(with = "serde_hash")]
+    hash: Arc<Mutex<Option<String>>>,
 }
 
 impl CriticalPath {
@@ -40,7 +41,7 @@ impl CriticalPath {
             start_node: NodeIndex::end(),
             end_node: NodeIndex::end(),
             is_hypothetical: false,
-            hash: RefCell::new(None),
+            hash: Arc::new(Mutex::new(None)),
             request_type: dag.request_type,
         };
         let mut cur_node = dag.end_node;
@@ -104,7 +105,7 @@ impl CriticalPath {
                 end_node: NodeIndex::end(),
                 duration: Duration::new(0, 0),
                 is_hypothetical: true,
-                hash: RefCell::new(None),
+                hash: Arc::new(Mutex::new(None)),
                 request_type: dag.request_type,
             };
             let mut remaining_nodes = vec![(dag.start_node, dag.start_node, p.g.start_node, p)];
@@ -158,7 +159,7 @@ impl CriticalPath {
                 end_node: NodeIndex::end(),
                 duration: Duration::new(0, 0),
                 is_hypothetical: true,
-                hash: RefCell::new(None),
+                hash: Arc::new(Mutex::new(None)),
                 request_type: dag.request_type,
             };
             let cur_node = end_node;
@@ -474,13 +475,6 @@ impl CriticalPath {
         Some(result.unwrap().target())
     }
 
-    pub fn prev_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
-        let mut matches = self.g.g.neighbors_directed(nidx, Direction::Incoming);
-        let result = matches.next();
-        assert!(matches.next().is_none());
-        result
-    }
-
     fn remove_node(&mut self, nidx: NodeIndex) {
         let next_node = self.next_node(nidx);
         let prev_node = self.prev_node(nidx);
@@ -570,21 +564,22 @@ impl CriticalPath {
 }
 
 pub trait Path {
-    fn get_hash(&self) -> &RefCell<Option<String>>;
+    fn get_hash(&self) -> &Arc<Mutex<Option<String>>>;
     fn start_node(&self) -> NodeIndex;
     fn at(&self, idx: NodeIndex) -> TracepointID;
     fn next_node(&self, idx: NodeIndex) -> Option<NodeIndex>;
+    fn prev_node(&self, idx: NodeIndex) -> Option<NodeIndex>;
     fn len(&self) -> usize;
 
     fn hash(&self) -> String {
         if !self.has_hash() {
             self.calculate_hash();
         }
-        self.get_hash().borrow().as_ref().unwrap().clone()
+        self.get_hash().lock().unwrap().as_ref().unwrap().clone()
     }
 
     fn has_hash(&self) -> bool {
-        !self.get_hash().borrow().is_none()
+        !self.get_hash().lock().unwrap().is_none()
     }
 
     fn calculate_hash(&self) {
@@ -597,7 +592,7 @@ pub trait Path {
                 None => break,
             };
         }
-        *self.get_hash().borrow_mut() = Some(hasher.result_str());
+        *self.get_hash().lock().unwrap() = Some(hasher.result_str());
     }
 
     fn contains(&self, other: &dyn Path) -> bool {
@@ -627,7 +622,7 @@ pub trait Path {
 }
 
 impl Path for CriticalPath {
-    fn get_hash(&self) -> &RefCell<Option<String>> {
+    fn get_hash(&self) -> &Arc<Mutex<Option<String>>> {
         &self.hash
     }
 
@@ -646,7 +641,72 @@ impl Path for CriticalPath {
         result
     }
 
+    fn prev_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
+        let mut matches = self.g.g.neighbors_directed(nidx, Direction::Incoming);
+        let result = matches.next();
+        assert!(matches.next().is_none());
+        result
+    }
+
     fn len(&self) -> usize {
         self.g.g.node_count()
+    }
+}
+
+pub mod serde_hash {
+    use serde::de;
+    use serde::ser;
+    use serde::Deserializer;
+    use std::fmt;
+    use std::sync::{Arc, Mutex};
+
+    pub fn deserialize<'de, D>(d: D) -> Result<Arc<Mutex<Option<String>>>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        d.deserialize_str(HashVisitor)
+    }
+
+    pub fn serialize<S>(t: &Arc<Mutex<Option<String>>>, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        let result = t.lock().unwrap().clone();
+        if result.is_none() {
+            s.serialize_none()
+        } else {
+            s.serialize_some(&result.unwrap())
+        }
+    }
+
+    struct HashVisitor;
+
+    impl<'de> de::Visitor<'de> for HashVisitor {
+        type Value = Arc<Mutex<Option<String>>>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            write!(formatter, "a string representing none or the hash")
+        }
+
+        fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(Arc::new(Mutex::new(Some(s.to_string()))))
+        }
+
+        fn visit_none<E>(self) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(Arc::new(Mutex::new(None)))
+        }
+
+        fn visit_some<D>(self, s: D) -> Result<Self::Value, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            s.deserialize_str(Self)
+        }
     }
 }

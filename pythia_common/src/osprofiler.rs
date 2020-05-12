@@ -15,7 +15,6 @@ pub enum RequestType {
     FloatingIPCreate,
     FloatingIPDelete,
     FloatingIPList,
-    Unknown,
 }
 
 impl RequestType {
