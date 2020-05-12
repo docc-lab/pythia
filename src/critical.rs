@@ -671,11 +671,10 @@ pub mod serde_hash {
     where
         S: ser::Serializer,
     {
-        let result = t.lock().unwrap().clone();
-        if result.is_none() {
-            s.serialize_none()
-        } else {
-            s.serialize_some(&result.unwrap())
+        let guard: Option<String> = t.lock().unwrap().clone();
+        match guard {
+            None => s.serialize_none(),
+            Some(hash) => s.serialize_str(&hash),
         }
     }
 
