@@ -57,7 +57,7 @@ pub struct HierarchicalCriticalPath {
     pub g: StableGraph<TraceNode, HierarchicalEdge>,
     pub start_node: NodeIndex,
     pub end_node: NodeIndex,
-    pub request_type: Option<RequestType>,
+    pub request_type: RequestType,
     hash: String,
 }
 

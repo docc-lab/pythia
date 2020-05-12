@@ -76,10 +76,12 @@ impl OSProfilerController {
         }
         match request_type {
             Some(t) => {
-                let mut newname = result.file_name().unwrap().to_os_string();
-                newname.push(":");
-                newname.push(t.to_string());
-                result.set_file_name(newname);
+                if t != RequestType::Unknown {
+                    let mut newname = result.file_name().unwrap().to_os_string();
+                    newname.push(":");
+                    newname.push(t.to_string());
+                    result.set_file_name(newname);
+                }
             }
             None => {}
         }

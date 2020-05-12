@@ -27,7 +27,7 @@ pub struct CriticalPath {
     pub end_node: NodeIndex,
     pub duration: Duration,
     pub is_hypothetical: bool,
-    pub request_type: Option<RequestType>,
+    pub request_type: RequestType,
     hash: String,
 }
 

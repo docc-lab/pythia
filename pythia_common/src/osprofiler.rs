@@ -15,6 +15,7 @@ pub enum RequestType {
     FloatingIPCreate,
     FloatingIPDelete,
     FloatingIPList,
+    Unknown,
 }
 
 impl RequestType {
@@ -26,6 +27,7 @@ impl RequestType {
             "FloatingIPCreate" => Ok(RequestType::FloatingIPCreate),
             "FloatingIPDelete" => Ok(RequestType::FloatingIPDelete),
             "FloatingIPList" => Ok(RequestType::FloatingIPList),
+            "Unknown" => Ok(RequestType::Unknown),
             _ => Err("Unknown request type"),
         }
     }

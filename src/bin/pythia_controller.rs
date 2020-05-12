@@ -92,7 +92,7 @@ fn main() {
                         .search(g, edge, budget)
                         .iter()
                         .take(budget)
-                        .map(|&t| (t, g.request_type))
+                        .map(|&t| (t, Some(g.request_type)))
                         .collect::<Vec<_>>();
                     println!("Enabling {:?}", decisions);
                     budget -= decisions.len();

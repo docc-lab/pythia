@@ -195,7 +195,7 @@ pub fn show_manifest(request_type: &str) {
                 "{}",
                 manifest
                     .per_request_type
-                    .get(&Some(RequestType::ServerCreate))
+                    .get(&RequestType::ServerCreate)
                     .unwrap()
             );
         }
@@ -204,7 +204,7 @@ pub fn show_manifest(request_type: &str) {
                 "{}",
                 manifest
                     .per_request_type
-                    .get(&Some(RequestType::ServerList))
+                    .get(&RequestType::ServerList)
                     .unwrap()
             );
         }
@@ -213,7 +213,7 @@ pub fn show_manifest(request_type: &str) {
                 "{}",
                 manifest
                     .per_request_type
-                    .get(&Some(RequestType::ServerDelete))
+                    .get(&RequestType::ServerDelete)
                     .unwrap()
             );
         }

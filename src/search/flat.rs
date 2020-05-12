@@ -68,7 +68,6 @@ impl FlatSearch {
         let mut nodes_between = 0;
         let mut cur_path_idx = path.start_node;
         let mut cur_group_idx = group.start_node;
-        let enabled_tracepoints = self.controller.enabled_tracepoints.lock().unwrap();
         loop {
             if path.g[cur_path_idx] == group.g[cur_group_idx] {
                 if cur_group_idx == source {
@@ -104,9 +103,9 @@ impl FlatSearch {
                 cur_path_idx = path.next_node(cur_path_idx).unwrap();
                 assert_ne!(cur_path_idx, path_target);
             }
-            if !enabled_tracepoints
-                .get(&(path.g[cur_path_idx].tracepoint_id, path.request_type))
-                .is_none()
+            if self
+                .controller
+                .is_enabled(&(path.g[cur_path_idx].tracepoint_id, Some(path.request_type)))
             {
                 cur_path_idx = path.next_node(cur_path_idx).unwrap();
                 if cur_path_idx == path_target {
@@ -128,9 +127,9 @@ impl FlatSearch {
             cur_path_idx = path.next_node(cur_path_idx).unwrap();
         }
         for tp in &result {
-            assert!(enabled_tracepoints
-                .get(&(tp.clone(), path.request_type))
-                .is_none());
+            assert!(!self
+                .controller
+                .is_enabled(&(tp.clone(), Some(path.request_type))));
         }
         result
     }

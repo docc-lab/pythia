@@ -11,7 +11,7 @@ use crate::trace::TracepointID;
 pub struct OSProfilerController {
     client_list: Vec<String>,
 
-    pub enabled_tracepoints: Arc<Mutex<HashSet<(TracepointID, Option<RequestType>)>>>,
+    enabled_tracepoints: Arc<Mutex<HashSet<(TracepointID, Option<RequestType>)>>>,
     // This should only be valid after disable_all is called
 }
 
@@ -26,7 +26,11 @@ impl OSProfilerController {
     pub fn enable(&self, points: &Vec<(TracepointID, Option<RequestType>)>) {
         let mut enabled_tracepoints = self.enabled_tracepoints.lock().unwrap();
         for p in points {
-            enabled_tracepoints.insert(p.clone());
+            if p.1 == Some(RequestType::Unknown) {
+                enabled_tracepoints.insert((p.0, None));
+            } else {
+                enabled_tracepoints.insert(p.clone());
+            }
         }
         self.write_to_tracepoints(points, b"1");
     }
@@ -34,13 +38,24 @@ impl OSProfilerController {
     pub fn disable(&self, points: &Vec<(TracepointID, Option<RequestType>)>) {
         let mut enabled_tracepoints = self.enabled_tracepoints.lock().unwrap();
         for p in points {
-            enabled_tracepoints.remove(p);
+            if p.1 == Some(RequestType::Unknown) {
+                enabled_tracepoints.remove(&(p.0, None));
+            } else {
+                enabled_tracepoints.remove(p);
+            }
         }
         self.write_to_tracepoints(points, b"0");
     }
 
     pub fn disable_by_name(&self, point: &str) {
         self.disable(&vec![(TracepointID::from_str(point), None)]);
+    }
+
+    pub fn is_enabled(&self, point: &(TracepointID, Option<RequestType>)) -> bool {
+        let enabled_tracepoints = self.enabled_tracepoints.lock().unwrap();
+        // A tracepoint is enabled either globally or for a request type
+        !enabled_tracepoints.get(point).is_none()
+            && !enabled_tracepoints.get(&(point.0, None)).is_none()
     }
 
     fn write_to_tracepoints(
