@@ -189,36 +189,13 @@ pub fn show_manifest(request_type: &str) {
     let manifest_file = settings.manifest_file;
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
-    match request_type {
-        "ServerCreate" => {
-            println!(
-                "{}",
-                manifest
-                    .per_request_type
-                    .get(&RequestType::ServerCreate)
-                    .unwrap()
-            );
-        }
-        "ServerList" => {
-            println!(
-                "{}",
-                manifest
-                    .per_request_type
-                    .get(&RequestType::ServerList)
-                    .unwrap()
-            );
-        }
-        "ServerDelete" => {
-            println!(
-                "{}",
-                manifest
-                    .per_request_type
-                    .get(&RequestType::ServerDelete)
-                    .unwrap()
-            );
-        }
-        _ => panic!("Invalid request type"),
-    }
+    println!(
+        "{}",
+        manifest
+            .per_request_type
+            .get(&RequestType::from_str(request_type).unwrap())
+            .unwrap()
+    );
 }
 
 pub fn dump_traces(tracefile: &str) {
