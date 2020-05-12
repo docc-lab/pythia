@@ -5,13 +5,10 @@ mod uber;
 use std::fmt;
 
 use hex;
-use regex::RegexSet;
+use itertools::Itertools;
 use serde::de;
 use serde::{Deserialize, Serialize};
-use itertools::Itertools;
 use uuid::Uuid;
-
-use pythia_common::RequestType;
 
 use crate::reader::hdfs::HDFSReader;
 use crate::reader::osprofiler::OSProfilerReader;
@@ -102,25 +99,4 @@ impl<'de> de::Visitor<'de> for HexIDVisitor {
         result.copy_from_slice(decoded);
         Ok(HexID { id: Some(result) })
     }
-}
-
-lazy_static! {
-    // The ordering of the below two structures should match each other
-    pub static ref REQUEST_TYPE_REGEXES: RegexSet = RegexSet::new(&[
-        r"openstackclient\.compute\.v2\.server\.CreateServer\.take_action",
-        r"openstackclient\.compute\.v2\.server\.ListServer\.take_action",
-        r"openstackclient\.compute\.v2\.server\.DeleteServer\.take_action",
-        r"openstackclient\.network\.v2\.floating_ip\.CreateFloatingIP\.take_action_network",
-        r"openstackclient\.network\.v2\.floating_ip\.ListFloatingIP\.take_action_network",
-        r"openstackclient\.network\.v2\.floating_ip\.DeleteFloatingIP\.take_action_network",
-    ])
-    .unwrap();
-    pub static ref REQUEST_TYPES: Vec<RequestType> = vec![
-        RequestType::ServerCreate,
-        RequestType::ServerList,
-        RequestType::ServerDelete,
-        RequestType::FloatingIPCreate,
-        RequestType::FloatingIPList,
-        RequestType::FloatingIPDelete,
-    ];
 }

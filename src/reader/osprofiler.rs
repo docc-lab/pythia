@@ -14,10 +14,10 @@ use pythia_common::AnnotationEnum;
 use pythia_common::OSProfilerEnum;
 use pythia_common::OSProfilerSpan;
 use pythia_common::RequestType;
+use pythia_common::REQUEST_TYPES;
+use pythia_common::REQUEST_TYPE_REGEXES;
 
 use crate::reader::Reader;
-use crate::reader::REQUEST_TYPES;
-use crate::reader::REQUEST_TYPE_REGEXES;
 use crate::rpclib::get_events_from_client;
 use crate::settings::Settings;
 use crate::trace::Event;

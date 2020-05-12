@@ -11,10 +11,10 @@ use petgraph::visit::NodeRef;
 use serde::{Deserialize, Serialize};
 
 use pythia_common::RequestType;
+use pythia_common::REQUEST_TYPE_REGEXES;
 
 use crate::grouping::Group;
 use crate::manifest::searchspace::SearchSpace;
-use crate::reader::REQUEST_TYPE_REGEXES;
 use crate::trace::Trace;
 use crate::trace::TracepointID;
 
@@ -23,7 +23,7 @@ pub use crate::manifest::searchspace::HierarchicalCriticalPath;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Manifest {
     pub per_request_type: HashMap<RequestType, SearchSpace>,
-    request_type_tracepoints: Vec<TracepointID>,
+    pub request_type_tracepoints: Vec<TracepointID>,
 }
 
 impl Manifest {

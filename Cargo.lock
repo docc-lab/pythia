@@ -1208,6 +1208,8 @@ name = "pythia_common"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "lazy_static",
+ "regex",
  "serde 1.0.106",
  "serde_json",
  "uuid",
