@@ -11,6 +11,7 @@ pub mod search;
 pub mod settings;
 pub mod trace;
 
+use std::collections::HashSet;
 use std::error::Error;
 use std::fmt;
 use std::fs::File;
@@ -192,9 +193,43 @@ pub fn manifest_stats() {
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
     let after_stats = statm_self().unwrap();
-    eprintln!("Memory footprint: {:?}", after_stats - prev_stats);
-    eprintln!("Number of paths per request type: {:?}",
-        manifest.per_request_type.
+    eprintln!(
+        "Memory footprint (in pages):\nsize: {}, resident: {}, share: {}, text: {}, data: {}",
+        after_stats.size - prev_stats.size,
+        after_stats.resident - prev_stats.resident,
+        after_stats.share - prev_stats.share,
+        after_stats.text - prev_stats.text,
+        after_stats.data - prev_stats.data
+    );
+    eprintln!(
+        "Number of paths per request type: {}",
+        manifest
+            .per_request_type
+            .iter()
+            .map(|(k, v)| { format!("{}: {}", k, v.path_count()) })
+            .join("\n")
+    );
+    eprintln!(
+        "Number of unique tracepoints observed in search space: {}",
+        manifest
+            .per_request_type
+            .iter()
+            .map(|(_, v)| { v.trace_points() })
+            .flatten()
+            .collect::<HashSet<_>>()
+            .len()
+    );
+    let path_lens = manifest
+        .per_request_type
+        .iter()
+        .map(|(_, v)| v.path_lengths())
+        .flatten()
+        .map(|x| x as f64)
+        .collect::<Vec<f64>>();
+    eprintln!(
+        "Average path length: {}",
+        path_lens.iter().sum::<f64>() / path_lens.len() as f64
+    );
 }
 
 pub fn show_manifest(request_type: &str) {

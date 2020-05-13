@@ -9,6 +9,7 @@ use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
 use petgraph::visit::EdgeFiltered;
 use petgraph::visit::IntoNeighborsDirected;
+use petgraph::visit::IntoNodeReferences;
 use petgraph::Direction;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -167,6 +168,22 @@ pub struct SearchSpace {
 }
 
 impl SearchSpace {
+    pub fn trace_points(&self) -> HashSet<TracepointID> {
+        self.paths
+            .iter()
+            .map(|(_, v)| v.g.node_references().map(|(_, w)| w.tracepoint_id))
+            .flatten()
+            .collect::<HashSet<_>>()
+    }
+
+    pub fn path_lengths(&self) -> Vec<usize> {
+        self.paths.iter().map(|(_, v)| v.len()).collect()
+    }
+
+    pub fn path_count(&self) -> usize {
+        self.paths.len()
+    }
+
     pub fn find_matches(&self, group: &Group) -> Vec<&HierarchicalCriticalPath> {
         let now = Instant::now();
         let mut matching_hashes = self
