@@ -17,6 +17,7 @@ use std::fmt;
 use std::fs::File;
 use std::io::stdin;
 use std::io::{self, BufRead};
+use std::process::Command;
 
 use itertools::Itertools;
 use procinfo::pid::statm_self;
@@ -192,6 +193,15 @@ pub fn manifest_stats() {
     let prev_stats = statm_self().unwrap();
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    let output = Command::new("du")
+        .arg("-sh")
+        .arg(manifest_file)
+        .output()
+        .unwrap();
+    eprintln!(
+        "Manifest size on disk: {}",
+        String::from_utf8(output.stdout).unwrap()
+    );
     let after_stats = statm_self().unwrap();
     eprintln!(
         "Memory footprint (in pages):\nsize: {}, resident: {}, share: {}, text: {}, data: {}",
@@ -214,7 +224,7 @@ pub fn manifest_stats() {
         manifest
             .per_request_type
             .iter()
-            .map(|(_, v)| v.path_count() )
+            .map(|(_, v)| v.path_count())
             .sum::<usize>()
     );
     eprintln!(
