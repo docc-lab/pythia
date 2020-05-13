@@ -212,7 +212,10 @@ pub fn manifest_stats() {
         after_stats.data - prev_stats.data
     );
     let output = Command::new("getconf").arg("PAGESIZE").output().unwrap();
-    eprint!("Page size in bytes: {}", String::from_utf8(output.stdout).unwrap());
+    eprint!(
+        "Page size in bytes: {}",
+        String::from_utf8(output.stdout).unwrap()
+    );
     eprintln!(
         "Number of paths per request type:\n{}",
         manifest
@@ -296,6 +299,30 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
             if s.chars().nth(0).unwrap() != 'y' {
                 return;
             }
+        }
+        println!("Overwriting");
+    }
+    manifest.to_file(manifest_file.as_path());
+}
+
+pub fn manifest_from_folder(trace_folder: &str) {
+    let settings = Settings::read();
+    let mut reader = reader_from_settings(&settings);
+    reader.for_searchspace();
+    let traces = reader.read_dir(trace_folder);
+    println!("Read {} traces", traces.len());
+    let manifest = Manifest::from_trace_list(&traces);
+    println!("{}", manifest);
+    let manifest_file = settings.manifest_file;
+    if manifest_file.exists() {
+        println!(
+            "The manifest file {:?} exists. Overwrite? [y/N]",
+            manifest_file
+        );
+        let mut s = String::new();
+        stdin().read_line(&mut s).unwrap();
+        if s.chars().nth(0).unwrap() != 'y' {
+            return;
         }
         println!("Overwriting");
     }

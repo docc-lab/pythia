@@ -125,6 +125,13 @@ impl HDFSReader {
                 for parent in event.parent_event_id.iter() {
                     match event_id_map.get(parent) {
                         Some(&parent_nidx) => {
+                            // Skip this edge, since it's not used.
+                            if mynode.tracepoint_id == TracepointID::from_str("Client.java:1516")
+                                && mydag.g[parent_nidx].tracepoint_id
+                                    == TracepointID::from_str("Client.java:1508")
+                            {
+                                continue;
+                            }
                             mydag.g.add_edge(
                                 parent_nidx,
                                 nidx,

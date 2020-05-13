@@ -3,9 +3,9 @@ use std::time::Instant;
 
 use pythia::{
     disable_all, disable_tracepoint, dump_traces, enable_all, enable_skeleton, get_crit,
-    get_manifest, get_trace, group_folder, group_from_ids, make_decision, manifest_stats,
-    measure_search_space_feasibility, read_trace_file, show_config, show_key_value_pairs,
-    show_manifest,
+    get_manifest, get_trace, group_folder, group_from_ids, make_decision, manifest_from_folder,
+    manifest_stats, measure_search_space_feasibility, read_trace_file, show_config,
+    show_key_value_pairs, show_manifest,
 };
 
 fn main() {
@@ -22,6 +22,10 @@ fn main() {
             SubCommand::with_name("get-trace")
                 .arg(Arg::with_name("trace-id").required(true).index(1))
                 .arg(Arg::with_name("to-file").long("to-file")),
+        )
+        .subcommand(
+            SubCommand::with_name("manifest-folder")
+                .arg(Arg::with_name("trace-folder").required(true).index(1)),
         )
         .subcommand(
             SubCommand::with_name("group-folder")
@@ -82,6 +86,9 @@ fn main() {
                 matches.value_of("manifest-file").unwrap(),
                 matches.occurrences_of("overwrite") > 0,
             );
+        }
+        ("manifest-folder", Some(matches)) => {
+            manifest_from_folder(matches.value_of("trace-folder").unwrap());
         }
         ("group-folder", Some(matches)) => {
             group_folder(matches.value_of("trace-folder").unwrap());
