@@ -111,6 +111,7 @@ impl HDFSReader {
 
     fn from_json(&self, data: &mut HDFSTrace) -> Trace {
         let mut mydag = Trace::new(&data.id.to_uuid());
+        eprintln!("Working on {}", mydag.base_id);
         let mut event_id_map = HashMap::new();
         let mut nidx = NodeIndex::end();
         sort_event_list(&mut data.reports);
