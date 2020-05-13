@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use pythia::{
     disable_all, disable_tracepoint, dump_traces, enable_all, enable_skeleton, get_crit,
-    get_manifest, get_trace, group_folder, group_from_ids, make_decision,
+    get_manifest, get_trace, group_folder, group_from_ids, make_decision, manifest_stats,
     measure_search_space_feasibility, read_trace_file, show_config, show_key_value_pairs,
     show_manifest,
 };
@@ -74,7 +74,7 @@ fn main() {
         .subcommand(SubCommand::with_name("enable-all"))
         .subcommand(SubCommand::with_name("enable-skeleton"))
         .subcommand(SubCommand::with_name("show-config"))
-        .subcommand(SubCommand::with_name("run"))
+        .subcommand(SubCommand::with_name("manifest-stats"))
         .get_matches();
     match matches.subcommand() {
         ("manifest", Some(matches)) => {
@@ -137,6 +137,9 @@ fn main() {
         }
         ("show-config", Some(_)) => {
             show_config();
+        }
+        ("manifest-stats", Some(_)) => {
+            manifest_stats();
         }
         _ => panic!("Must provide a subcommand, see --help for commands"),
     };

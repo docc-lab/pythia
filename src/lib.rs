@@ -18,6 +18,7 @@ use std::io::stdin;
 use std::io::{self, BufRead};
 
 use itertools::Itertools;
+use procinfo::pid::statm_self;
 
 use pythia_common::RequestType;
 
@@ -182,6 +183,18 @@ pub fn enable_skeleton() {
     let to_enable = manifest.skeleton();
     controller.enable(&to_enable.iter().map(|&a| (a.clone(), None)).collect());
     println!("Enabled following tracepoints: {:?}", to_enable);
+}
+
+pub fn manifest_stats() {
+    let settings = Settings::read();
+    let manifest_file = settings.manifest_file;
+    let prev_stats = statm_self().unwrap();
+    let manifest =
+        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    let after_stats = statm_self().unwrap();
+    eprintln!("Memory footprint: {:?}", after_stats - prev_stats);
+    eprintln!("Number of paths per request type: {:?}",
+        manifest.per_request_type.
 }
 
 pub fn show_manifest(request_type: &str) {
