@@ -260,7 +260,7 @@ impl OSProfilerReader {
 
     fn from_event_list(&mut self, id: Uuid, mut event_list: Vec<OSProfilerSpan>) -> Trace {
         let mut mydag = Trace::new(&id);
-        self.add_events(&mut mydag, &mut event_list);
+        self.add_events(&mut mydag, &mut event_list, None);
         mydag
     }
 
@@ -268,6 +268,7 @@ impl OSProfilerReader {
         &mut self,
         mut dag: &mut Trace,
         event_list: &mut Vec<OSProfilerSpan>,
+        mut parent_of_trace: Option<NodeIndex>,
     ) -> Option<NodeIndex> {
         if event_list.len() == 0 {
             return None;
@@ -289,6 +290,7 @@ impl OSProfilerReader {
         let mut add_next_to_waiters = false;
         let mut wait_for = Vec::<Uuid>::new();
         let mut nidx = None;
+        let mut prev_nidx = None;
         let mut prev_time = start_time;
         for (idx, event) in event_list.iter().enumerate() {
             assert!(event.base_id == base_id);
@@ -314,6 +316,7 @@ impl OSProfilerReader {
                     wait_for.push(w.wait_for);
                     None
                 }
+                OSProfilerEnum::Annotation(AnnotationEnum::Child(_)) => None,
                 _ => {
                     if wait_spans.contains(&mynode.trace_id) {
                         None
@@ -333,10 +336,29 @@ impl OSProfilerReader {
                         wait_spans.insert(event.trace_id);
                     }
                     AnnotationEnum::Child(c) => {
-                        async_traces.insert(c.child_id, nidx.unwrap());
+                        async_traces.insert(
+                            c.child_id,
+                            match prev_nidx {
+                                Some(i) => i,
+                                None => parent_of_trace.unwrap(),
+                            },
+                        );
                     }
                     _ => {}
                 }
+            }
+            if !nidx.is_none() && !parent_of_trace.is_none() {
+                dag.g.add_edge(
+                    parent_of_trace.unwrap(),
+                    nidx.unwrap(),
+                    DAGEdge {
+                        duration: (event.timestamp - dag.g[parent_of_trace.unwrap()].timestamp)
+                            .to_std()
+                            .unwrap(),
+                        variant: EdgeType::FollowsFrom,
+                    },
+                );
+                parent_of_trace = None;
             }
             if add_next_to_waiters && !nidx.is_none() {
                 for waiter in wait_for.iter() {
@@ -496,6 +518,9 @@ impl OSProfilerReader {
             if !nidx.is_none() {
                 children_per_parent.insert(event.parent_id, Some(event.trace_id));
             }
+            if !nidx.is_none() {
+                prev_nidx = nidx;
+            }
         }
         dag.end_node = match nidx {
             Some(nid) => nid,
@@ -539,30 +564,7 @@ impl OSProfilerReader {
         if event_list.len() == 0 {
             return None;
         }
-        let last_node = self.add_events(&mut dag, &mut event_list);
-        let first_event = event_list
-            .iter()
-            .fold(None, |min, x| match min {
-                None => Some(x),
-                Some(y) => Some(if x.timestamp < y.timestamp { x } else { y }),
-            })
-            .unwrap();
-        let first_node = dag
-            .g
-            .node_indices()
-            .find(|idx| dag.g[*idx].trace_id == first_event.trace_id)
-            .unwrap();
-        dag.g.add_edge(
-            parent,
-            first_node,
-            DAGEdge {
-                duration: (first_event.timestamp - dag.g[parent].timestamp)
-                    .to_std()
-                    .unwrap(),
-                variant: EdgeType::FollowsFrom,
-            },
-        );
-        last_node
+        self.add_events(&mut dag, &mut event_list, Some(parent))
     }
 }
 
