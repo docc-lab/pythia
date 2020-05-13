@@ -247,11 +247,12 @@ pub fn manifest_stats() {
         .iter()
         .map(|(_, v)| v.path_lengths())
         .flatten()
-        .map(|x| x as f64)
-        .collect::<Vec<f64>>();
+        .collect::<Vec<usize>>();
     eprintln!(
-        "Average path length: {}",
-        path_lens.iter().sum::<f64>() / path_lens.len() as f64
+        "Min/Average/Max path length: {}, {}, {}",
+        path_lens.iter().min().unwrap(),
+        path_lens.iter().map(|&x| x as f64).sum::<f64>() / path_lens.len() as f64,
+        path_lens.iter().max().unwrap(),
     );
 }
 
