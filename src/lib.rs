@@ -210,6 +210,14 @@ pub fn manifest_stats() {
             .join("\n")
     );
     eprintln!(
+        "Total number of paths: {:?}",
+        manifest
+            .per_request_type
+            .iter()
+            .map(|(_, v)| v.path_count() )
+            .sum::<usize>()
+    );
+    eprintln!(
         "Number of unique tracepoints observed in search space: {}",
         manifest
             .per_request_type
