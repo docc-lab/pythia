@@ -17,7 +17,9 @@ use std::fmt;
 use std::fs::File;
 use std::io::stdin;
 use std::io::{self, BufRead};
+use std::path::PathBuf;
 use std::process::Command;
+use std::time::Instant;
 
 use itertools::Itertools;
 use procinfo::pid::statm_self;
@@ -286,9 +288,23 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
     let mut reader = reader_from_settings(&settings);
     reader.for_searchspace();
     let traces = reader.read_trace_file(manfile);
+    manifest_from_traces(&traces, overwrite, &settings.manifest_file);
+}
+
+pub fn manifest_from_folder(trace_folder: &str) {
+    let settings = Settings::read();
+    let mut reader = reader_from_settings(&settings);
+    reader.for_searchspace();
+    let traces = reader.read_dir(trace_folder);
+    println!("Read {} traces", traces.len());
+    manifest_from_traces(&traces, false, &settings.manifest_file);
+}
+
+fn manifest_from_traces(traces: &Vec<Trace>, overwrite: bool, manifest_file: &PathBuf) {
+    let now = Instant::now();
     let manifest = Manifest::from_trace_list(&traces);
+    let elapsed = now.elapsed();
     println!("{}", manifest);
-    let manifest_file = settings.manifest_file;
     if manifest_file.exists() {
         if !overwrite {
             println!(
@@ -304,30 +320,7 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
         println!("Overwriting");
     }
     manifest.to_file(manifest_file.as_path());
-}
-
-pub fn manifest_from_folder(trace_folder: &str) {
-    let settings = Settings::read();
-    let mut reader = reader_from_settings(&settings);
-    reader.for_searchspace();
-    let traces = reader.read_dir(trace_folder);
-    println!("Read {} traces", traces.len());
-    let manifest = Manifest::from_trace_list(&traces);
-    println!("{}", manifest);
-    let manifest_file = settings.manifest_file;
-    if manifest_file.exists() {
-        println!(
-            "The manifest file {:?} exists. Overwrite? [y/N]",
-            manifest_file
-        );
-        let mut s = String::new();
-        stdin().read_line(&mut s).unwrap();
-        if s.chars().nth(0).unwrap() != 'y' {
-            return;
-        }
-        println!("Overwriting");
-    }
-    manifest.to_file(manifest_file.as_path());
+    eprintln!("Manifest construction took {:?}", elapsed);
 }
 
 pub fn measure_search_space_feasibility(trace_file: &str) {
