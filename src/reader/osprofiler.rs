@@ -564,30 +564,7 @@ impl OSProfilerReader {
         if event_list.len() == 0 {
             return None;
         }
-        let last_node = self.add_events(&mut dag, &mut event_list, Some(parent));
-        let first_event = event_list
-            .iter()
-            .fold(None, |min, x| match min {
-                None => Some(x),
-                Some(y) => Some(if x.timestamp < y.timestamp { x } else { y }),
-            })
-            .unwrap();
-        let first_node = dag
-            .g
-            .node_indices()
-            .find(|idx| dag.g[*idx].trace_id == first_event.trace_id)
-            .unwrap();
-        dag.g.add_edge(
-            parent,
-            first_node,
-            DAGEdge {
-                duration: (first_event.timestamp - dag.g[parent].timestamp)
-                    .to_std()
-                    .unwrap(),
-                variant: EdgeType::FollowsFrom,
-            },
-        );
-        last_node
+        self.add_events(&mut dag, &mut event_list, Some(parent))
     }
 }
 
