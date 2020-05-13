@@ -89,8 +89,8 @@ impl HierarchicalCriticalPath {
             prev_path_node = cur_path_node;
         }
         let mut result = HierarchicalCriticalPath {
-            g: g,
-            start_node: start_node,
+            g,
+            start_node,
             end_node: prev_node,
             hash: "".to_string(),
             request_type: path.request_type,
