@@ -78,7 +78,10 @@ fn main() {
         .subcommand(SubCommand::with_name("enable-all"))
         .subcommand(SubCommand::with_name("enable-skeleton"))
         .subcommand(SubCommand::with_name("show-config"))
-        .subcommand(SubCommand::with_name("manifest-stats"))
+        .subcommand(
+            SubCommand::with_name("manifest-stats")
+                .arg(Arg::with_name("manifest-file").required(true).index(1)),
+        )
         .get_matches();
     match matches.subcommand() {
         ("manifest", Some(matches)) => {
@@ -145,8 +148,8 @@ fn main() {
         ("show-config", Some(_)) => {
             show_config();
         }
-        ("manifest-stats", Some(_)) => {
-            manifest_stats();
+        ("manifest-stats", Some(matches)) => {
+            manifest_stats(matches.value_of("manifest-file").unwrap());
         }
         _ => panic!("Must provide a subcommand, see --help for commands"),
     };

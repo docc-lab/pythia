@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::error::Error;
 
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
@@ -38,7 +39,7 @@ impl Reader for HDFSReader {
         Vec::new()
     }
 
-    fn get_trace_from_base_id(&mut self, id: &str) -> Option<Trace> {
+    fn get_trace_from_base_id(&mut self, id: &str) -> Result<Trace, Box<dyn Error>> {
         assert!(id.len() != 0);
         let urn: String = format!("{}/interactive/reports/{}", self.xtrace_url, id);
 
@@ -69,13 +70,13 @@ impl Reader for HDFSReader {
                 Err(e) => panic!("Got error from poll: {:?}", e),
             }
         }
-        let mut t: Vec<HDFSTrace> = serde_json::from_str(&result).unwrap();
+        let mut t: Vec<HDFSTrace> = serde_json::from_str(&result)?;
         assert!(t.len() == 1);
         let mut trace = self.from_json(&mut t[0]);
         if self.for_searchspace {
             trace.prune();
         }
-        Some(trace)
+        Ok(trace)
     }
 
     fn read_file(&mut self, file: &str) -> Trace {

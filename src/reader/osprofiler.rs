@@ -3,6 +3,7 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::error::Error;
 use std::time::Duration;
 
 use petgraph::graph::NodeIndex;
@@ -25,6 +26,7 @@ use crate::trace::EventType;
 use crate::trace::Trace;
 use crate::trace::TracepointID;
 use crate::trace::{DAGEdge, EdgeType};
+use crate::PythiaError;
 
 pub struct OSProfilerReader {
     connection: Connection,
@@ -66,7 +68,7 @@ impl Reader for OSProfilerReader {
                 }
             }
             match self.get_trace_from_base_id(&id) {
-                Some(t) => {
+                Ok(t) => {
                     // Keep traces for one cycle, use them only when the duration becomes stable
                     // (i.e., request has finished)
                     let stable = match self.prev_traces.get(&id) {
@@ -87,7 +89,7 @@ impl Reader for OSProfilerReader {
                         self.prev_traces.insert(id, t.duration);
                     }
                 }
-                None => {
+                Err(_) => {
                     let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
                 }
             }
@@ -209,14 +211,15 @@ impl Reader for OSProfilerReader {
     }
     */
 
-    fn get_trace_from_base_id(&mut self, id: &str) -> Option<Trace> {
+    fn get_trace_from_base_id(&mut self, id: &str) -> Result<Trace, Box<dyn Error>> {
         println!("Working on {}", id);
         let mut result = match Uuid::parse_str(id) {
             Ok(uuid) => {
                 let event_list = self.get_all_matches(&uuid);
                 if event_list.len() == 0 {
-                    eprintln!("No traces match the uuid {}", uuid);
-                    return None;
+                    return Err(Box::new(PythiaError(
+                        format!("No traces match the uuid {}", uuid).into(),
+                    )));
                 }
                 let dag = self.from_event_list(Uuid::parse_str(id).unwrap(), event_list);
                 dag
@@ -232,7 +235,7 @@ impl Reader for OSProfilerReader {
             - result.g[result.start_node].timestamp)
             .to_std()
             .unwrap();
-        Some(result)
+        Ok(result)
     }
 }
 

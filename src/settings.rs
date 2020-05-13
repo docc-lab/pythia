@@ -19,6 +19,7 @@ pub struct Settings {
     pub pythia_clients: Vec<String>,
     pub redis_url: String,
     pub xtrace_url: String,
+    pub uber_trace_dir: PathBuf,
 
     pub search_strategy: SearchStrategyType,
     pub jiffy: Duration,
@@ -45,6 +46,7 @@ impl Settings {
         Settings {
             manifest_file: manifest_file,
             redis_url: results.get("redis_url").unwrap().to_string(),
+            uber_trace_dir: PathBuf::from(results.get("uber_trace_dir").unwrap()),
             pythia_clients: results
                 .get("pythia_clients")
                 .unwrap()

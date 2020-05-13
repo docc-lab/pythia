@@ -189,8 +189,12 @@ pub fn enable_skeleton() {
     println!("Enabled following tracepoints: {:?}", to_enable);
 }
 
-pub fn manifest_stats() {
+pub fn manifest_stats(manfile: &str) {
     let settings = Settings::read();
+    let mut reader = reader_from_settings(&settings);
+    reader.for_searchspace();
+    let traces = reader.read_trace_file(manfile);
+    manifest_from_traces(&traces, false, &settings.manifest_file);
     let manifest_file = settings.manifest_file;
     let prev_stats = statm_self().unwrap();
     let manifest =
@@ -255,6 +259,20 @@ pub fn manifest_stats() {
         path_lens.iter().min().unwrap(),
         path_lens.iter().map(|&x| x as f64).sum::<f64>() / path_lens.len() as f64,
         path_lens.iter().max().unwrap(),
+    );
+    let critical_paths = traces
+        .iter()
+        .filter_map(|t| CriticalPath::from_trace(t).ok())
+        .collect::<Vec<CriticalPath>>();
+    let groups = Group::from_critical_paths(critical_paths);
+    eprintln!("Timing stats:");
+    eprintln!("base_id,trace_len,match_count,duration(us),best_match_len");
+    eprintln!(
+        "{}",
+        groups
+            .iter()
+            .map(|t| manifest.match_performance(t))
+            .join("\n")
     );
 }
 

@@ -2,6 +2,7 @@ mod hdfs;
 mod osprofiler;
 mod uber;
 
+use std::error::Error;
 use std::fmt;
 
 use hex;
@@ -19,7 +20,7 @@ use crate::trace::Trace;
 
 pub trait Reader {
     fn read_file(&mut self, filename: &str) -> Trace;
-    fn get_trace_from_base_id(&mut self, id: &str) -> Option<Trace>;
+    fn get_trace_from_base_id(&mut self, id: &str) -> Result<Trace, Box<dyn Error>>;
     fn get_recent_traces(&mut self) -> Vec<Trace>;
     fn reset_state(&mut self);
     fn read_dir(&mut self, foldername: &str) -> Vec<Trace>;
@@ -33,8 +34,14 @@ pub trait Reader {
                 continue;
             }
             println!("Working on {:?}", id);
-            let trace = self.get_trace_from_base_id(id).unwrap();
-            traces.push(trace);
+            match self.get_trace_from_base_id(id) {
+                Ok(t) => {
+                    traces.push(t);
+                }
+                Err(e) => {
+                    eprintln!("Failed with {:?}", e);
+                }
+            }
         }
         traces
     }

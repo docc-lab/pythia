@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::error::Error;
 use std::fmt;
+use std::path::PathBuf;
 
 use chrono::Duration;
 use chrono::NaiveDateTime;
@@ -35,7 +36,9 @@ fn raise(s: &str) -> Box<dyn Error> {
     Box::new(UberParseError(s.into()))
 }
 
-pub struct UberReader {}
+pub struct UberReader {
+    uber_trace_dir: PathBuf,
+}
 
 impl Reader for UberReader {
     fn for_searchspace(&mut self) {}
@@ -44,8 +47,12 @@ impl Reader for UberReader {
         self.try_read_file(filename).unwrap()
     }
 
-    fn get_trace_from_base_id(&mut self, _id: &str) -> Option<Trace> {
-        None
+    fn get_trace_from_base_id(&mut self, id: &str) -> Result<Trace, Box<dyn Error>> {
+        let mut path = self.uber_trace_dir.clone();
+        path.push(id);
+        path.set_extension("json");
+        eprintln!("Reading {}", path.to_str().unwrap());
+        self.try_read_file(&path.to_str().unwrap())
     }
 
     fn get_recent_traces(&mut self) -> Vec<Trace> {
@@ -87,8 +94,10 @@ struct UberParsingState {
 }
 
 impl UberReader {
-    pub fn from_settings(_settings: &Settings) -> Self {
-        UberReader {}
+    pub fn from_settings(settings: &Settings) -> Self {
+        UberReader {
+            uber_trace_dir: settings.uber_trace_dir.clone(),
+        }
     }
 
     fn try_read_file(&mut self, filename: &str) -> Result<Trace, Box<dyn Error>> {
