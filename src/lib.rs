@@ -198,8 +198,8 @@ pub fn manifest_stats() {
         .arg(manifest_file)
         .output()
         .unwrap();
-    eprintln!(
-        "Manifest size on disk: {}",
+    eprint!(
+        "Manifest size on disk:\n{}",
         String::from_utf8(output.stdout).unwrap()
     );
     let after_stats = statm_self().unwrap();
@@ -211,8 +211,10 @@ pub fn manifest_stats() {
         after_stats.text - prev_stats.text,
         after_stats.data - prev_stats.data
     );
+    let output = Command::new("getconf").arg("PAGESIZE").output().unwrap();
+    eprint!("Page size in bytes: {}", String::from_utf8(output.stdout).unwrap());
     eprintln!(
-        "Number of paths per request type: {}",
+        "Number of paths per request type:\n{}",
         manifest
             .per_request_type
             .iter()
