@@ -218,6 +218,7 @@ impl SearchSpace {
     }
 
     pub fn add_trace(&mut self, trace: &Trace, verbose: bool) {
+        eprintln!("Adding {}", trace.base_id);
         let mut count = 0;
         let mut overlaps = 0;
         let mut added = 0;
