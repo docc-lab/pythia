@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
 use std::path::Path;
+use std::time::Duration;
 use std::time::Instant;
 
 use petgraph::visit::IntoNodeReferences;
@@ -40,7 +41,7 @@ impl Manifest {
         }
     }
 
-    pub fn match_performance(&self, group: &Group) -> String {
+    pub fn match_performance(&self, group: &Group) -> Duration {
         // Stats: base_id,trace_len,match_count,duration(us),best_match_len"
         let now = Instant::now();
         let matches = self
@@ -48,21 +49,13 @@ impl Manifest {
             .get(&group.request_type)
             .unwrap()
             .find_matches(group, true);
-        let duration = now.elapsed();
         if matches.len() == 0 {
             panic!(
                 "Found no match for {}:\n{}",
                 group.traces[0].g.base_id, group
             );
         }
-        format!(
-            "{},{},{},{},{}",
-            group.traces[0].g.base_id,
-            group.g.node_count(),
-            matches.len(),
-            duration.as_micros(),
-            matches[0].g.node_count(),
-        )
+        now.elapsed()
     }
 
     pub fn new() -> Manifest {

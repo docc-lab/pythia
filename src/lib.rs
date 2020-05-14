@@ -19,6 +19,7 @@ use std::io::stdin;
 use std::io::{self, BufRead};
 use std::path::PathBuf;
 use std::process::Command;
+use std::time::Duration;
 use std::time::Instant;
 
 use itertools::Itertools;
@@ -199,6 +200,14 @@ pub fn manifest_stats(manfile: &str) {
     let prev_stats = statm_self().unwrap();
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    let after_stats = statm_self().unwrap();
+    let critical_paths = traces
+        .iter()
+        .filter_map(|t| CriticalPath::from_trace(t).ok())
+        .collect::<Vec<CriticalPath>>();
+    let groups = Group::from_critical_paths(critical_paths);
+
+    // Start outputting stats
     let output = Command::new("du")
         .arg("-sh")
         .arg(manifest_file)
@@ -208,7 +217,14 @@ pub fn manifest_stats(manfile: &str) {
         "Manifest size on disk:\n{}",
         String::from_utf8(output.stdout).unwrap()
     );
-    let after_stats = statm_self().unwrap();
+    eprintln!(
+        "Manifest size in # of tracepoints: {}",
+        manifest
+            .per_request_type
+            .iter()
+            .map(|(_, p)| p.path_lengths().iter().sum::<usize>())
+            .sum::<usize>()
+    );
     eprintln!(
         "Memory footprint (in pages):\nsize: {}, resident: {}, share: {}, text: {}, data: {}",
         after_stats.size - prev_stats.size,
@@ -260,19 +276,21 @@ pub fn manifest_stats(manfile: &str) {
         path_lens.iter().map(|&x| x as f64).sum::<f64>() / path_lens.len() as f64,
         path_lens.iter().max().unwrap(),
     );
-    let critical_paths = traces
+    // Warm-up
+    let _ = groups
         .iter()
-        .filter_map(|t| CriticalPath::from_trace(t).ok())
-        .collect::<Vec<CriticalPath>>();
-    let groups = Group::from_critical_paths(critical_paths);
-    eprintln!("Timing stats:");
-    eprintln!("base_id,trace_len,match_count,duration(us),best_match_len");
+        .take(10)
+        .map(|t| manifest.match_performance(t))
+        .collect::<Vec<_>>();
+    let performances = groups
+        .iter()
+        .map(|t| manifest.match_performance(t))
+        .collect::<Vec<_>>();
     eprintln!(
-        "{}",
-        groups
-            .iter()
-            .map(|t| manifest.match_performance(t))
-            .join("\n")
+        "Time to match: min {:?}, max {:?}, mean {:?}",
+        performances.iter().min(),
+        performances.iter().max(),
+        performances.iter().sum::<Duration>() / (performances.len() as u32)
     );
 }
 
