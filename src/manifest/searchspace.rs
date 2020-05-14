@@ -168,6 +168,7 @@ impl HierarchicalCriticalPath {
 pub struct SearchSpace {
     paths: HashMap<String, HierarchicalCriticalPath>, // key is the hash of the critical path
     occurances: HashMap<String, usize>,
+    pub added_paths: usize,
     entry_points: HashSet<TracepointID>,
 }
 
@@ -229,6 +230,7 @@ impl SearchSpace {
             );
         }
         for path in HierarchicalCriticalPath::all_possible_paths(trace) {
+            self.added_paths += 1;
             self.entry_points
                 .insert(path.g[path.start_node].tracepoint_id);
             self.entry_points

@@ -247,11 +247,16 @@ pub fn manifest_stats(manfile: &str) {
             .join("\n")
     );
     eprintln!(
-        "Total number of paths: {:?}",
+        "Total number of paths: {:?}, added paths: {:?}",
         manifest
             .per_request_type
             .iter()
             .map(|(_, v)| v.path_count())
+            .sum::<usize>(),
+        manifest
+            .per_request_type
+            .iter()
+            .map(|(_, v)| v.added_paths)
             .sum::<usize>()
     );
     eprintln!(
@@ -288,8 +293,8 @@ pub fn manifest_stats(manfile: &str) {
         .collect::<Vec<_>>();
     eprintln!(
         "Time to match: min {:?}, max {:?}, mean {:?}",
-        performances.iter().min(),
-        performances.iter().max(),
+        performances.iter().min().unwrap(),
+        performances.iter().max().unwrap(),
         performances.iter().sum::<Duration>() / (performances.len() as u32)
     );
 }
