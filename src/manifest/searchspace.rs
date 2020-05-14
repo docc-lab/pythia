@@ -20,7 +20,6 @@ use pythia_common::RequestType;
 use crate::critical::CriticalPath;
 use crate::critical::Path;
 use crate::grouping::Group;
-use crate::reader::HexID;
 use crate::trace::DAGEdge;
 use crate::trace::EventType;
 use crate::trace::Trace;
@@ -235,7 +234,6 @@ impl SearchSpace {
                 .insert(path.g[path.start_node].tracepoint_id);
             self.entry_points
                 .insert(path.g[path.end_node].tracepoint_id);
-            let print_details = path.base_id == HexID::from_str("274fd8f92f3b6a41").to_uuid();
             let mut occurances = 1;
             if self.paths.get(path.hash()).is_none() {
                 let mut add_path = true;
@@ -243,20 +241,11 @@ impl SearchSpace {
                 for p in self.paths.values() {
                     if p.len() < path.len() {
                         if path.contains(p) {
-                            if p.base_id == HexID::from_str("274fd8f92f3b6a41").to_uuid() {
-                                eprintln!("Removing path because {} contains it", path.base_id);
-                            }
                             paths_to_remove.push(p.hash().to_string());
                             occurances += self.occurances.get(p.hash()).unwrap();
                         }
                     } else if path.len() < p.len() {
                         if p.contains(&path) {
-                            if print_details {
-                                eprintln!(
-                                    "Not adding path because it's contained in {}",
-                                    p.base_id
-                                );
-                            }
                             add_path = false;
                             *self.occurances.get_mut(p.hash()).unwrap() += 1;
                         }
