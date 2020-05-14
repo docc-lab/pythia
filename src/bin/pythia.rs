@@ -21,7 +21,8 @@ fn main() {
         .subcommand(
             SubCommand::with_name("get-trace")
                 .arg(Arg::with_name("trace-id").required(true).index(1))
-                .arg(Arg::with_name("to-file").long("to-file")),
+                .arg(Arg::with_name("to-file").long("to-file"))
+                .arg(Arg::with_name("prune").long("prune")),
         )
         .subcommand(
             SubCommand::with_name("manifest-folder")
@@ -115,6 +116,7 @@ fn main() {
             get_trace(
                 matches.value_of("trace-id").unwrap(),
                 matches.occurrences_of("to-file") > 0,
+                matches.occurrences_of("prune") > 0,
             );
         }
         ("get-crit", Some(matches)) => {

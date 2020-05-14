@@ -473,10 +473,13 @@ pub fn read_trace_file(trace_file: &str) {
     println!("{}", trace);
 }
 
-pub fn get_trace(trace_id: &str, to_file: bool) {
+pub fn get_trace(trace_id: &str, to_file: bool, prune: bool) {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
-    let trace = reader.get_trace_from_base_id(trace_id).unwrap();
+    let mut trace = reader.get_trace_from_base_id(trace_id).unwrap();
+    if prune {
+        trace.prune();
+    }
     println!("{}", trace);
     if to_file {
         let mut tracefile = dirs::home_dir().unwrap();
