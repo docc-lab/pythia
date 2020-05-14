@@ -28,7 +28,7 @@ pub struct Settings {
     pub tracepoints_per_epoch: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ApplicationType {
     HDFS,
     OpenStack,

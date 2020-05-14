@@ -32,6 +32,7 @@ use crate::critical::CriticalPath;
 use crate::grouping::Group;
 use crate::manifest::Manifest;
 use crate::reader::reader_from_settings;
+use crate::settings::ApplicationType;
 use crate::settings::Settings;
 use crate::trace::Trace;
 
@@ -333,7 +334,12 @@ pub fn get_manifest(manfile: &str, overwrite: bool) {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
     reader.for_searchspace();
-    let traces = reader.read_trace_file(manfile);
+    let mut traces = reader.read_trace_file(manfile);
+    if settings.application == ApplicationType::HDFS {
+        for trace in &mut traces {
+            trace.prune();
+        }
+    }
     manifest_from_traces(&traces, overwrite, &settings.manifest_file);
 }
 
@@ -341,8 +347,13 @@ pub fn manifest_from_folder(trace_folder: &str) {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
     reader.for_searchspace();
-    let traces = reader.read_dir(trace_folder);
+    let mut traces = reader.read_dir(trace_folder);
     println!("Read {} traces", traces.len());
+    if settings.application == ApplicationType::HDFS {
+        for trace in &mut traces {
+            trace.prune();
+        }
+    }
     manifest_from_traces(&traces, false, &settings.manifest_file);
 }
 
@@ -373,7 +384,10 @@ pub fn measure_search_space_feasibility(trace_file: &str) {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
     reader.for_searchspace();
-    let trace = reader.read_file(trace_file);
+    let mut trace = reader.read_file(trace_file);
+    if settings.application == ApplicationType::HDFS {
+        trace.prune();
+    }
     println!("{}", Manifest::try_constructing(&trace));
 }
 
