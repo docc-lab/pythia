@@ -195,8 +195,12 @@ pub fn manifest_stats(manfile: &str) {
     let mut reader = reader_from_settings(&settings);
     reader.for_searchspace();
     let traces = reader.read_trace_file(manfile);
-    manifest_from_traces(&traces, false, &settings.manifest_file);
     let manifest_file = settings.manifest_file;
+    let now = Instant::now();
+    let manifest = Manifest::from_trace_list(&traces);
+    let elapsed = now.elapsed();
+    println!("Overwriting manifest file");
+    manifest.to_file(manifest_file.as_path());
     let prev_stats = statm_self().unwrap();
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
@@ -208,6 +212,7 @@ pub fn manifest_stats(manfile: &str) {
     let groups = Group::from_critical_paths(critical_paths);
 
     // Start outputting stats
+    eprintln!("Manifest construction took {:?}", elapsed);
     let output = Command::new("du")
         .arg("-sh")
         .arg(manifest_file)
