@@ -195,11 +195,11 @@ pub fn manifest_stats(manfile: &str) {
     let mut reader = reader_from_settings(&settings);
     reader.for_searchspace();
     let traces = reader.read_trace_file(manfile);
-    let manifest_file = settings.manifest_file;
     let now = Instant::now();
     let manifest = Manifest::from_trace_list(&traces);
     let elapsed = now.elapsed();
     println!("Overwriting manifest file");
+    let manifest_file = settings.manifest_file;
     manifest.to_file(manifest_file.as_path());
     let prev_stats = statm_self().unwrap();
     let manifest =
