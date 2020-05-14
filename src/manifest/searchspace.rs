@@ -13,12 +13,14 @@ use petgraph::visit::IntoNodeReferences;
 use petgraph::Direction;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use pythia_common::RequestType;
 
 use crate::critical::CriticalPath;
 use crate::critical::Path;
 use crate::grouping::Group;
+use crate::reader::HexID;
 use crate::trace::DAGEdge;
 use crate::trace::EventType;
 use crate::trace::Trace;
@@ -56,6 +58,7 @@ impl HierarchicalEdge {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct HierarchicalCriticalPath {
     pub g: StableGraph<TraceNode, HierarchicalEdge>,
+    pub base_id: Uuid,
     pub start_node: NodeIndex,
     pub end_node: NodeIndex,
     pub request_type: RequestType,
@@ -95,6 +98,7 @@ impl HierarchicalCriticalPath {
             end_node: prev_node,
             hash: "".to_string(),
             request_type: path.request_type,
+            base_id: path.g.base_id.clone(),
         };
         result.add_hierarchical_edges();
         result.calculate_hash();
@@ -184,12 +188,12 @@ impl SearchSpace {
         self.paths.len()
     }
 
-    pub fn find_matches(&self, group: &Group) -> Vec<&HierarchicalCriticalPath> {
+    pub fn find_matches(&self, group: &Group, silent: bool) -> Vec<&HierarchicalCriticalPath> {
         let now = Instant::now();
         let mut matching_hashes = self
             .paths
             .iter()
-            .filter(|&(_, v)| self.is_match(group, v))
+            .filter(|&(_, v)| v.contains(group))
             .map(|(k, _)| k)
             .collect::<Vec<&String>>();
         matching_hashes.sort_by(|&a, &b| {
@@ -198,46 +202,19 @@ impl SearchSpace {
                 .unwrap()
                 .cmp(&self.occurances.get(a).unwrap())
         });
-        eprintln!(
-            "Finding {} matching groups out of {} took {}, group size {}",
-            matching_hashes.len(),
-            self.paths.len(),
-            now.elapsed().as_micros(),
-            group.g.node_count()
-        );
+        if !silent {
+            eprintln!(
+                "Finding {} matching groups out of {} took {}, group size {}",
+                matching_hashes.len(),
+                self.paths.len(),
+                now.elapsed().as_micros(),
+                group.g.node_count()
+            );
+        }
         matching_hashes
             .iter()
             .map(|&h| self.paths.get(h).unwrap())
             .collect()
-    }
-
-    /// Check if group is a subset of path
-    fn is_match(&self, group: &Group, path: &HierarchicalCriticalPath) -> bool {
-        let mut cur_path_idx = path.start_node;
-        let mut cur_group_idx = group.start_node;
-        let mut matches = 0;
-        let result;
-        loop {
-            if path.g[cur_path_idx] == group.g[cur_group_idx] {
-                matches += 1;
-                cur_group_idx = match group.next_node(cur_group_idx) {
-                    Some(nidx) => nidx,
-                    None => {
-                        result = true;
-                        break;
-                    }
-                }
-            }
-            cur_path_idx = match path.next_node(cur_path_idx) {
-                Some(nidx) => nidx,
-                None => {
-                    result = false;
-                    break;
-                }
-            }
-        }
-        println!("Match score: {}", matches);
-        return result;
     }
 
     pub fn add_trace(&mut self, trace: &Trace, verbose: bool) {
@@ -256,6 +233,7 @@ impl SearchSpace {
                 .insert(path.g[path.start_node].tracepoint_id);
             self.entry_points
                 .insert(path.g[path.end_node].tracepoint_id);
+            let print_details = path.base_id == HexID::from_str("274fd8f92f3b6a41").to_uuid();
             let mut occurances = 1;
             if self.paths.get(path.hash()).is_none() {
                 let mut add_path = true;
@@ -263,11 +241,20 @@ impl SearchSpace {
                 for p in self.paths.values() {
                     if p.len() < path.len() {
                         if path.contains(p) {
+                            if p.base_id == HexID::from_str("274fd8f92f3b6a41").to_uuid() {
+                                eprintln!("Removing path because {} contains it", path.base_id);
+                            }
                             paths_to_remove.push(p.hash().to_string());
                             occurances += self.occurances.get(p.hash()).unwrap();
                         }
                     } else if path.len() < p.len() {
                         if p.contains(&path) {
+                            if print_details {
+                                eprintln!(
+                                    "Not adding path because it's contained in {}",
+                                    p.base_id
+                                );
+                            }
                             add_path = false;
                             *self.occurances.get_mut(p.hash()).unwrap() += 1;
                         }

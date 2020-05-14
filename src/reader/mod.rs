@@ -75,6 +75,15 @@ impl HexID {
     pub fn to_string(&self) -> String {
         format!("{:02x}", self.id.unwrap().iter().format(""))
     }
+
+    pub fn from_str(id: &str) -> Self {
+        let mut buf: [u8; 8] = [0; 8];
+        let decoded = hex::decode(id).unwrap();
+        for i in 0..8 {
+            buf[i] = decoded[i];
+        }
+        HexID { id: Some(buf) }
+    }
 }
 
 impl<'de> Deserialize<'de> for HexID {

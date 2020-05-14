@@ -15,6 +15,7 @@ use pythia_common::RequestType;
 use crate::critical::CriticalPath;
 use crate::critical::Path;
 use crate::trace::TraceNode;
+use crate::trace::TracepointID;
 
 #[derive(Clone, Debug)]
 pub struct Group {
@@ -169,18 +170,47 @@ impl Group {
         }
     }
 
-    pub fn next_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
+    fn calculate_variance(&mut self) {
+        self.variance = variance(self.traces.iter().map(|x| x.duration.as_nanos()));
+        if self.variance != 0.0 {
+            println!("Set variance of {} to {}", self.hash, self.variance);
+        }
+    }
+}
+
+impl Path for Group {
+    fn get_hash(&self) -> &str {
+        &self.hash
+    }
+
+    fn set_hash(&mut self, hash: &str) {
+        self.hash = hash.to_string()
+    }
+
+    fn start_node(&self) -> NodeIndex {
+        self.start_node
+    }
+
+    fn at(&self, idx: NodeIndex) -> TracepointID {
+        self.g[idx].tracepoint_id
+    }
+
+    fn next_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
         let mut matches = self.g.neighbors_directed(nidx, Direction::Outgoing);
         let result = matches.next();
         assert!(matches.next().is_none());
         result
     }
 
-    fn calculate_variance(&mut self) {
-        self.variance = variance(self.traces.iter().map(|x| x.duration.as_nanos()));
-        if self.variance != 0.0 {
-            println!("Set variance of {} to {}", self.hash, self.variance);
-        }
+    fn prev_node(&self, nidx: NodeIndex) -> Option<NodeIndex> {
+        let mut matches = self.g.neighbors_directed(nidx, Direction::Incoming);
+        let result = matches.next();
+        assert!(matches.next().is_none());
+        result
+    }
+
+    fn len(&self) -> usize {
+        self.g.node_count()
     }
 }
 

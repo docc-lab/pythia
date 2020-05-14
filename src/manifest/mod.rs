@@ -30,7 +30,7 @@ pub struct Manifest {
 impl Manifest {
     pub fn find_matches<'a>(&'a self, group: &Group) -> Vec<&'a HierarchicalCriticalPath> {
         match self.per_request_type.get(&group.request_type) {
-            Some(ss) => ss.find_matches(group),
+            Some(ss) => ss.find_matches(group, false),
             None => {
                 panic!(
                     "Request type {:?} not present in manifest",
@@ -47,8 +47,14 @@ impl Manifest {
             .per_request_type
             .get(&group.request_type)
             .unwrap()
-            .find_matches(group);
+            .find_matches(group, true);
         let duration = now.elapsed();
+        if matches.len() == 0 {
+            panic!(
+                "Found no match for {}:\n{}",
+                group.traces[0].g.base_id, group
+            );
+        }
         format!(
             "{},{},{},{},{}",
             group.traces[0].g.base_id,
