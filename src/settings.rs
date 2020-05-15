@@ -63,6 +63,8 @@ impl Settings {
             decision_epoch: DECISION_EPOCH,
             search_strategy: match results.get("search_strategy").unwrap().as_str() {
                 "Flat" => SearchStrategyType::Flat,
+                "Hierarchical" => SearchStrategyType::Hierarchical,
+                "Historic" => SearchStrategyType::Historic,
                 _ => panic!("Unknown search strategy"),
             },
             tracepoints_per_epoch: TRACEPOINTS_PER_EPOCH,

@@ -1,5 +1,6 @@
 mod flat;
 mod hierarchical;
+mod historic;
 
 use petgraph::graph::EdgeIndex;
 
@@ -8,6 +9,7 @@ use crate::grouping::Group;
 use crate::manifest::Manifest;
 use crate::search::flat::FlatSearch;
 use crate::search::hierarchical::HierarchicalSearch;
+use crate::search::historic::HistoricSearch;
 use crate::settings::Settings;
 use crate::trace::TracepointID;
 
@@ -19,6 +21,7 @@ pub trait SearchStrategy {
 pub enum SearchStrategyType {
     Flat,
     Hierarchical,
+    Historic,
 }
 
 pub fn get_strategy(
@@ -29,5 +32,6 @@ pub fn get_strategy(
     match &s.search_strategy {
         SearchStrategyType::Flat => Box::new(FlatSearch::new(s, m, c)),
         SearchStrategyType::Hierarchical => Box::new(HierarchicalSearch::new(s, m, c)),
+        SearchStrategyType::Historic => Box::new(HistoricSearch::new(s, m, c)),
     }
 }
