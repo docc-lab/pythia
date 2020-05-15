@@ -29,6 +29,14 @@ pub struct Manifest {
 }
 
 impl Manifest {
+    pub fn get_per_request_types(&self) -> HashMap<RequestType, HashSet<TracepointID>> {
+        let mut result = HashMap::new();
+        for (rt, ss) in self.per_request_type.iter() {
+            result.insert(*rt, ss.trace_points());
+        }
+        result
+    }
+
     pub fn find_matches<'a>(&'a self, group: &Group) -> Vec<&'a HierarchicalCriticalPath> {
         let now = Instant::now();
         let matches = match self.per_request_type.get(&group.request_type) {
