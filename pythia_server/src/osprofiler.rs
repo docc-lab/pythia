@@ -36,7 +36,8 @@ impl OSProfilerReader {
             .get("osprofiler:".to_string() + &span_id.to_hyphenated().to_string())
         {
             Ok(to_parse) => to_parse,
-            Err(_) => {
+            Err(e) => {
+                eprintln!("Got error {} for {}", e, span_id);
                 return Ok(Vec::new());
             }
         };
