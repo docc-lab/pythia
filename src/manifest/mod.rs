@@ -30,7 +30,8 @@ pub struct Manifest {
 
 impl Manifest {
     pub fn find_matches<'a>(&'a self, group: &Group) -> Vec<&'a HierarchicalCriticalPath> {
-        match self.per_request_type.get(&group.request_type) {
+        let now = Instant::now();
+        let matches = match self.per_request_type.get(&group.request_type) {
             Some(ss) => ss.find_matches(group, false),
             None => {
                 panic!(
@@ -38,7 +39,21 @@ impl Manifest {
                     group.request_type
                 );
             }
+        };
+        eprintln!(
+            "Finding {} matching groups took {}, group size {}",
+            matches.len(),
+            now.elapsed().as_micros(),
+            group.g.node_count()
+        );
+        if matches.len() == 0 {
+            println!(
+                "No critical path matches the group {}:\n{}",
+                group,
+                group.dot()
+            );
         }
+        matches
     }
 
     pub fn match_performance(&self, group: &Group) -> Duration {

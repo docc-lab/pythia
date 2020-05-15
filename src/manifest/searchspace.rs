@@ -104,6 +104,12 @@ impl HierarchicalCriticalPath {
         result
     }
 
+    pub fn child_nodes(&self, nidx: NodeIndex) -> Vec<NodeIndex> {
+        EdgeFiltered::from_fn(&self.g, |e| e.weight().variant == EdgeType::Hierarchical)
+            .neighbors_directed(nidx, Direction::Outgoing)
+            .collect()
+    }
+
     fn add_hierarchical_edges(&mut self) {
         let mut context = Vec::new();
         let mut prev_node = self.start_node;

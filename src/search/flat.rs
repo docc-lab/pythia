@@ -19,21 +19,7 @@ pub struct FlatSearch {
 
 impl SearchStrategy for FlatSearch {
     fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> Vec<TracepointID> {
-        let now = Instant::now();
         let matches = self.manifest.find_matches(group);
-        eprintln!(
-            "Finding {} matching groups took {}, group size {}",
-            matches.len(),
-            now.elapsed().as_micros(),
-            group.g.node_count()
-        );
-        if matches.len() == 0 {
-            println!(
-                "No critical path matches the group {}:\n{}",
-                group,
-                group.dot()
-            );
-        }
         let mut result = HashSet::new();
         for m in matches {
             let now = Instant::now();
