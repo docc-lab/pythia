@@ -13,5 +13,6 @@ serde_json = "*"
 jsonrpc-core = "*"
 jsonrpc-derive = "*"
 jsonrpc-http-server = "*"
+procfs = "*"
 uuid = { version = "*", features = ["v4", "serde"] }
 config = "*"

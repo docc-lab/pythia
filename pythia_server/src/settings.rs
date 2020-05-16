@@ -8,6 +8,7 @@ pub struct Settings {
     pub server_address: String,
     pub manifest_root: PathBuf,
     pub redis_url: String,
+    pub network_interface: String,
 }
 
 impl Settings {
@@ -21,6 +22,7 @@ impl Settings {
             server_address: results.get("server_address").unwrap().to_string(),
             redis_url: results.get("redis_url").unwrap().to_string(),
             manifest_root: PathBuf::from(results.get("manifest_root").unwrap()),
+            network_interface: results.get("network_interface").unwrap().to_string(),
         }
     }
 }

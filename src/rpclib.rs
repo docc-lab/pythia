@@ -8,6 +8,7 @@ use jsonrpc_core_client::{RpcChannel, RpcError, TypedClient};
 use serde_json;
 use uuid::Uuid;
 
+use pythia_common::NodeStats;
 use pythia_common::OSProfilerSpan;
 use pythia_common::RequestType;
 
@@ -40,6 +41,41 @@ impl PythiaClient {
             .map(|(x, y, z)| (x.to_string(), y.clone(), z.clone()))
             .collect();
         self.0.call_method("set_tracepoints", "", (new_settings,))
+    }
+
+    fn read_node_stats(&self) -> impl Future<Item = Value, Error = RpcError> {
+        self.0.call_method("read_node_stats", "String", ())
+    }
+}
+
+pub fn read_client_stats(client_uri: &str) -> NodeStats {
+    let (tx, mut rx) = futures::sync::mpsc::unbounded();
+
+    let run = http::connect(client_uri)
+        .and_then(move |client: PythiaClient| {
+            client.read_node_stats().and_then(move |result| {
+                drop(client);
+                let _ = tx.unbounded_send(result);
+                Ok(())
+            })
+        })
+        .map_err(|e| eprintln!("RPC Client error: {:?}", e));
+
+    rt::run(run);
+
+    loop {
+        match rx.poll() {
+            Ok(Async::Ready(Some(v))) => {
+                let stats = match v {
+                    Value::String(s) => s,
+                    _ => panic!("Got something weird from request {:?}", v),
+                };
+                return serde_json::from_str(&stats).unwrap();
+            }
+            Ok(Async::NotReady) => {}
+            Ok(Async::Ready(None)) => panic!("Got nothing from request"),
+            Err(e) => panic!("Got error from poll: {:?}", e),
+        }
     }
 }
 

@@ -5,6 +5,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use std::time::Instant;
 
+use pythia::budget::BudgetManager;
 use pythia::controller::OSProfilerController;
 use pythia::critical::CriticalPath;
 use pythia::grouping::GroupManager;
@@ -25,6 +26,7 @@ fn main() {
     let now = Instant::now();
     let mut reader = reader_from_settings(&SETTINGS);
     let strategy = get_strategy(&SETTINGS, &MANIFEST, &CONTROLLER);
+    let budget = BudgetManager::from_settings(&SETTINGS);
     let mut groups = GroupManager::new();
     let mut last_decision = Instant::now();
     let mut last_gc = Instant::now();
@@ -106,6 +108,8 @@ fn main() {
 
             last_decision = Instant::now();
         }
+
+        budget.print_stats();
 
         sleep(SETTINGS.jiffy);
     }

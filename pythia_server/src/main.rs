@@ -7,6 +7,7 @@ use serde_json;
 
 use pythia_common::RequestType;
 
+use pythia_server::budget::NodeStatReader;
 use pythia_server::controller::OSProfilerController;
 use pythia_server::osprofiler::OSProfilerReader;
 use pythia_server::settings::Settings;
@@ -19,11 +20,14 @@ pub trait PythiaAPI {
     fn set_tracepoints(&self, settings: Vec<(String, Option<RequestType>, [u8; 1])>) -> Result<()>;
     #[rpc(name = "set_all_tracepoints")]
     fn set_all_tracepoints(&self, to_write: [u8; 1]) -> Result<()>;
+    #[rpc(name = "read_node_stats")]
+    fn read_node_stats(&self) -> Result<Value>;
 }
 
 struct PythiaAPIImpl {
     reader: Arc<Mutex<OSProfilerReader>>,
     controller: Arc<Mutex<OSProfilerController>>,
+    stats: Arc<Mutex<NodeStatReader>>,
 }
 
 impl PythiaAPI for PythiaAPIImpl {
@@ -43,6 +47,11 @@ impl PythiaAPI for PythiaAPIImpl {
         self.controller.lock().unwrap().write_client_dir(&to_write);
         Ok(())
     }
+
+    fn read_node_stats(&self) -> Result<Value> {
+        eprintln!("Measuring node stats");
+        Ok(serde_json::to_value(self.stats.lock().unwrap().read_node_stats().unwrap()).unwrap())
+    }
 }
 
 fn main() {
@@ -50,11 +59,13 @@ fn main() {
     let settings = Settings::read();
     let reader = Arc::new(Mutex::new(OSProfilerReader::from_settings(&settings)));
     let controller = Arc::new(Mutex::new(OSProfilerController::from_settings(&settings)));
+    let stats = Arc::new(Mutex::new(NodeStatReader::from_settings(&settings)));
     let mut io = IoHandler::new();
     io.extend_with(
         PythiaAPIImpl {
-            reader: reader,
-            controller: controller,
+            reader,
+            controller,
+            stats,
         }
         .to_delegate(),
     );
