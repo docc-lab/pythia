@@ -43,8 +43,8 @@ impl PythiaClient {
         self.0.call_method("set_tracepoints", "", (new_settings,))
     }
 
-    fn read_node_stats(&self) -> impl Future<Item = Value, Error = RpcError> {
-        self.0.call_method("read_node_stats", "String", ())
+    fn read_node_stats(&self) -> impl Future<Item = NodeStats, Error = RpcError> {
+        self.0.call_method("read_node_stats", "", ())
     }
 }
 
@@ -66,11 +66,7 @@ pub fn read_client_stats(client_uri: &str) -> NodeStats {
     loop {
         match rx.poll() {
             Ok(Async::Ready(Some(v))) => {
-                let stats = match v {
-                    Value::String(s) => s,
-                    _ => panic!("Got something weird from request {:?}", v),
-                };
-                return serde_json::from_str(&stats).unwrap();
+                return v;
             }
             Ok(Async::NotReady) => {}
             Ok(Async::Ready(None)) => panic!("Got nothing from request"),
