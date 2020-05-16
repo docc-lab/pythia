@@ -49,7 +49,6 @@ impl NodeStatReader {
         let loadavg = LoadAverage::new()?;
         let netstat = dev_status()?;
         let measure_time = Instant::now();
-        let elapsed = self.last_measurement.unwrap().elapsed().as_secs();
         let current_stats = NetworkStats::read(netstat.get(&self.interface).unwrap());
         if self.last_measurement.is_none() {
             // First run
@@ -65,6 +64,7 @@ impl NodeStatReader {
                 tasks_runnable: 0,
             });
         }
+        let elapsed = self.last_measurement.unwrap().elapsed().as_secs();
 
         let result = NodeStats {
             // Network stats
