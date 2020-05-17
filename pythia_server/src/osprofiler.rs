@@ -21,6 +21,14 @@ impl OSProfilerReader {
         OSProfilerReader { connection: con }
     }
 
+    pub fn get_input_bytes(&mut self) -> u64 {
+        redis::cmd("INFO")
+            .query::<redis::InfoDict>(&mut self.connection)
+            .unwrap()
+            .get("total_net_input_bytes")
+            .unwrap()
+    }
+
     /// Public wrapper for get_matches_ that accepts string input and does not return RedisResult
     pub fn get_matches(&mut self, span_id: &str) -> Vec<OSProfilerSpan> {
         match Uuid::parse_str(span_id) {

@@ -1,5 +1,5 @@
 application = "OpenStack" # can be HDFS, OpenStack, Uber
-search_strategy = "Flat" # can be Flat
+search_strategy = "Hierarchical" # can be Flat, Hierarchical, Historic
 
 manifest_file = "/opt/stack/manifest.json"
 redis_url = "redis://localhost:6379"

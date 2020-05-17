@@ -26,7 +26,7 @@ fn main() {
     let now = Instant::now();
     let mut reader = reader_from_settings(&SETTINGS);
     let strategy = get_strategy(&SETTINGS, &MANIFEST, &CONTROLLER);
-    let budget = BudgetManager::from_settings(&SETTINGS);
+    let mut budget = BudgetManager::from_settings(&SETTINGS);
     let mut groups = GroupManager::new();
     let mut last_decision = Instant::now();
     let mut last_gc = Instant::now();
@@ -45,6 +45,9 @@ fn main() {
 
     // Main pythia loop
     loop {
+        budget.read_stats();
+        budget.print_stats();
+
         // Collect traces, increment groups
         let traces = reader.get_recent_traces();
         let critical_paths = traces
@@ -63,12 +66,12 @@ fn main() {
         );
         println!("Groups: {}", groups);
 
-        if last_gc.elapsed() > SETTINGS.gc_epoch {
+        if budget.overrun() || last_gc.elapsed() > SETTINGS.gc_epoch {
             // Run garbage collection
             last_gc = Instant::now();
         }
 
-        if last_decision.elapsed() > SETTINGS.decision_epoch {
+        if !budget.overrun() && last_decision.elapsed() > SETTINGS.decision_epoch {
             // Make decision
             let mut budget = SETTINGS.tracepoints_per_epoch;
             let problem_groups = groups.problem_groups();
@@ -108,8 +111,6 @@ fn main() {
 
             last_decision = Instant::now();
         }
-
-        budget.print_stats();
 
         sleep(SETTINGS.jiffy);
     }

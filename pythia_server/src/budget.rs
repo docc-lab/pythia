@@ -8,12 +8,14 @@ use procfs::{
 
 use pythia_common::NodeStats;
 
+use crate::osprofiler::OSProfilerReader;
 use crate::settings::Settings;
 
 pub struct NodeStatReader {
     interface: String,
     last_stats: Option<NetworkStats>,
     last_measurement: Option<Instant>,
+    last_trace_bytes: Option<u64>,
 }
 
 struct NetworkStats {
@@ -35,25 +37,31 @@ impl NetworkStats {
 }
 
 impl NodeStatReader {
-    pub fn from_settings(settings: &Settings) -> Self {
+    pub fn from_settings(settings: &Settings, reader: &mut OSProfilerReader) -> Self {
         let mut result = NodeStatReader {
             interface: settings.network_interface.clone(),
             last_stats: None,
             last_measurement: None,
+            last_trace_bytes: None,
         };
-        result.read_node_stats().ok();
+        result.read_node_stats(reader).ok();
         result
     }
 
-    pub fn read_node_stats(&mut self) -> Result<NodeStats, Box<dyn Error>> {
+    pub fn read_node_stats(
+        &mut self,
+        reader: &mut OSProfilerReader,
+    ) -> Result<NodeStats, Box<dyn Error>> {
         let loadavg = LoadAverage::new()?;
         let netstat = dev_status()?;
+        let current_trace_bytes = reader.get_input_bytes();
         let measure_time = Instant::now();
         let current_stats = NetworkStats::read(netstat.get(&self.interface).unwrap());
         if self.last_measurement.is_none() {
             // First run
             self.last_measurement = Some(measure_time);
             self.last_stats = Some(current_stats);
+            self.last_trace_bytes = Some(current_trace_bytes);
             return Ok(NodeStats {
                 receive_bytes_per_sec: 0,
                 transmit_bytes_per_sec: 0,
@@ -62,6 +70,7 @@ impl NodeStatReader {
                 load_avg_1_min: 0.0,
                 load_avg_5_min: 0.0,
                 tasks_runnable: 0,
+                written_trace_bytes_per_sec: 0,
             });
         }
         let elapsed = self.last_measurement.unwrap().elapsed().as_secs();
@@ -85,6 +94,10 @@ impl NodeStatReader {
             load_avg_1_min: loadavg.one,
             load_avg_5_min: loadavg.five,
             tasks_runnable: loadavg.cur,
+
+            // Trace stats
+            written_trace_bytes_per_sec: (current_trace_bytes - self.last_trace_bytes.unwrap())
+                / elapsed,
         };
         self.last_stats = Some(current_stats);
         self.last_measurement = Some(measure_time);

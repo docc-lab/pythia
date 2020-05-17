@@ -12,4 +12,7 @@ pub struct NodeStats {
     pub load_avg_1_min: f32,
     pub load_avg_5_min: f32,
     pub tasks_runnable: u32,
+
+    // Tracing stats
+    pub written_trace_bytes_per_sec: u64,
 }
