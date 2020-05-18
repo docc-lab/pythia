@@ -67,7 +67,14 @@ impl HierarchicalSearch {
             while !possible_next_nodes.is_empty() {
                 let to_eval = possible_next_nodes.pop().unwrap();
                 if to_eval.0 == context.len() {
-                    possible_child_nodes.push((m, to_eval.1.unwrap()));
+                    possible_child_nodes.push((
+                        m,
+                        match to_eval.1 {
+                            Some(nidx) => nidx,
+                            None => m.start_node,
+                        },
+                    ));
+                    continue;
                 }
                 let tracepoint = context[to_eval.0];
                 let nidx = to_eval.1;
