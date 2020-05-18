@@ -401,13 +401,7 @@ impl OSProfilerReader {
                                     },
                                 );
                             }
-                            None => {
-                                if idx != 0 {
-                                    return Err(Box::new(PythiaError(
-                                        "I don't know when this happens".into(),
-                                    )));
-                                }
-                            }
+                            None => {}
                         }
                     } else {
                         match children_per_parent.get(&event.parent_id) {
