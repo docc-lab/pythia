@@ -347,7 +347,14 @@ impl OSProfilerReader {
                             c.child_id,
                             match prev_nidx {
                                 Some(i) => i,
-                                None => parent_of_trace.unwrap(),
+                                None => match parent_of_trace {
+                                    Some(nidx) => nidx,
+                                    None => {
+                                        return Err(Box::new(PythiaError(
+                                            "No parent, start with annotation".into(),
+                                        )))
+                                    }
+                                },
                             },
                         );
                     }
