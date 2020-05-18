@@ -10,7 +10,6 @@ use petgraph::{dot::Dot, graph::NodeIndex, Direction};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use pythia_common::PythiaError;
 use pythia_common::RequestType;
 
 use crate::trace::DAGEdge;
@@ -19,6 +18,7 @@ use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::Trace;
 use crate::trace::TracepointID;
+use crate::PythiaError;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CriticalPath {

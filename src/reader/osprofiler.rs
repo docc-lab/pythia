@@ -14,7 +14,6 @@ use uuid::Uuid;
 use pythia_common::AnnotationEnum;
 use pythia_common::OSProfilerEnum;
 use pythia_common::OSProfilerSpan;
-use pythia_common::PythiaError;
 use pythia_common::RequestType;
 use pythia_common::REQUEST_TYPES;
 use pythia_common::REQUEST_TYPE_REGEXES;
@@ -27,6 +26,7 @@ use crate::trace::EventType;
 use crate::trace::Trace;
 use crate::trace::TracepointID;
 use crate::trace::{DAGEdge, EdgeType};
+use crate::PythiaError;
 
 pub struct OSProfilerReader {
     connection: Connection,
@@ -534,7 +534,7 @@ impl OSProfilerReader {
             None => dag.start_node,
         };
         for (trace_id, parent) in async_traces.iter() {
-            let last_node = self.add_asynch(&mut dag, trace_id, *parent);
+            let last_node = self.add_asynch(&mut dag, trace_id, *parent).unwrap();
             if last_node.is_none() {
                 continue;
             }
@@ -558,7 +558,7 @@ impl OSProfilerReader {
                 None => {}
             }
         }
-        nidx
+        Ok(nidx)
     }
 
     fn add_asynch(
@@ -569,7 +569,7 @@ impl OSProfilerReader {
     ) -> Result<Option<NodeIndex>, Box<dyn Error>> {
         let mut event_list = self.get_all_matches(trace_id);
         if event_list.len() == 0 {
-            return None;
+            return Ok(None);
         }
         self.add_events(&mut dag, &mut event_list, Some(parent))
     }
