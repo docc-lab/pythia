@@ -8,6 +8,8 @@ use regex::RegexSet;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::PythiaError;
+
 #[derive(Serialize, Deserialize, Debug, Copy, Eq, PartialEq, Hash, Clone)]
 pub enum RequestType {
     ServerCreate,
@@ -62,9 +64,12 @@ impl fmt::Display for RequestType {
 }
 
 impl OSProfilerSpan {
-    pub fn get_tracepoint_id(&self, map: &mut HashMap<Uuid, String>) -> String {
+    pub fn get_tracepoint_id(
+        &self,
+        map: &mut HashMap<Uuid, String>,
+    ) -> Result<String, PythiaError> {
         // The map needs to be initialized and passed to it from outside :(
-        match &self.info {
+        Ok(match &self.info {
             OSProfilerEnum::FunctionEntry(_) | OSProfilerEnum::RequestEntry(_) => {
                 map.insert(self.trace_id, self.tracepoint_id.clone());
                 self.tracepoint_id.clone()
@@ -76,11 +81,14 @@ impl OSProfilerSpan {
                     if self.name.starts_with("asynch_wait") {
                         self.tracepoint_id.clone()
                     } else {
-                        panic!("Couldn't find trace id for {:?}", self);
+                        return Err(PythiaError(format!(
+                            "Couldn't find trace id for {:?}",
+                            self
+                        )));
                     }
                 }
             },
-        }
+        })
     }
 }
 

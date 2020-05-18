@@ -14,6 +14,7 @@ use uuid::Uuid;
 use pythia_common::AnnotationEnum;
 use pythia_common::OSProfilerEnum;
 use pythia_common::OSProfilerSpan;
+use pythia_common::PythiaError;
 use pythia_common::RequestType;
 use pythia_common::REQUEST_TYPES;
 use pythia_common::REQUEST_TYPE_REGEXES;
@@ -26,7 +27,6 @@ use crate::trace::EventType;
 use crate::trace::Trace;
 use crate::trace::TracepointID;
 use crate::trace::{DAGEdge, EdgeType};
-use crate::PythiaError;
 
 pub struct OSProfilerReader {
     connection: Connection,
@@ -100,7 +100,7 @@ impl Reader for OSProfilerReader {
     fn read_file(&mut self, file: &str) -> Trace {
         let reader = std::fs::File::open(file).unwrap();
         let t: Vec<OSProfilerSpan> = serde_json::from_reader(reader).unwrap();
-        self.from_event_list(Uuid::nil(), t)
+        self.from_event_list(Uuid::nil(), t).unwrap()
     }
 
     fn read_dir(&mut self, _foldername: &str) -> Vec<Trace> {
@@ -221,7 +221,7 @@ impl Reader for OSProfilerReader {
                         format!("No traces match the uuid {}", uuid).into(),
                     )));
                 }
-                let dag = self.from_event_list(Uuid::parse_str(id).unwrap(), event_list);
+                let dag = self.from_event_list(Uuid::parse_str(id).unwrap(), event_list)?;
                 dag
             }
             Err(_) => {
@@ -261,10 +261,14 @@ impl OSProfilerReader {
         event_list
     }
 
-    fn from_event_list(&mut self, id: Uuid, mut event_list: Vec<OSProfilerSpan>) -> Trace {
+    fn from_event_list(
+        &mut self,
+        id: Uuid,
+        mut event_list: Vec<OSProfilerSpan>,
+    ) -> Result<Trace, Box<dyn Error>> {
         let mut mydag = Trace::new(&id);
-        self.add_events(&mut mydag, &mut event_list, None);
-        mydag
+        self.add_events(&mut mydag, &mut event_list, None)?;
+        Ok(mydag)
     }
 
     fn add_events(
@@ -272,9 +276,9 @@ impl OSProfilerReader {
         mut dag: &mut Trace,
         event_list: &mut Vec<OSProfilerSpan>,
         mut parent_of_trace: Option<NodeIndex>,
-    ) -> Option<NodeIndex> {
+    ) -> Result<Option<NodeIndex>, Box<dyn Error>> {
         if event_list.len() == 0 {
-            return None;
+            return Ok(None);
         }
         sort_event_list(event_list);
         let base_id = event_list[0].base_id;
@@ -300,7 +304,7 @@ impl OSProfilerReader {
             assert!(prev_time <= event.timestamp);
             prev_time = event.timestamp;
             let mut mynode = Event::from_osp_span(event);
-            let current_tracepoint_id = event.get_tracepoint_id(&mut tracepoint_id_map);
+            let current_tracepoint_id = event.get_tracepoint_id(&mut tracepoint_id_map)?;
             mynode.tracepoint_id = TracepointID::from_str(&current_tracepoint_id);
             if mynode.variant == EventType::Entry {
                 let matches: Vec<usize> = REQUEST_TYPE_REGEXES
@@ -562,7 +566,7 @@ impl OSProfilerReader {
         mut dag: &mut Trace,
         trace_id: &Uuid,
         parent: NodeIndex,
-    ) -> Option<NodeIndex> {
+    ) -> Result<Option<NodeIndex>, Box<dyn Error>> {
         let mut event_list = self.get_all_matches(trace_id);
         if event_list.len() == 0 {
             return None;

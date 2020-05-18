@@ -13,8 +13,6 @@ pub mod settings;
 pub mod trace;
 
 use std::collections::HashSet;
-use std::error::Error;
-use std::fmt;
 use std::fs::File;
 use std::io::stdin;
 use std::io::{self, BufRead};
@@ -525,14 +523,3 @@ pub fn show_config() {
     let settings = Settings::read();
     println!("{:?}", settings);
 }
-
-#[derive(Debug)]
-pub struct PythiaError(String);
-
-impl fmt::Display for PythiaError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Uber error: {}", self.0)
-    }
-}
-
-impl Error for PythiaError {}
