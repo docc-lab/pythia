@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
 
+use std::collections::HashSet;
 use std::thread::sleep;
 use std::time::Duration;
 use std::time::Instant;
@@ -73,6 +74,41 @@ fn main() {
             // Run garbage collection
             if over_budget {
                 eprintln!("Over budget, disabling");
+                let enabled_tracepoints: HashSet<_> =
+                    CONTROLLER.enabled_tracepoints().drain(..).collect();
+                let keep_count = enabled_tracepoints.len() * 9 / 10;
+                let mut to_keep = HashSet::new();
+                while to_keep.len() < keep_count {
+                    for g in groups.problem_groups() {
+                        let mut nidx = g.start_node;
+
+                        while nidx != g.end_node {
+                            if enabled_tracepoints
+                                .get(&(g.at(nidx), Some(g.request_type)))
+                                .is_none()
+                            {
+                                eprintln!(
+                                    "{} is not enabled for {} but we got it",
+                                    g.at(nidx),
+                                    g.request_type
+                                );
+                            } else {
+                                to_keep.insert((g.at(nidx), Some(g.request_type)));
+                                if to_keep.len() > keep_count {
+                                    break;
+                                }
+                            }
+                            nidx = g.next_node(nidx).unwrap();
+                        }
+                    }
+                }
+                let mut to_disable = Vec::new();
+                for tp in enabled_tracepoints {
+                    if to_keep.get(&tp).is_none() {
+                        to_disable.push(tp);
+                    }
+                }
+                CONTROLLER.disable(&to_disable);
             }
             // Disable tracepoints not observed in critical paths
             CONTROLLER.disable(&budget_manager.old_tracepoints());
@@ -89,7 +125,7 @@ fn main() {
             for g in problem_groups.iter().take(10) {
                 println!("{}", g);
             }
-            for g in problem_groups.iter() {
+            for g in problem_groups {
                 let problem_edges = g.problem_edges();
 
                 println!("Top 10 edges of group {}:", g);

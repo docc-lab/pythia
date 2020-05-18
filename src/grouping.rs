@@ -22,6 +22,7 @@ pub struct Group {
     pub g: StableGraph<TraceNode, GroupEdge>,
     hash: String,
     pub start_node: NodeIndex,
+    pub end_node: NodeIndex,
     pub request_type: RequestType,
     pub traces: Vec<CriticalPath>,
     pub variance: f64,
@@ -76,8 +77,10 @@ impl Group {
         let mut prev_node = None;
         let mut prev_dag_nidx = None;
         let mut start_node = None;
+        let mut end_node;
         loop {
             let dag_nidx = dag.add_node(TraceNode::from_event(&path.g.g[cur_node]));
+            end_node = dag_nidx;
             if prev_node.is_none() {
                 start_node = Some(dag_nidx);
             } else {
@@ -104,6 +107,7 @@ impl Group {
         Group {
             g: dag,
             start_node: start_node.unwrap(),
+            end_node: end_node,
             hash: path.hash().to_string(),
             request_type: path.request_type,
             traces: vec![path],
