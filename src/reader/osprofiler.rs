@@ -31,7 +31,7 @@ use crate::PythiaError;
 pub struct OSProfilerReader {
     connection: Connection,
     client_list: Vec<String>,
-    prev_traces: HashMap<String, Duration>,
+    completion_time: Duration,
     for_searchspace: bool,
 }
 
@@ -67,31 +67,23 @@ impl Reader for OSProfilerReader {
                     first_trace = Some(id.clone());
                 }
             }
-            match self.get_trace_from_base_id(&id) {
-                Ok(t) => {
-                    // Keep traces for one cycle, use them only when the duration becomes stable
-                    // (i.e., request has finished)
-                    let stable = match self.prev_traces.get(&id) {
-                        Some(&d) => {
-                            if d == t.duration {
-                                true
-                            } else {
-                                false
-                            }
-                        }
-                        None => false,
-                    };
-                    if stable {
+            let trace_finished = redis::cmd("OBJECT")
+                .arg("IDLETIME")
+                .arg(format!("osprofiler:{}", id))
+                .query::<u64>(&mut self.connection)
+                .unwrap()
+                > self.completion_time.as_secs();
+            if trace_finished {
+                match self.get_trace_from_base_id(&id) {
+                    Ok(t) => {
                         traces.push(t);
-                        self.prev_traces.remove(&id);
-                    } else {
-                        let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
-                        self.prev_traces.insert(id, t.duration);
+                    }
+                    Err(_) => {
+                        eprintln!("Can not parse trace {}", id);
                     }
                 }
-                Err(_) => {
-                    let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
-                }
+            } else {
+                let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
             }
         }
         traces
@@ -247,7 +239,7 @@ impl OSProfilerReader {
         OSProfilerReader {
             connection: con,
             client_list: settings.pythia_clients.clone(),
-            prev_traces: HashMap::new(),
+            completion_time: settings.trace_completion_time,
             for_searchspace: false,
         }
     }
