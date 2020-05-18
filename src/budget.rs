@@ -51,9 +51,6 @@ impl BudgetManager {
 
     pub fn overrun(&self) -> bool {
         for stats in self.last_stats.values() {
-            if stats.load_avg_1_min > 6.0 {
-                return true;
-            }
             if stats.written_trace_bytes_per_sec > 100 * 1024 {
                 return true;
             }
