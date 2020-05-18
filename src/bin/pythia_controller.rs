@@ -2,6 +2,8 @@
 extern crate lazy_static;
 
 use std::collections::HashSet;
+use std::fs::File;
+use std::io::prelude::*;
 use std::thread::sleep;
 use std::time::Duration;
 use std::time::Instant;
@@ -33,6 +35,11 @@ fn main() {
     let mut last_decision = Instant::now();
     let mut last_gc = Instant::now();
 
+    let filename = std::env::args().nth(1).unwrap();
+    eprintln!("Printing results to {}", filename);
+    let mut output_file = File::create(filename).unwrap();
+    write!(output_file, "{:?}", *SETTINGS).ok();
+
     // Enable skeleton
     CONTROLLER.disable_all();
     let to_enable = MANIFEST
@@ -41,14 +48,18 @@ fn main() {
         .map(|&a| (a.clone(), None))
         .collect();
     CONTROLLER.enable(&to_enable);
+    write!(output_file, "Enabled {}", to_enable.len()).ok();
     reader.reset_state();
 
     println!("Enabled following tracepoints: {:?}", to_enable);
 
     // Main pythia loop
+    let mut jiffy_no = 0;
     loop {
+        write!(output_file, "Jiffy {}, {:?}", jiffy_no, Instant::now()).ok();
         budget_manager.read_stats();
         budget_manager.print_stats();
+        budget_manager.write_stats(&mut output_file);
         let over_budget = budget_manager.overrun();
 
         // Collect traces, increment groups
@@ -69,6 +80,16 @@ fn main() {
             now.elapsed().as_micros()
         );
         println!("Groups: {}", groups);
+        write!(output_file, "New traces: {}", critical_paths.len()).ok();
+        write!(
+            output_file,
+            "New tracepoints: {}",
+            critical_paths
+                .iter()
+                .map(|p| p.g.g.node_count())
+                .sum::<usize>()
+        )
+        .ok();
 
         if over_budget || last_gc.elapsed() > SETTINGS.gc_epoch {
             // Run garbage collection
@@ -109,9 +130,12 @@ fn main() {
                     }
                 }
                 CONTROLLER.disable(&to_disable);
+                write!(output_file, "Disabled {}", to_disable.len()).ok();
             }
             // Disable tracepoints not observed in critical paths
-            CONTROLLER.disable(&budget_manager.old_tracepoints());
+            let to_disable = budget_manager.old_tracepoints();
+            CONTROLLER.disable(&to_disable);
+            write!(output_file, "Enabled {}", to_disable.len()).ok();
 
             last_gc = Instant::now();
         }
@@ -148,6 +172,7 @@ fn main() {
                         .collect::<Vec<_>>();
                     budget -= decisions.len();
                     CONTROLLER.enable(&decisions);
+                    write!(output_file, "Enabled {}", decisions.len()).ok();
                     if decisions.len() > 0 {
                         used_groups.push(g.hash().to_string());
                     }
@@ -163,6 +188,7 @@ fn main() {
             last_decision = Instant::now();
         }
 
+        jiffy_no += 1;
         sleep(SETTINGS.jiffy);
     }
 }

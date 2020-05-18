@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::prelude::*;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -32,6 +34,12 @@ impl BudgetManager {
         for client in &self.clients {
             self.last_stats
                 .insert(client.clone(), read_client_stats(client));
+        }
+    }
+
+    pub fn write_stats(&self, file: &mut File) {
+        for (client, stats) in &self.last_stats {
+            write!(file, "{}: {:?}", client, stats).ok();
         }
     }
 
