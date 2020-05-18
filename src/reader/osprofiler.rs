@@ -536,7 +536,7 @@ impl OSProfilerReader {
             None => dag.start_node,
         };
         for (trace_id, parent) in async_traces.iter() {
-            let last_node = self.add_asynch(&mut dag, trace_id, *parent).unwrap();
+            let last_node = self.add_asynch(&mut dag, trace_id, *parent)?;
             if last_node.is_none() {
                 continue;
             }
