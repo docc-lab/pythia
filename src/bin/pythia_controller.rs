@@ -8,6 +8,7 @@ use std::time::Instant;
 use pythia::budget::BudgetManager;
 use pythia::controller::OSProfilerController;
 use pythia::critical::CriticalPath;
+use pythia::critical::Path;
 use pythia::grouping::GroupManager;
 use pythia::manifest::Manifest;
 use pythia::reader::reader_from_settings;
@@ -26,7 +27,7 @@ fn main() {
     let now = Instant::now();
     let mut reader = reader_from_settings(&SETTINGS);
     let strategy = get_strategy(&SETTINGS, &MANIFEST, &CONTROLLER);
-    let mut budget = BudgetManager::from_settings(&SETTINGS);
+    let mut budget_manager = BudgetManager::from_settings(&SETTINGS);
     let mut groups = GroupManager::new();
     let mut last_decision = Instant::now();
     let mut last_gc = Instant::now();
@@ -45,8 +46,9 @@ fn main() {
 
     // Main pythia loop
     loop {
-        budget.read_stats();
-        budget.print_stats();
+        budget_manager.read_stats();
+        budget_manager.print_stats();
+        let over_budget = budget_manager.overrun();
 
         // Collect traces, increment groups
         let traces = reader.get_recent_traces();
@@ -55,6 +57,7 @@ fn main() {
             .map(|t| CriticalPath::from_trace(t).unwrap())
             .collect();
         groups.update(&critical_paths);
+        budget_manager.update_new_paths(&critical_paths);
         println!(
             "Got {} paths of duration {:?} at time {}us",
             traces.len(),
@@ -66,20 +69,27 @@ fn main() {
         );
         println!("Groups: {}", groups);
 
-        if budget.overrun() || last_gc.elapsed() > SETTINGS.gc_epoch {
+        if over_budget || last_gc.elapsed() > SETTINGS.gc_epoch {
             // Run garbage collection
+            if over_budget {
+                eprintln!("Over budget, disabling");
+            }
+            // Disable tracepoints not observed in critical paths
+            CONTROLLER.disable(&budget_manager.old_tracepoints());
+
             last_gc = Instant::now();
         }
 
-        if !budget.overrun() && last_decision.elapsed() > SETTINGS.decision_epoch {
+        if !over_budget && last_decision.elapsed() > SETTINGS.decision_epoch {
             // Make decision
             let mut budget = SETTINGS.tracepoints_per_epoch;
             let problem_groups = groups.problem_groups();
+            let mut used_groups = Vec::new();
             println!("Making decision. Top 10 problem groups:");
             for g in problem_groups.iter().take(10) {
                 println!("{}", g);
             }
-            for &g in problem_groups.iter() {
+            for g in problem_groups.iter() {
                 let problem_edges = g.problem_edges();
 
                 println!("Top 10 edges of group {}:", g);
@@ -100,13 +110,18 @@ fn main() {
                         .take(budget)
                         .map(|&t| (t, Some(g.request_type)))
                         .collect::<Vec<_>>();
-                    println!("Enabling {:?}", decisions);
                     budget -= decisions.len();
                     CONTROLLER.enable(&decisions);
+                    if decisions.len() > 0 {
+                        used_groups.push(g.hash().to_string());
+                    }
                 }
                 if budget <= 0 {
                     break;
                 }
+            }
+            for g in used_groups {
+                groups.used(&g);
             }
 
             last_decision = Instant::now();

@@ -10,6 +10,7 @@ const SETTINGS_PATH: &str = "/etc/pythia/controller.toml";
 const DECISION_EPOCH: Duration = Duration::from_secs(120);
 const PYTHIA_JIFFY: Duration = Duration::from_secs(20);
 const GC_EPOCH: Duration = Duration::from_secs(120);
+const GC_KEEP_DURATION: Duration = Duration::from_secs(360);
 const TRACEPOINTS_PER_EPOCH: usize = 3;
 
 #[derive(Debug)]
@@ -25,6 +26,7 @@ pub struct Settings {
     pub jiffy: Duration,
     pub decision_epoch: Duration,
     pub gc_epoch: Duration,
+    pub gc_keep_duration: Duration,
     pub tracepoints_per_epoch: usize,
 }
 
@@ -70,6 +72,7 @@ impl Settings {
             tracepoints_per_epoch: TRACEPOINTS_PER_EPOCH,
             jiffy: PYTHIA_JIFFY,
             gc_epoch: GC_EPOCH,
+            gc_keep_duration: GC_KEEP_DURATION,
         }
     }
 }

@@ -111,6 +111,11 @@ impl Group {
         }
     }
 
+    pub fn used(&mut self) {
+        self.traces = Vec::new();
+        self.variance = 0.0;
+    }
+
     /// Returns all edges sorted by variance.
     pub fn problem_edges(&self) -> Vec<EdgeIndex> {
         let mut edge_variances = HashMap::<EdgeIndex, f64>::new();
@@ -252,6 +257,10 @@ impl GroupManager {
             .collect();
         sorted_groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap());
         sorted_groups
+    }
+
+    pub fn used(&mut self, group: &str) {
+        self.groups.get_mut(group).unwrap().used();
     }
 }
 

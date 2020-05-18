@@ -1,13 +1,21 @@
 use std::collections::HashMap;
+use std::time::Duration;
+use std::time::Instant;
 
 use pythia_common::NodeStats;
+use pythia_common::RequestType;
 
+use crate::critical::CriticalPath;
+use crate::critical::Path;
 use crate::rpclib::read_client_stats;
 use crate::settings::Settings;
+use crate::trace::TracepointID;
 
 pub struct BudgetManager {
     clients: Vec<String>,
     last_stats: HashMap<String, NodeStats>,
+    last_seen: HashMap<(TracepointID, Option<RequestType>), Instant>,
+    gc_keep_duration: Duration,
 }
 
 impl BudgetManager {
@@ -15,6 +23,8 @@ impl BudgetManager {
         BudgetManager {
             clients: settings.pythia_clients.clone(),
             last_stats: HashMap::new(),
+            last_seen: HashMap::new(),
+            gc_keep_duration: settings.gc_keep_duration,
         }
     }
 
@@ -41,5 +51,27 @@ impl BudgetManager {
             }
         }
         false
+    }
+
+    pub fn update_new_paths(&mut self, paths: &Vec<CriticalPath>) {
+        let now = Instant::now();
+        for path in paths {
+            let mut nidx = path.start_node;
+            while nidx != path.end_node {
+                self.last_seen
+                    .insert((path.at(nidx), Some(path.request_type)), now);
+                nidx = path.next_node(nidx).unwrap();
+            }
+        }
+    }
+
+    pub fn old_tracepoints(&self) -> Vec<(TracepointID, Option<RequestType>)> {
+        let mut result = Vec::new();
+        for (&tp, seen) in &self.last_seen {
+            if seen.elapsed() > self.gc_keep_duration {
+                result.push(tp);
+            }
+        }
+        result
     }
 }

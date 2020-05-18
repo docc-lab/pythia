@@ -24,6 +24,7 @@ impl OSProfilerController {
     }
 
     pub fn enable(&self, points: &Vec<(TracepointID, Option<RequestType>)>) {
+        eprintln!("Enabling {:?}", points);
         let mut enabled_tracepoints = self.enabled_tracepoints.lock().unwrap();
         for p in points {
             if p.1 == Some(RequestType::Unknown) {
@@ -36,6 +37,7 @@ impl OSProfilerController {
     }
 
     pub fn disable(&self, points: &Vec<(TracepointID, Option<RequestType>)>) {
+        eprintln!("Disabling {:?}", points);
         let mut enabled_tracepoints = self.enabled_tracepoints.lock().unwrap();
         for p in points {
             if p.1 == Some(RequestType::Unknown) {
@@ -49,6 +51,15 @@ impl OSProfilerController {
 
     pub fn disable_by_name(&self, point: &str) {
         self.disable(&vec![(TracepointID::from_str(point), None)]);
+    }
+
+    pub fn enabled_tracepoints(&self) -> Vec<(TracepointID, Option<RequestType>)> {
+        self.enabled_tracepoints
+            .lock()
+            .unwrap()
+            .iter()
+            .cloned()
+            .collect()
     }
 
     pub fn is_enabled(&self, point: &(TracepointID, Option<RequestType>)) -> bool {
