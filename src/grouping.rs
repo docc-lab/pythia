@@ -272,17 +272,22 @@ impl Display for Group {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Group<{} {:?} traces, {:?}>",
+            "Group<{} {:?} traces>",
             self.traces.len(),
             self.request_type,
-            self.hash
         )
     }
 }
 
 impl Display for GroupManager {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for (_, g) in &self.groups {
+        let mut groups: Vec<&Group> = self
+            .groups
+            .values()
+            .filter(|&g| g.traces.len() != 0)
+            .collect();
+        groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap());
+        for g in &groups {
             write!(f, "{}, ", g)?;
         }
         Ok(())
