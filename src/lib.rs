@@ -484,7 +484,10 @@ fn group_traces(traces: Vec<Trace>) {
 pub fn read_trace_file(trace_file: &str) {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
-    let trace = reader.read_file(trace_file);
+    let mut trace = reader.read_file(trace_file);
+    if settings.application == ApplicationType::HDFS {
+        trace.prune();
+    }
     println!("{}", trace);
 }
 

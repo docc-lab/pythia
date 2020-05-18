@@ -110,27 +110,71 @@ impl HDFSReader {
         }
     }
 
+    fn should_skip_edge(&self, mynode: &Event, parent: &Event) -> bool {
+        (mynode.tracepoint_id == TracepointID::from_str("Client.java:1076")
+            && parent.tracepoint_id == TracepointID::from_str("Client.java:1044"))
+            || (mynode.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:441")
+                && parent.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:1669"))
+            || (mynode.tracepoint_id == TracepointID::from_str("BlockReceiver.java:1322")
+                && parent.tracepoint_id == TracepointID::from_str("BlockReceiver.java:903"))
+            || (mynode.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:441")
+                && parent.tracepoint_id == TracepointID::from_str("SocketOutputStream.java:63"))
+            || (mynode.tracepoint_id == TracepointID::from_str("PacketHeader.java:164")
+                && parent.tracepoint_id == TracepointID::from_str("SocketInputStream.java:57"))
+            || (mynode.tracepoint_id == TracepointID::from_str("BlockReceiver.java:1322")
+                && parent.tracepoint_id == TracepointID::from_str("SocketOutputStream.java:63"))
+            || (mynode.tracepoint_id == TracepointID::from_str("PipelineAck.java:257")
+                && parent.tracepoint_id == TracepointID::from_str("SocketInputStream.java:57"))
+            || (mynode.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:2271")
+                && parent.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:1805"))
+    }
+
+    fn should_skip_node(&self, node: &HDFSEvent, event: &Event) -> bool {
+        node.label == "waited"
+            || event.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:387")
+            || event.tracepoint_id == TracepointID::from_str("BlockReceiver.java:1280")
+    }
+
     fn from_json(&self, data: &mut HDFSTrace) -> Trace {
         let mut mydag = Trace::new(&data.id.to_uuid());
         eprintln!("Working on {}", mydag.base_id);
         let mut event_id_map = HashMap::new();
         let mut nidx = NodeIndex::end();
+        let mut start_node = None;
+        let mut wait_parents: HashMap<String, Vec<String>> = HashMap::new();
         sort_event_list(&mut data.reports);
-        for (idx, event) in data.reports.iter().enumerate() {
+        for (_idx, event) in data.reports.iter().enumerate() {
             let mynode = Event::from_hdfs_node(event);
+            if self.should_skip_node(&event, &mynode) {
+                let mut parents = Vec::new();
+                let mut potential_parents = event.parent_event_id.clone();
+                while !potential_parents.is_empty() {
+                    let p = potential_parents.pop().unwrap();
+                    match event_id_map.get(&p) {
+                        None => {
+                            for p2 in wait_parents.get(&p).unwrap() {
+                                potential_parents.push(p2.clone());
+                            }
+                        }
+                        Some(_) => {
+                            parents.push(p);
+                        }
+                    }
+                }
+                wait_parents.insert(event.event_id.clone(), parents);
+                continue;
+            }
             nidx = mydag.g.add_node(mynode.clone());
             event_id_map.insert(event.event_id.clone(), nidx);
-            if idx == 0 {
+            if start_node.is_none() {
                 mydag.start_node = nidx;
+                start_node = Some(nidx);
             } else {
                 for parent in event.parent_event_id.iter() {
                     match event_id_map.get(parent) {
                         Some(&parent_nidx) => {
                             // Skip this edge, since it's not used.
-                            if mynode.tracepoint_id == TracepointID::from_str("Client.java:1516")
-                                && mydag.g[parent_nidx].tracepoint_id
-                                    == TracepointID::from_str("Client.java:1508")
-                            {
+                            if self.should_skip_edge(&mynode, &mydag.g[parent_nidx]) {
                                 continue;
                             }
                             mydag.g.add_edge(
@@ -145,7 +189,24 @@ impl HDFSReader {
                             );
                         }
                         None => {
-                            panic!("Couldn't find parent node {}", parent);
+                            // Must have deleted the parent
+                            for p2 in wait_parents.get(parent).unwrap() {
+                                let &parent_nidx = event_id_map.get(p2).unwrap();
+                                if self.should_skip_edge(&mynode, &mydag.g[parent_nidx]) {
+                                    continue;
+                                }
+                                mydag.g.add_edge(
+                                    parent_nidx,
+                                    nidx,
+                                    DAGEdge {
+                                        duration: (mynode.timestamp
+                                            - mydag.g[parent_nidx].timestamp)
+                                            .to_std()
+                                            .unwrap(),
+                                        variant: EdgeType::ChildOf,
+                                    },
+                                );
+                            }
                         }
                     }
                 }
