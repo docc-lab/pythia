@@ -99,28 +99,29 @@ fn main() {
                     CONTROLLER.enabled_tracepoints().drain(..).collect();
                 let keep_count = enabled_tracepoints.len() * 9 / 10;
                 let mut to_keep = HashSet::new();
-                while to_keep.len() < keep_count {
-                    for g in groups.problem_groups() {
-                        let mut nidx = g.start_node;
-
-                        while nidx != g.end_node {
-                            if enabled_tracepoints
-                                .get(&(g.at(nidx), Some(g.request_type)))
-                                .is_none()
-                            {
-                                eprintln!(
-                                    "{} is not enabled for {} but we got it",
-                                    g.at(nidx),
-                                    g.request_type
-                                );
-                            } else {
-                                to_keep.insert((g.at(nidx), Some(g.request_type)));
-                                if to_keep.len() > keep_count {
-                                    break;
-                                }
+                for g in groups.problem_groups() {
+                    let mut nidx = g.start_node;
+                    while nidx != g.end_node {
+                        if enabled_tracepoints
+                            .get(&(g.at(nidx), Some(g.request_type)))
+                            .is_none()
+                        {
+                            eprintln!(
+                                "{} is not enabled for {} but we got it",
+                                g.at(nidx),
+                                g.request_type
+                            );
+                        } else {
+                            to_keep.insert((g.at(nidx), Some(g.request_type)));
+                            if to_keep.len() > keep_count {
+                                break;
                             }
-                            nidx = g.next_node(nidx).unwrap();
                         }
+                        nidx = g.next_node(nidx).unwrap();
+                    }
+
+                    if to_keep.len() > keep_count {
+                        break;
                     }
                 }
                 let mut to_disable = Vec::new();
