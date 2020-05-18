@@ -14,5 +14,5 @@ pub struct NodeStats {
     pub tasks_runnable: u32,
 
     // Tracing stats
-    pub written_trace_bytes_per_sec: u64,
+    pub trace_input_kbps: f32,
 }

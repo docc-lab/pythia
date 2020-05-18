@@ -21,11 +21,11 @@ impl OSProfilerReader {
         OSProfilerReader { connection: con }
     }
 
-    pub fn get_input_bytes(&mut self) -> u64 {
+    pub fn get_input_kbps(&mut self) -> f32 {
         redis::cmd("INFO")
             .query::<redis::InfoDict>(&mut self.connection)
             .unwrap()
-            .get("total_net_input_bytes")
+            .get("instantaneous_input_kbps")
             .unwrap()
     }
 
