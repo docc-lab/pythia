@@ -396,7 +396,9 @@ impl OSProfilerReader {
                             }
                             None => {
                                 if idx != 0 {
-                                    panic!("I don't know when this happens");
+                                    return Err(Box::new(PythiaError(
+                                        "I don't know when this happens".into(),
+                                    )));
                                 }
                             }
                         }
