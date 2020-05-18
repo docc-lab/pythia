@@ -18,6 +18,7 @@ use pythia_common::RequestType;
 use pythia_common::REQUEST_TYPES;
 use pythia_common::REQUEST_TYPE_REGEXES;
 
+use crate::critical::CriticalPath;
 use crate::reader::Reader;
 use crate::rpclib::get_events_from_client;
 use crate::settings::Settings;
@@ -32,6 +33,7 @@ pub struct OSProfilerReader {
     connection: Connection,
     client_list: Vec<String>,
     prev_traces: HashMap<String, Duration>,
+    trace_error_count: HashMap<String, usize>,
     for_searchspace: bool,
 }
 
@@ -67,6 +69,17 @@ impl Reader for OSProfilerReader {
                     first_trace = Some(id.clone());
                 }
             }
+            match self.trace_error_count.get(&id) {
+                Some(&i) => {
+                    if i > 5 {
+                        eprintln!("Giving up on {}", id);
+                        continue;
+                    }
+                }
+                None => {
+                    self.trace_error_count.insert(id.clone(), 0);
+                }
+            }
             match self.get_trace_from_base_id(&id) {
                 Ok(t) => {
                     // Keep traces for one cycle, use them only when the duration becomes stable
@@ -82,14 +95,24 @@ impl Reader for OSProfilerReader {
                         None => false,
                     };
                     if stable {
-                        traces.push(t);
-                        self.prev_traces.remove(&id);
+                        match CriticalPath::from_trace(&t) {
+                            Ok(_) => {
+                                traces.push(t);
+                                self.prev_traces.remove(&id);
+                            }
+                            Err(_) => {
+                                let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
+                                *self.trace_error_count.get_mut(&id).unwrap() += 1;
+                                self.prev_traces.insert(id, t.duration);
+                            }
+                        }
                     } else {
                         let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
                         self.prev_traces.insert(id, t.duration);
                     }
                 }
                 Err(_) => {
+                    *self.trace_error_count.get_mut(&id).unwrap() += 1;
                     let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
                 }
             }
@@ -248,6 +271,7 @@ impl OSProfilerReader {
             connection: con,
             client_list: settings.pythia_clients.clone(),
             prev_traces: HashMap::new(),
+            trace_error_count: HashMap::new(),
             for_searchspace: false,
         }
     }
