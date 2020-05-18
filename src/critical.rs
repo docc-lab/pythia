@@ -46,11 +46,18 @@ impl CriticalPath {
         let mut end_nidx = path.g.g.add_node(dag.g[cur_node].clone());
         path.end_node = end_nidx;
         loop {
-            let next_node = dag
+            let next_node = match dag
                 .g
                 .neighbors_directed(cur_node, Direction::Incoming)
                 .max_by_key(|&nidx| dag.g[nidx].timestamp)
-                .unwrap();
+            {
+                Some(nidx) => nidx,
+                None => {
+                    return Err(Box::new(PythiaError(
+                        format!("Disjoint trace {}", dag.base_id).into(),
+                    )))
+                }
+            };
             let start_nidx = path.g.g.add_node(dag.g[next_node].clone());
             path.g.g.add_edge(
                 start_nidx,
