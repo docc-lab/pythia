@@ -38,7 +38,7 @@ fn main() {
     let filename = std::env::args().nth(1).unwrap();
     eprintln!("Printing results to {}", filename);
     let mut output_file = File::create(filename).unwrap();
-    write!(output_file, "{:?}", *SETTINGS).ok();
+    writeln!(output_file, "{:?}", *SETTINGS).ok();
 
     // Enable skeleton
     CONTROLLER.disable_all();
@@ -48,7 +48,7 @@ fn main() {
         .map(|&a| (a.clone(), None))
         .collect();
     CONTROLLER.enable(&to_enable);
-    write!(output_file, "Enabled {}", to_enable.len()).ok();
+    writeln!(output_file, "Enabled {}", to_enable.len()).ok();
     reader.reset_state();
 
     println!("Enabled following tracepoints: {:?}", to_enable);
@@ -56,7 +56,7 @@ fn main() {
     // Main pythia loop
     let mut jiffy_no = 0;
     loop {
-        write!(output_file, "Jiffy {}, {:?}", jiffy_no, Instant::now()).ok();
+        writeln!(output_file, "Jiffy {}, {:?}", jiffy_no, Instant::now()).ok();
         budget_manager.read_stats();
         budget_manager.print_stats();
         budget_manager.write_stats(&mut output_file);
@@ -80,8 +80,8 @@ fn main() {
             now.elapsed().as_micros()
         );
         println!("Groups: {}", groups);
-        write!(output_file, "New traces: {}", critical_paths.len()).ok();
-        write!(
+        writeln!(output_file, "New traces: {}", critical_paths.len()).ok();
+        writeln!(
             output_file,
             "New tracepoints: {}",
             critical_paths
@@ -130,12 +130,12 @@ fn main() {
                     }
                 }
                 CONTROLLER.disable(&to_disable);
-                write!(output_file, "Disabled {}", to_disable.len()).ok();
+                writeln!(output_file, "Disabled {}", to_disable.len()).ok();
             }
             // Disable tracepoints not observed in critical paths
             let to_disable = budget_manager.old_tracepoints();
             CONTROLLER.disable(&to_disable);
-            write!(output_file, "Enabled {}", to_disable.len()).ok();
+            writeln!(output_file, "Enabled {}", to_disable.len()).ok();
 
             last_gc = Instant::now();
         }
@@ -172,7 +172,7 @@ fn main() {
                         .collect::<Vec<_>>();
                     budget -= decisions.len();
                     CONTROLLER.enable(&decisions);
-                    write!(output_file, "Enabled {}", decisions.len()).ok();
+                    writeln!(output_file, "Enabled {}", decisions.len()).ok();
                     if decisions.len() > 0 {
                         used_groups.push(g.hash().to_string());
                     }

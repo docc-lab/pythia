@@ -39,7 +39,7 @@ impl BudgetManager {
 
     pub fn write_stats(&self, file: &mut File) {
         for (client, stats) in &self.last_stats {
-            write!(file, "{}: {:?}", client, stats).ok();
+            writeln!(file, "{}: {:?}", client, stats).ok();
         }
     }
 
