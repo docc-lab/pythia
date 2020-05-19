@@ -1,4 +1,4 @@
-application = "OpenStack" # can be HDFS, OpenStack, Uber
+application = "HDFS" # can be HDFS, OpenStack, Uber
 search_strategy = "Hierarchical" # can be Flat, Hierarchical, Historic
 
 manifest_file = "/opt/stack/manifest.json"

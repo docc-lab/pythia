@@ -49,6 +49,7 @@ fn main() {
         .collect();
     CONTROLLER.enable(&to_enable);
     writeln!(output_file, "Enabled {}", to_enable.len()).ok();
+    writeln!(output_file, "Enabled {:?}", to_enable).ok();
     reader.reset_state();
 
     println!("Enabled following tracepoints: {:?}", to_enable);
@@ -132,11 +133,13 @@ fn main() {
                 }
                 CONTROLLER.disable(&to_disable);
                 writeln!(output_file, "Disabled {}", to_disable.len()).ok();
+                writeln!(output_file, "Disabled {:?}", to_disable).ok();
             }
             // Disable tracepoints not observed in critical paths
             let to_disable = budget_manager.old_tracepoints();
             CONTROLLER.disable(&to_disable);
             writeln!(output_file, "Disabled {}", to_disable.len()).ok();
+            writeln!(output_file, "Disabled {:?}", to_disable).ok();
 
             last_gc = Instant::now();
         }
@@ -174,6 +177,7 @@ fn main() {
                     budget -= decisions.len();
                     CONTROLLER.enable(&decisions);
                     writeln!(output_file, "Enabled {}", decisions.len()).ok();
+                    writeln!(output_file, "Enabled {:?}", decisions).ok();
                     if decisions.len() > 0 {
                         used_groups.push(g.hash().to_string());
                     }
