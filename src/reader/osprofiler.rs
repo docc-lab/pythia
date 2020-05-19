@@ -50,7 +50,7 @@ impl Reader for OSProfilerReader {
 
     fn get_recent_traces(&mut self) -> Vec<Trace> {
         let mut traces = Vec::new();
-        let mut first_trace = None;
+        let mut traces_seen = HashSet::new();
         loop {
             let id: String = match self.connection.lpop("osprofiler_traces") {
                 Ok(i) => i,
@@ -58,17 +58,14 @@ impl Reader for OSProfilerReader {
                     break;
                 }
             };
-            match &first_trace {
-                Some(i) => {
-                    if *i == id {
-                        let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
-                        break;
-                    }
+            match traces_seen.get(&id) {
+                Some(_) => {
+                    let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
+                    break;
                 }
-                None => {
-                    first_trace = Some(id.clone());
-                }
+                None => {}
             }
+            traces_seen.insert(id.clone());
             match self.trace_error_count.get(&id) {
                 Some(&i) => {
                     if i > 5 {
