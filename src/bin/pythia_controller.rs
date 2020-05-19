@@ -136,7 +136,7 @@ fn main() {
             // Disable tracepoints not observed in critical paths
             let to_disable = budget_manager.old_tracepoints();
             CONTROLLER.disable(&to_disable);
-            writeln!(output_file, "Enabled {}", to_disable.len()).ok();
+            writeln!(output_file, "Disabled {}", to_disable.len()).ok();
 
             last_gc = Instant::now();
         }
