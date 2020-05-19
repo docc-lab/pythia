@@ -98,7 +98,8 @@ fn main() {
                 eprintln!("Over budget, disabling");
                 let enabled_tracepoints: HashSet<_> =
                     CONTROLLER.enabled_tracepoints().drain(..).collect();
-                let keep_count = enabled_tracepoints.len() * 9 / 10;
+                let keep_count =
+                    (enabled_tracepoints.len() as f32 * (1.0 - SETTINGS.disable_ratio)) as usize;
                 let mut to_keep = HashSet::new();
                 for g in groups.problem_groups() {
                     let mut nidx = g.start_node;
