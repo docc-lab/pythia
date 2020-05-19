@@ -66,7 +66,7 @@ impl OSProfilerController {
         let enabled_tracepoints = self.enabled_tracepoints.lock().unwrap();
         // A tracepoint is enabled either globally or for a request type
         !enabled_tracepoints.get(point).is_none()
-            && !enabled_tracepoints.get(&(point.0, None)).is_none()
+            || !enabled_tracepoints.get(&(point.0, None)).is_none()
     }
 
     fn write_to_tracepoints(
