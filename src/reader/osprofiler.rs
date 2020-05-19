@@ -49,8 +49,7 @@ impl Reader for OSProfilerReader {
     }
 
     fn get_recent_traces(&mut self) -> Vec<Trace> {
-        let mut traces = Vec::new();
-        let mut traces_seen = HashSet::new();
+        let mut ids = Vec::new();
         loop {
             let id: String = match self.connection.lpop("osprofiler_traces") {
                 Ok(i) => i,
@@ -58,17 +57,18 @@ impl Reader for OSProfilerReader {
                     break;
                 }
             };
-            match traces_seen.get(&id) {
-                Some(_) => {
-                    let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
-                    break;
-                }
-                None => {}
-            }
-            traces_seen.insert(id.clone());
-            match self.trace_error_count.get(&id) {
+            ids.push(id);
+        }
+        for id in self.prev_traces.keys() {
+            ids.push(id.clone());
+        }
+        let mut traces = Vec::new();
+        for id in &ids {
+            match self.trace_error_count.get(id) {
                 Some(&i) => {
                     if i > 5 {
+                        self.prev_traces.remove(id);
+                        self.trace_error_count.remove(id);
                         eprintln!("Giving up on {}", id);
                         continue;
                     }
@@ -81,7 +81,7 @@ impl Reader for OSProfilerReader {
                 Ok(t) => {
                     // Keep traces for one cycle, use them only when the duration becomes stable
                     // (i.e., request has finished)
-                    let stable = match self.prev_traces.get(&id) {
+                    let stable = match self.prev_traces.get(id) {
                         Some(&d) => {
                             if d == t.duration {
                                 true
@@ -95,22 +95,20 @@ impl Reader for OSProfilerReader {
                         match CriticalPath::from_trace(&t) {
                             Ok(_) => {
                                 traces.push(t);
-                                self.prev_traces.remove(&id);
+                                self.prev_traces.remove(id);
+                                self.trace_error_count.remove(id);
                             }
                             Err(_) => {
-                                let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
-                                *self.trace_error_count.get_mut(&id).unwrap() += 1;
-                                self.prev_traces.insert(id, t.duration);
+                                *self.trace_error_count.get_mut(id).unwrap() += 1;
+                                self.prev_traces.insert(id.clone(), t.duration);
                             }
                         }
                     } else {
-                        let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
-                        self.prev_traces.insert(id, t.duration);
+                        self.prev_traces.insert(id.clone(), t.duration);
                     }
                 }
                 Err(_) => {
-                    *self.trace_error_count.get_mut(&id).unwrap() += 1;
-                    let () = self.connection.rpush("osprofiler_traces", &id).unwrap();
+                    *self.trace_error_count.get_mut(id).unwrap() += 1;
                 }
             }
         }

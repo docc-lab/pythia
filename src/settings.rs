@@ -13,6 +13,7 @@ const GC_EPOCH: Duration = Duration::from_secs(120);
 const GC_KEEP_DURATION: Duration = Duration::from_secs(360);
 const TRACEPOINTS_PER_EPOCH: usize = 3;
 const DISABLE_RATIO: f32 = 0.1;
+const N_WORKERS: usize = 4;
 
 #[derive(Debug)]
 pub struct Settings {
@@ -30,6 +31,7 @@ pub struct Settings {
     pub gc_keep_duration: Duration,
     pub tracepoints_per_epoch: usize,
     pub disable_ratio: f32,
+    pub n_workers: usize,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -76,6 +78,7 @@ impl Settings {
             gc_epoch: GC_EPOCH,
             gc_keep_duration: GC_KEEP_DURATION,
             disable_ratio: DISABLE_RATIO,
+            n_workers: N_WORKERS,
         }
     }
 }

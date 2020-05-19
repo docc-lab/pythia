@@ -4,9 +4,12 @@ extern crate lazy_static;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::prelude::*;
+use std::sync::mpsc::channel;
 use std::thread::sleep;
 use std::time::Duration;
 use std::time::Instant;
+
+use threadpool::ThreadPool;
 
 use pythia::budget::BudgetManager;
 use pythia::controller::OSProfilerController;
@@ -25,10 +28,14 @@ lazy_static! {
         .expect("Couldn't read manifest from cache");
 }
 
+fn reset_reader() {
+    let mut reader = reader_from_settings(&SETTINGS);
+    reader.reset_state();
+}
+
 /// Main Pythia function that runs in a loop and makes decisions
 fn main() {
     let now = Instant::now();
-    let mut reader = reader_from_settings(&SETTINGS);
     let strategy = get_strategy(&SETTINGS, &MANIFEST, &CONTROLLER);
     let mut budget_manager = BudgetManager::from_settings(&SETTINGS);
     let mut groups = GroupManager::new();
@@ -50,9 +57,25 @@ fn main() {
     CONTROLLER.enable(&to_enable);
     writeln!(output_file, "Enabled {}", to_enable.len()).ok();
     writeln!(output_file, "Enabled {:?}", to_enable).ok();
-    reader.reset_state();
+    reset_reader();
 
     println!("Enabled following tracepoints: {:?}", to_enable);
+
+    let pool = ThreadPool::new(SETTINGS.n_workers);
+    let (tx, rx) = channel();
+    for _ in 0..SETTINGS.n_workers {
+        let tx = tx.clone();
+        pool.execute(move || {
+            let mut reader = reader_from_settings(&SETTINGS);
+            loop {
+                for trace in reader.get_recent_traces() {
+                    tx.send(trace)
+                        .expect("channel will be there waiting for the pool");
+                }
+                sleep(SETTINGS.jiffy);
+            }
+        });
+    }
 
     // Main pythia loop
     let mut jiffy_no = 0;
@@ -64,7 +87,7 @@ fn main() {
         let over_budget = budget_manager.overrun();
 
         // Collect traces, increment groups
-        let traces = reader.get_recent_traces();
+        let traces = rx.iter().collect::<Vec<_>>();
         let critical_paths = traces
             .iter()
             .map(|t| CriticalPath::from_trace(t).unwrap())
