@@ -87,7 +87,7 @@ fn main() {
         let over_budget = budget_manager.overrun();
 
         // Collect traces, increment groups
-        let traces = rx.iter().collect::<Vec<_>>();
+        let traces = rx.try_iter().collect::<Vec<_>>();
         let critical_paths = traces
             .iter()
             .map(|t| CriticalPath::from_trace(t).unwrap())
