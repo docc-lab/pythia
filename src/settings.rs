@@ -23,6 +23,7 @@ pub struct Settings {
     pub redis_url: String,
     pub xtrace_url: String,
     pub uber_trace_dir: PathBuf,
+    pub hdfs_control_file: PathBuf,
 
     pub search_strategy: SearchStrategyType,
     pub jiffy: Duration,
@@ -49,8 +50,10 @@ impl Settings {
             .unwrap();
         let results = settings.try_into::<HashMap<String, String>>().unwrap();
         let manifest_file = PathBuf::from(results.get("manifest_file").unwrap());
+        let hdfs_control_file = PathBuf::from(results.get("hdfs_control_file").unwrap());
         Settings {
-            manifest_file: manifest_file,
+            manifest_file,
+            hdfs_control_file,
             redis_url: results.get("redis_url").unwrap().to_string(),
             uber_trace_dir: PathBuf::from(results.get("uber_trace_dir").unwrap()),
             pythia_clients: results

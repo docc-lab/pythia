@@ -37,6 +37,14 @@ impl Manifest {
         result
     }
 
+    pub fn all_tracepoints(&self) -> HashSet<TracepointID> {
+        let mut result = HashSet::new();
+        for ss in self.per_request_type.values() {
+            result.extend(ss.trace_points().iter());
+        }
+        result
+    }
+
     pub fn find_matches<'a>(&'a self, group: &Group) -> Vec<&'a HierarchicalCriticalPath> {
         let now = Instant::now();
         let matches = match self.per_request_type.get(&group.request_type) {

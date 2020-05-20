@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use petgraph::graph::EdgeIndex;
 
-use crate::controller::OSProfilerController;
+use crate::controller::Controller;
 use crate::critical::Path;
 use crate::grouping::Group;
 use crate::manifest::HierarchicalCriticalPath;
@@ -13,7 +13,7 @@ use crate::settings::Settings;
 use crate::trace::TracepointID;
 
 pub struct FlatSearch {
-    controller: &'static OSProfilerController,
+    controller: &'static Box<dyn Controller>,
     manifest: &'static Manifest,
 }
 
@@ -36,7 +36,7 @@ impl SearchStrategy for FlatSearch {
 }
 
 impl FlatSearch {
-    pub fn new(_s: &Settings, m: &'static Manifest, c: &'static OSProfilerController) -> Self {
+    pub fn new(_s: &Settings, m: &'static Manifest, c: &'static Box<dyn Controller>) -> Self {
         FlatSearch {
             controller: c,
             manifest: m,
