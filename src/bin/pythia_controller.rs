@@ -69,7 +69,7 @@ fn main() {
             let mut reader = reader_from_settings(&SETTINGS);
             loop {
                 for trace in reader.get_recent_traces() {
-                    tx.send(trace)
+                    tx.send(CriticalPath::from_trace(&trace).unwrap())
                         .expect("channel will be there waiting for the pool");
                 }
                 sleep(SETTINGS.jiffy);
@@ -87,16 +87,12 @@ fn main() {
         let over_budget = budget_manager.overrun();
 
         // Collect traces, increment groups
-        let traces = rx.try_iter().collect::<Vec<_>>();
-        let critical_paths = traces
-            .iter()
-            .map(|t| CriticalPath::from_trace(t).unwrap())
-            .collect();
+        let critical_paths = rx.try_iter().collect::<Vec<_>>();
         groups.update(&critical_paths);
         budget_manager.update_new_paths(&critical_paths);
         println!(
             "Got {} paths of duration {:?} at time {}us",
-            traces.len(),
+            critical_paths.len(),
             critical_paths
                 .iter()
                 .map(|p| p.duration)
