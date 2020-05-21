@@ -4,7 +4,7 @@ mod historic;
 
 use petgraph::graph::EdgeIndex;
 
-use crate::controller::OSProfilerController;
+use crate::controller::Controller;
 use crate::grouping::Group;
 use crate::manifest::Manifest;
 use crate::search::flat::FlatSearch;
@@ -27,7 +27,7 @@ pub enum SearchStrategyType {
 pub fn get_strategy(
     s: &Settings,
     m: &'static Manifest,
-    c: &'static OSProfilerController,
+    c: &'static Box<dyn Controller>,
 ) -> Box<dyn SearchStrategy> {
     match &s.search_strategy {
         SearchStrategyType::Flat => Box::new(FlatSearch::new(s, m, c)),

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use rand::seq::SliceRandom;
 
-use crate::controller::OSProfilerController;
+use crate::controller::Controller;
 use crate::critical::Path;
 use crate::grouping::Group;
 use crate::manifest::HierarchicalCriticalPath;
@@ -14,7 +14,7 @@ use crate::trace::EventType;
 use crate::trace::TracepointID;
 
 pub struct HierarchicalSearch {
-    controller: &'static OSProfilerController,
+    controller: &'static Box<dyn Controller>,
     manifest: &'static Manifest,
 }
 
@@ -49,7 +49,7 @@ impl SearchStrategy for HierarchicalSearch {
 }
 
 impl HierarchicalSearch {
-    pub fn new(_s: &Settings, m: &'static Manifest, c: &'static OSProfilerController) -> Self {
+    pub fn new(_s: &Settings, m: &'static Manifest, c: &'static Box<dyn Controller>) -> Self {
         HierarchicalSearch {
             controller: c,
             manifest: m,

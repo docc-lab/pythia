@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
 
-use std::collections::HashSet;
+// use std::collections::HashSet;
 use std::fs::File;
 use std::io::prelude::*;
 use std::sync::mpsc::channel;
@@ -12,7 +12,8 @@ use std::time::Instant;
 use threadpool::ThreadPool;
 
 use pythia::budget::BudgetManager;
-use pythia::controller::OSProfilerController;
+use pythia::controller::controller_from_settings;
+use pythia::controller::Controller;
 use pythia::critical::CriticalPath;
 use pythia::critical::Path;
 use pythia::grouping::GroupManager;
@@ -23,7 +24,7 @@ use pythia::settings::Settings;
 
 lazy_static! {
     static ref SETTINGS: Settings = Settings::read();
-    static ref CONTROLLER: OSProfilerController = OSProfilerController::from_settings(&SETTINGS);
+    static ref CONTROLLER: Box<dyn Controller> = controller_from_settings(&SETTINGS);
     static ref MANIFEST: Manifest = Manifest::from_file(&SETTINGS.manifest_file.as_path())
         .expect("Couldn't read manifest from cache");
 }
@@ -114,46 +115,46 @@ fn main() {
         if over_budget || last_gc.elapsed() > SETTINGS.gc_epoch {
             // Run garbage collection
             if over_budget {
-                eprintln!("Over budget, disabling");
-                let enabled_tracepoints: HashSet<_> =
-                    CONTROLLER.enabled_tracepoints().drain(..).collect();
-                let keep_count =
-                    (enabled_tracepoints.len() as f32 * (1.0 - SETTINGS.disable_ratio)) as usize;
-                let mut to_keep = HashSet::new();
-                for g in groups.problem_groups() {
-                    let mut nidx = g.start_node;
-                    while nidx != g.end_node {
-                        if enabled_tracepoints
-                            .get(&(g.at(nidx), Some(g.request_type)))
-                            .is_none()
-                        {
-                            eprintln!(
-                                "{} is not enabled for {} but we got it",
-                                g.at(nidx),
-                                g.request_type
-                            );
-                        } else {
-                            to_keep.insert((g.at(nidx), Some(g.request_type)));
-                            if to_keep.len() > keep_count {
-                                break;
-                            }
-                        }
-                        nidx = g.next_node(nidx).unwrap();
-                    }
+                eprintln!("Over budget, would disable but it's not implemented");
+                // let enabled_tracepoints: HashSet<_> =
+                //     CONTROLLER.enabled_tracepoints().drain(..).collect();
+                // let keep_count =
+                //     (enabled_tracepoints.len() as f32 * (1.0 - SETTINGS.disable_ratio)) as usize;
+                // let mut to_keep = HashSet::new();
+                // for g in groups.problem_groups() {
+                //     let mut nidx = g.start_node;
+                //     while nidx != g.end_node {
+                //         if enabled_tracepoints
+                //             .get(&(g.at(nidx), Some(g.request_type)))
+                //             .is_none()
+                //         {
+                //             eprintln!(
+                //                 "{} is not enabled for {} but we got it",
+                //                 g.at(nidx),
+                //                 g.request_type
+                //             );
+                //         } else {
+                //             to_keep.insert((g.at(nidx), Some(g.request_type)));
+                //             if to_keep.len() > keep_count {
+                //                 break;
+                //             }
+                //         }
+                //         nidx = g.next_node(nidx).unwrap();
+                //     }
 
-                    if to_keep.len() > keep_count {
-                        break;
-                    }
-                }
-                let mut to_disable = Vec::new();
-                for tp in enabled_tracepoints {
-                    if to_keep.get(&tp).is_none() {
-                        to_disable.push(tp);
-                    }
-                }
-                CONTROLLER.disable(&to_disable);
-                writeln!(output_file, "Disabled {}", to_disable.len()).ok();
-                writeln!(output_file, "Disabled {:?}", to_disable).ok();
+                //     if to_keep.len() > keep_count {
+                //         break;
+                //     }
+                // }
+                // let mut to_disable = Vec::new();
+                // for tp in enabled_tracepoints {
+                //     if to_keep.get(&tp).is_none() {
+                //         to_disable.push(tp);
+                //     }
+                // }
+                // CONTROLLER.disable(&to_disable);
+                // writeln!(output_file, "Disabled {}", to_disable.len()).ok();
+                // writeln!(output_file, "Disabled {:?}", to_disable).ok();
             }
             // Disable tracepoints not observed in critical paths
             let to_disable = budget_manager.old_tracepoints();

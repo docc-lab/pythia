@@ -28,7 +28,7 @@ use procinfo::pid::statm_self;
 
 use pythia_common::RequestType;
 
-use crate::controller::OSProfilerController;
+use crate::controller::controller_from_settings;
 use crate::critical::CriticalPath;
 use crate::grouping::Group;
 use crate::manifest::Manifest;
@@ -164,19 +164,20 @@ pub fn make_decision(_epoch_file: &str, _dry_run: bool, _budget: usize) {
 
 pub fn disable_all() {
     let settings = Settings::read();
-    let controller = OSProfilerController::from_settings(&settings);
+    let controller = controller_from_settings(&settings);
     controller.disable_all();
 }
 
 pub fn enable_all() {
     let settings = Settings::read();
-    let controller = OSProfilerController::from_settings(&settings);
+    let controller = controller_from_settings(&settings);
     controller.enable_all();
 }
 
 pub fn disable_tracepoint(t: &str) {
     let settings = Settings::read();
-    let controller = OSProfilerController::from_settings(&settings);
+    assert_eq!(settings.application, ApplicationType::OpenStack);
+    let controller = controller_from_settings(&settings);
     controller.disable_by_name(t);
 }
 
@@ -185,7 +186,7 @@ pub fn enable_skeleton() {
     let manifest_file = &settings.manifest_file;
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
-    let controller = OSProfilerController::from_settings(&settings);
+    let controller = controller_from_settings(&settings);
     controller.disable_all();
     let to_enable = manifest.skeleton();
     controller.enable(&to_enable.iter().map(|&a| (a.clone(), None)).collect());
