@@ -181,6 +181,14 @@ pub fn disable_tracepoint(t: &str) {
     controller.disable_by_name(t);
 }
 
+pub fn recent_traces() {
+    let settings = Settings::read();
+    let mut reader = reader_from_settings(&settings);
+    for trace in reader.get_recent_traces() {
+        println!("Got trace {}: {}", trace.base_id, trace);
+    }
+}
+
 pub fn enable_skeleton() {
     let settings = Settings::read();
     let manifest_file = &settings.manifest_file;

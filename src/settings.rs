@@ -51,17 +51,18 @@ impl Settings {
         let results = settings.try_into::<HashMap<String, String>>().unwrap();
         let manifest_file = PathBuf::from(results.get("manifest_file").unwrap());
         let hdfs_control_file = PathBuf::from(results.get("hdfs_control_file").unwrap());
+        let pythia_clients = results.get("pythia_clients").unwrap();
+        let pythia_clients = if pythia_clients.len() == 0 {
+            Vec::new()
+        } else {
+            pythia_clients.split(",").map(|x| x.to_string()).collect()
+        };
         Settings {
             manifest_file,
             hdfs_control_file,
+            pythia_clients,
             redis_url: results.get("redis_url").unwrap().to_string(),
             uber_trace_dir: PathBuf::from(results.get("uber_trace_dir").unwrap()),
-            pythia_clients: results
-                .get("pythia_clients")
-                .unwrap()
-                .split(",")
-                .map(|x| x.to_string())
-                .collect(),
             application: match results.get("application").unwrap().as_str() {
                 "OpenStack" => ApplicationType::OpenStack,
                 "HDFS" => ApplicationType::HDFS,

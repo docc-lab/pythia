@@ -44,20 +44,30 @@ impl Reader for HDFSReader {
     fn reset_state(&mut self) {}
 
     fn get_recent_traces(&mut self) -> Vec<Trace> {
-        let re = Regex::new(r"<td>|tag/").unwrap();
+        let re1 = Regex::new(r"<td>").unwrap();
+        let re2 = Regex::new(r"tag/").unwrap();
+        let exclude1 = Regex::new(r"offset=").unwrap();
+        let exclude2 = Regex::new(r"<form").unwrap();
         let xtrace_page = self
-            .download_webpage(format!("{}/tag/FsShell", self.xtrace_url))
+            .download_webpage(format!("{}/tag/FsShell?length=100", self.xtrace_url))
             .unwrap();
         let mut result = Vec::new();
         let mut trace_id: Option<String> = None;
         let mut date_passed = false;
         let main_re = Regex::new(r"tag/main").unwrap();
-        for (idx, line) in xtrace_page.lines().filter(|&s| re.is_match(s)).enumerate() {
+        for (idx, line) in xtrace_page
+            .lines()
+            .filter(|&s| re1.is_match(s) || re2.is_match(s))
+            .filter(|&s| !exclude1.is_match(s))
+            .filter(|&s| !exclude2.is_match(s))
+            .enumerate()
+        {
             if idx % 10 == 0 {
                 trace_id = Some(line.split("\"").nth(5).unwrap().to_string());
             } else if idx % 10 == 5 {
                 let date =
-                    NaiveDateTime::parse_from_str(line, "<td>%b %d %Y, %H:%M:%S</td>").unwrap();
+                    NaiveDateTime::parse_from_str(line.trim(), "<td>%b %d %Y, %H:%M:%S</td>")
+                        .unwrap();
                 date_passed = (Local::now().naive_local() - date).to_std().unwrap() > self.jiffy;
             } else if idx % 10 == 8 {
                 if date_passed

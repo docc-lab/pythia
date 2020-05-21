@@ -4,7 +4,7 @@ use std::time::Instant;
 use pythia::{
     disable_all, disable_tracepoint, dump_traces, enable_all, enable_skeleton, get_crit,
     get_manifest, get_trace, group_folder, group_from_ids, make_decision, manifest_from_folder,
-    manifest_stats, measure_search_space_feasibility, read_trace_file, show_config,
+    manifest_stats, measure_search_space_feasibility, read_trace_file, recent_traces, show_config,
     show_key_value_pairs, show_manifest,
 };
 
@@ -64,6 +64,7 @@ fn main() {
                 .arg(Arg::with_name("dry-run").long("dry-run")),
         )
         .subcommand(SubCommand::with_name("disable-all"))
+        .subcommand(SubCommand::with_name("recent-traces"))
         .subcommand(
             SubCommand::with_name("disable-tracepoint")
                 .arg(Arg::with_name("tracepoint-id").required(true).index(1)),
@@ -146,6 +147,9 @@ fn main() {
         }
         ("enable-skeleton", Some(_)) => {
             enable_skeleton();
+        }
+        ("recent-traces", Some(_)) => {
+            recent_traces();
         }
         ("show-config", Some(_)) => {
             show_config();
