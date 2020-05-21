@@ -37,10 +37,11 @@ impl Display for GroupEdge {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Edge({} elements, {:?} max, {:?} min)",
+            "Edge({} elements, {:?} min, {:?} max, {:?} variance)",
             self.duration.len(),
+            self.duration.iter().min().unwrap(),
             self.duration.iter().max().unwrap(),
-            self.duration.iter().min().unwrap()
+            variance(self.duration.iter().map(|&x| x.as_nanos())),
         )
     }
 }
