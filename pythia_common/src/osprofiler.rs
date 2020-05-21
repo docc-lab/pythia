@@ -18,6 +18,7 @@ pub enum RequestType {
     FloatingIPCreate,
     FloatingIPDelete,
     FloatingIPList,
+    UsageList,
     Unknown,
 }
 
@@ -30,6 +31,7 @@ lazy_static! {
         r"openstackclient\.network\.v2\.floating_ip\.CreateFloatingIP\.take_action_network",
         r"openstackclient\.network\.v2\.floating_ip\.ListFloatingIP\.take_action_network",
         r"openstackclient\.network\.v2\.floating_ip\.DeleteFloatingIP\.take_action_network",
+        r"novaclient\.v2\.usage\.UsageManager\.list",
     ])
     .unwrap();
     pub static ref REQUEST_TYPES: Vec<RequestType> = vec![
@@ -39,6 +41,7 @@ lazy_static! {
         RequestType::FloatingIPCreate,
         RequestType::FloatingIPList,
         RequestType::FloatingIPDelete,
+        RequestType::UsageList,
     ];
 }
 
@@ -51,6 +54,7 @@ impl RequestType {
             "FloatingIPCreate" => Ok(RequestType::FloatingIPCreate),
             "FloatingIPDelete" => Ok(RequestType::FloatingIPDelete),
             "FloatingIPList" => Ok(RequestType::FloatingIPList),
+            "UsageList" => Ok(RequestType::UsageList),
             "Unknown" => Ok(RequestType::Unknown),
             _ => Err("Unknown request type"),
         }
