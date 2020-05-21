@@ -1,9 +1,12 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::convert::TryInto;
 use std::error::Error;
+use std::time::Duration;
 
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
+use chrono::offset::Local;
 use chrono::NaiveDateTime;
 use futures::future;
 use futures::future::Future;
@@ -12,6 +15,7 @@ use futures::Async;
 use hyper::rt;
 use hyper::Client;
 use petgraph::graph::NodeIndex;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -23,9 +27,12 @@ use crate::trace::EventType;
 use crate::trace::Trace;
 use crate::trace::TracepointID;
 use crate::trace::{DAGEdge, EdgeType};
+use crate::PythiaError;
 
 pub struct HDFSReader {
     xtrace_url: String,
+    jiffy: Duration,
+    processed_traces: HashSet<String>,
     for_searchspace: bool,
 }
 
@@ -35,41 +42,48 @@ impl Reader for HDFSReader {
     }
 
     fn reset_state(&mut self) {}
+
     fn get_recent_traces(&mut self) -> Vec<Trace> {
-        Vec::new()
+        let re = Regex::new(r"<td>|tag/").unwrap();
+        let xtrace_page = self
+            .download_webpage(format!("{}/tag/FsShell", self.xtrace_url))
+            .unwrap();
+        let mut result = Vec::new();
+        let mut trace_id: Option<String> = None;
+        let mut date_passed = false;
+        let main_re = Regex::new(r"tag/main").unwrap();
+        for (idx, line) in xtrace_page.lines().filter(|&s| re.is_match(s)).enumerate() {
+            if idx % 10 == 0 {
+                trace_id = Some(line.split("\"").nth(5).unwrap().to_string());
+            } else if idx % 10 == 5 {
+                let date =
+                    NaiveDateTime::parse_from_str(line, "<td>%b %d %Y, %H:%M:%S</td>").unwrap();
+                date_passed = (Local::now().naive_local() - date).to_std().unwrap() > self.jiffy;
+            } else if idx % 10 == 8 {
+                if date_passed
+                    && main_re.is_match(line)
+                    && self
+                        .processed_traces
+                        .get(&trace_id.clone().unwrap())
+                        .is_none()
+                {
+                    self.processed_traces.insert(trace_id.clone().unwrap());
+                    result.push(trace_id.clone().unwrap());
+                }
+            }
+        }
+        result
+            .iter()
+            .map(|id| self.get_trace_from_base_id(id))
+            .filter(|x| x.is_ok())
+            .map(|x| x.unwrap())
+            .collect()
     }
 
     fn get_trace_from_base_id(&mut self, id: &str) -> Result<Trace, Box<dyn Error>> {
         assert!(id.len() != 0);
         let urn: String = format!("{}/interactive/reports/{}", self.xtrace_url, id);
-
-        let (tx, mut rx) = futures::sync::mpsc::unbounded();
-
-        let fut = future::lazy(move || {
-            Client::new()
-                .get(urn.parse().unwrap())
-                .and_then(|res| res.into_body().concat2())
-                .and_then(move |body| {
-                    let s = ::std::str::from_utf8(&body).expect("httpbin sends utf-8 JSON");
-                    tx.unbounded_send(s.to_string()).unwrap();
-                    Ok(())
-                })
-                .map_err(|e| eprintln!("RPC Client error: {:?}", e))
-        });
-        rt::run(fut);
-        let mut result = "".to_string();
-        loop {
-            match rx.poll() {
-                Ok(Async::Ready(Some(s))) => {
-                    result = s;
-                }
-                Ok(Async::NotReady) => {}
-                Ok(Async::Ready(None)) => {
-                    break;
-                }
-                Err(e) => panic!("Got error from poll: {:?}", e),
-            }
-        }
+        let result = self.download_webpage(urn)?;
         let mut t: Vec<HDFSTrace> = serde_json::from_str(&result)?;
         assert!(t.len() == 1);
         let mut trace = self.from_json(&mut t[0]);
@@ -106,8 +120,43 @@ impl HDFSReader {
     pub fn from_settings(settings: &Settings) -> Self {
         HDFSReader {
             xtrace_url: settings.xtrace_url.clone(),
+            jiffy: settings.jiffy,
+            processed_traces: HashSet::new(),
             for_searchspace: false,
         }
+    }
+
+    fn download_webpage(&self, urn: String) -> Result<String, Box<dyn Error>> {
+        let (tx, mut rx) = futures::sync::mpsc::unbounded();
+
+        let fut = future::lazy(move || {
+            Client::new()
+                .get(urn.parse().unwrap())
+                .and_then(|res| res.into_body().concat2())
+                .and_then(move |body| {
+                    let s = ::std::str::from_utf8(&body).expect("httpbin sends utf-8 JSON");
+                    tx.unbounded_send(s.to_string()).unwrap();
+                    Ok(())
+                })
+                .map_err(|e| eprintln!("RPC Client error: {:?}", e))
+        });
+        rt::run(fut);
+        let mut result = "".to_string();
+        loop {
+            match rx.poll() {
+                Ok(Async::Ready(Some(s))) => {
+                    result = s;
+                }
+                Ok(Async::NotReady) => {}
+                Ok(Async::Ready(None)) => {
+                    break;
+                }
+                Err(_) => {
+                    return Err(Box::new(PythiaError("Poll got us Err".into())));
+                }
+            }
+        }
+        Ok(result)
     }
 
     fn should_skip_edge(&self, mynode: &Event, parent: &Event) -> bool {
