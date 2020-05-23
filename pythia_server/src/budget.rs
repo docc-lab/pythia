@@ -60,7 +60,11 @@ impl NodeStatReader {
         let measure_time = Instant::now();
         let current_stats = NetworkStats::read(netstat.get(&self.interface).unwrap());
         let cputime = stat.utime + stat.stime + (stat.cutime + stat.cstime) as u64;
-        if self.last_measurement.is_none() {
+        let tps = procfs::ticks_per_second()? as u64;
+        if self.last_measurement.is_none()
+            || self.last_stats.is_none()
+            || self.last_cputime.is_none()
+        {
             // First run
             self.last_measurement = Some(measure_time);
             self.last_stats = Some(current_stats);
@@ -78,7 +82,6 @@ impl NodeStatReader {
             });
         }
         let elapsed = self.last_measurement.unwrap().elapsed().as_secs();
-        let tps = procfs::ticks_per_second().unwrap() as u64;
 
         let result = NodeStats {
             // Network stats
@@ -106,6 +109,7 @@ impl NodeStatReader {
         };
         self.last_stats = Some(current_stats);
         self.last_measurement = Some(measure_time);
+        self.last_cputime = Some(cputime);
         Ok(result)
     }
 }
