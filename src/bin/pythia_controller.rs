@@ -21,6 +21,7 @@ use pythia::manifest::Manifest;
 use pythia::reader::reader_from_settings;
 use pythia::search::get_strategy;
 use pythia::settings::Settings;
+use pythia::trace::TracepointID;
 
 lazy_static! {
     static ref SETTINGS: Settings = Settings::read();
@@ -43,10 +44,15 @@ fn main() {
     let mut last_decision = Instant::now();
     let mut last_gc = Instant::now();
 
+    let mut quit_in = -1;
+    let target = TracepointID::from_str("nova/usr/local/lib/python3.6/dist-packages/nova/consoleauth/manager.py:140:nova.consoleauth.manager.ConsoleAuthManager.delete_tokens_for_instance");
+    eprintln!("Target is {}", target);
+
     let filename = std::env::args().nth(1).unwrap();
     eprintln!("Printing results to {}", filename);
     let mut output_file = File::create(filename).unwrap();
     writeln!(output_file, "{:?}", *SETTINGS).ok();
+    writeln!(output_file, "Target: {}", target).ok();
 
     // Enable skeleton
     CONTROLLER.disable_all();
@@ -196,6 +202,12 @@ fn main() {
                         .map(|&t| (t, Some(g.request_type)))
                         .collect::<Vec<_>>();
                     budget -= decisions.len();
+                    for d in &decisions {
+                        if d.0 == target {
+                            eprintln!("Found the target");
+                            quit_in = 20;
+                        }
+                    }
                     CONTROLLER.enable(&decisions);
                     writeln!(output_file, "Enabled {}", decisions.len()).ok();
                     writeln!(output_file, "Enabled {:?}", decisions).ok();
@@ -212,6 +224,11 @@ fn main() {
             }
 
             last_decision = Instant::now();
+        }
+        quit_in -= 1;
+        if quit_in == 0 {
+            eprintln!("Quitting");
+            return;
         }
 
         jiffy_no += 1;

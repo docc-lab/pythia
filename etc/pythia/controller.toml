@@ -1,4 +1,4 @@
-application = "HDFS" # can be HDFS, OpenStack, Uber
+application = "OpenStack" # can be HDFS, OpenStack, Uber
 search_strategy = "Hierarchical" # can be Flat, Hierarchical, Historic
 
 manifest_file = "/opt/stack/manifest.json"
@@ -8,6 +8,6 @@ uber_trace_dir = "/home/ates/tracing/traces"
 hdfs_control_file = "/local/hdfs/tracing-framework/pythia.txt"
 
 # Split by commas, of the form http://localhost:3030
-pythia_clients = "http://localhost:3030,http://cp-1:3030"
+pythia_clients = "http://ctl:3030,http://cp-1:3030,http://cp-2:3030,http://cp-3:3030"
 
 # remaining settings are defined in src/settings.rs
