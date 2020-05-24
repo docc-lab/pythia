@@ -59,6 +59,13 @@ fn main() {
     let to_enable = MANIFEST
         .skeleton()
         .iter()
+        .map(|a| {
+            if *a == target {
+                panic!("Target is in the skeleton");
+            } else {
+                a
+            }
+        })
         .map(|&a| (a.clone(), None))
         .collect();
     CONTROLLER.enable(&to_enable);
