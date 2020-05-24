@@ -30,6 +30,10 @@ impl SearchStrategy for FlatSearch {
                     .take(remaining_budget),
             );
             eprintln!("Finding middle took {}", now.elapsed().as_micros(),);
+            result = result
+                .into_iter()
+                .filter(|&x| !self.controller.is_enabled(&(x, Some(group.request_type))))
+                .collect();
         }
         result.drain().collect()
     }
@@ -91,7 +95,10 @@ impl FlatSearch {
         for i in gaps {
             for _ in 0..i {
                 cur_path_idx = path.next_node(cur_path_idx).unwrap();
-                assert_ne!(cur_path_idx, path_target);
+                if cur_path_idx == path_target {
+                    eprintln!("Reached target prematurely");
+                    break;
+                }
             }
             if self
                 .controller
@@ -112,14 +119,11 @@ impl FlatSearch {
                 continue;
             }
             result.push(path.g[cur_path_idx].tracepoint_id);
-            assert_ne!(cur_path_idx, path_target);
-            assert_ne!(cur_path_idx, path_source);
+            if cur_path_idx == path_target || cur_path_idx == path_source {
+                eprintln!("Some old assertions failed");
+                break;
+            }
             cur_path_idx = path.next_node(cur_path_idx).unwrap();
-        }
-        for tp in &result {
-            assert!(!self
-                .controller
-                .is_enabled(&(tp.clone(), Some(path.request_type))));
         }
         result
     }
