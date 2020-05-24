@@ -60,6 +60,7 @@ pub struct HierarchicalCriticalPath {
     pub base_id: Uuid,
     pub start_node: NodeIndex,
     pub end_node: NodeIndex,
+    pub hierarchy_starts: HashSet<NodeIndex>,
     pub request_type: RequestType,
     hash: String,
 }
@@ -97,6 +98,7 @@ impl HierarchicalCriticalPath {
             end_node: prev_node,
             hash: "".to_string(),
             request_type: path.request_type,
+            hierarchy_starts: HashSet::new(),
             base_id: path.g.base_id.clone(),
         };
         result.add_hierarchical_edges();
@@ -151,7 +153,7 @@ impl HierarchicalCriticalPath {
                     }
                 }
                 None => {
-                    eprintln!("This node has no context: {}", self.g[next_node]);
+                    self.hierarchy_starts.insert(next_node);
                 }
             }
             match self.g[next_node].variant {

@@ -80,8 +80,10 @@ impl HierarchicalSearch {
                 let nidx = to_eval.1;
                 match nidx {
                     None => {
-                        if m.g[m.start_node].tracepoint_id == tracepoint {
-                            possible_next_nodes.push((to_eval.0 + 1, Some(m.start_node)))
+                        for &nidx in m.hierarchy_starts.iter() {
+                            if m.g[nidx].tracepoint_id == tracepoint {
+                                possible_next_nodes.push((to_eval.0 + 1, Some(nidx)))
+                            }
                         }
                     }
                     Some(nidx) => {

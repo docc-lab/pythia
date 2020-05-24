@@ -202,6 +202,11 @@ fn main() {
                     if budget <= 0 {
                         break;
                     }
+                    let endpoints = g.g.edge_endpoints(edge).unwrap();
+                    println!(
+                        "Searching ({} -> {}): {}",
+                        g.g[endpoints.0], g.g[endpoints.1], g.g[edge]
+                    );
                     let decisions = strategy
                         .search(g, edge, budget)
                         .iter()
