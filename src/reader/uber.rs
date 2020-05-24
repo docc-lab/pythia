@@ -180,7 +180,17 @@ impl UberReader {
                         return Err(raise("Could not add deferred nodes"));
                     }
                     num_tries -= 1;
-                    state.event = deferred_events.pop().unwrap();
+                    let e = deferred_events.pop().unwrap();
+                    match &e.parent_id {
+                        Some(id) => {
+                            if state.active_spans.get(&id.to_uuid()).is_none() {
+                                deferred_events.push(e.clone());
+                                continue;
+                            }
+                        }
+                        _ => {}
+                    }
+                    state.event = e;
                     state.nidx = mydag.g.add_node(event.e.clone());
                     match self.try_add_node(&mut mydag, &mut state) {
                         Ok(_) => {
@@ -192,6 +202,16 @@ impl UberReader {
                         }
                     }
                 }
+            }
+            match &event.parent_id {
+                Some(id) => {
+                    if state.active_spans.get(&id.to_uuid()).is_none() {
+                        deferred_events.push(event.clone());
+                        deferred_timestamp = event.e.timestamp;
+                        continue;
+                    }
+                }
+                _ => {}
             }
             state.nidx = mydag.g.add_node(event.e.clone());
             match self.try_add_node(&mut mydag, &mut state) {

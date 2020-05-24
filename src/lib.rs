@@ -223,6 +223,11 @@ pub fn manifest_stats(manfile: &str) {
     let groups = Group::from_critical_paths(critical_paths);
 
     // Start outputting stats
+    eprintln!(
+        "Trace count: {}, event count: {}",
+        traces.len(),
+        traces.iter().map(|t| t.g.node_count()).sum::<usize>()
+    );
     eprintln!("Manifest construction took {:?}", elapsed);
     let output = Command::new("du")
         .arg("-sh")
