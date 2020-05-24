@@ -161,8 +161,11 @@ impl Manifest {
 
     pub fn skeleton(&self) -> Vec<TracepointID> {
         let mut result = HashSet::new();
-        for cct in self.per_request_type.values() {
-            for tracepoint in cct.get_entry_points() {
+        for ss in self.per_request_type.values() {
+            for tracepoint in ss.get_entry_points() {
+                result.insert(tracepoint);
+            }
+            for tracepoint in ss.get_synchronization_points() {
                 result.insert(tracepoint);
             }
         }

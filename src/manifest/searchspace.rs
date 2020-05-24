@@ -175,6 +175,7 @@ pub struct SearchSpace {
     occurances: HashMap<String, usize>,
     pub added_paths: usize,
     entry_points: HashSet<TracepointID>,
+    synchronization_points: HashSet<TracepointID>,
 }
 
 impl SearchSpace {
@@ -235,6 +236,19 @@ impl SearchSpace {
                 CriticalPath::count_possible_paths(trace)
             );
         }
+        for node in trace.g.node_references() {
+            let in_neighbors = trace
+                .g
+                .neighbors_directed(node.0, Direction::Incoming)
+                .collect::<Vec<_>>();
+            if in_neighbors.len() > 1 {
+                self.synchronization_points
+                    .insert(trace.g[node.0].tracepoint_id);
+                for &n in &in_neighbors {
+                    self.synchronization_points.insert(trace.g[n].tracepoint_id);
+                }
+            }
+        }
         for path in HierarchicalCriticalPath::all_possible_paths(trace) {
             self.added_paths += 1;
             self.entry_points
@@ -285,6 +299,10 @@ impl SearchSpace {
 
     pub fn get_entry_points(&self) -> Vec<TracepointID> {
         self.entry_points.iter().cloned().collect()
+    }
+
+    pub fn get_synchronization_points(&self) -> Vec<TracepointID> {
+        self.synchronization_points.iter().cloned().collect()
     }
 }
 
