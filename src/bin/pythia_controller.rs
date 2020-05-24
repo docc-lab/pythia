@@ -45,7 +45,7 @@ fn main() {
     let mut last_gc = Instant::now();
 
     let mut quit_in = -1;
-    let target = TracepointID::from_str("nova/usr/local/lib/python3.6/dist-packages/nova/consoleauth/manager.py:140:nova.consoleauth.manager.ConsoleAuthManager.delete_tokens_for_instance");
+    let target = TracepointID::from_str("nova/usr/local/lib/python3.6/dist-packages/nova/compute/api.py:522:nova.compute.api.API._check_config_drive");
     eprintln!("Target is {}", target);
 
     let filename = std::env::args().nth(1).unwrap();
