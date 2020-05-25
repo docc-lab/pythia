@@ -29,6 +29,7 @@ pub struct Trace {
     pub end_node: NodeIndex,
     pub request_type: RequestType,
     pub duration: Duration,
+    pub keys: Vec<String>, // used by osprofiler to find keys to delete from redis
 }
 
 impl Trace {
@@ -40,6 +41,7 @@ impl Trace {
             end_node: NodeIndex::end(),
             request_type: RequestType::Unknown,
             duration: Duration::new(0, 0),
+            keys: Vec::new(),
         }
     }
 
@@ -109,7 +111,9 @@ impl Trace {
             let mut iter = self.g.externals(Direction::Outgoing);
             let mut end_node = match iter.next() {
                 Some(nidx) => nidx,
-                None => {break;}
+                None => {
+                    break;
+                }
             };
             if end_node == self.end_node {
                 end_node = match iter.next() {

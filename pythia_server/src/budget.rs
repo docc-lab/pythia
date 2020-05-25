@@ -55,7 +55,7 @@ impl NodeStatReader {
     ) -> Result<NodeStats, Box<dyn Error>> {
         let loadavg = LoadAverage::new()?;
         let netstat = dev_status()?;
-        let current_trace_bytes = reader.get_input_kbps();
+        let (current_trace_bytes, trace_size) = reader.get_stats();
         let stat = Process::myself()?.stat()?;
         let measure_time = Instant::now();
         let current_stats = NetworkStats::read(netstat.get(&self.interface).unwrap());
@@ -79,6 +79,7 @@ impl NodeStatReader {
                 tasks_runnable: 0,
                 trace_input_kbps: 0.0,
                 agent_cpu_time: 0.0,
+                trace_size: 0,
             });
         }
         let elapsed = self.last_measurement.unwrap().elapsed().as_secs();
@@ -106,6 +107,7 @@ impl NodeStatReader {
             // Trace stats
             trace_input_kbps: current_trace_bytes,
             agent_cpu_time: ((cputime - self.last_cputime.unwrap()) / tps) as f64 / elapsed as f64,
+            trace_size: trace_size,
         };
         self.last_stats = Some(current_stats);
         self.last_measurement = Some(measure_time);

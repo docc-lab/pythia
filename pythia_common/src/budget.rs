@@ -16,4 +16,5 @@ pub struct NodeStats {
     // Tracing stats
     pub trace_input_kbps: f32,
     pub agent_cpu_time: f64,
+    pub trace_size: u32,
 }

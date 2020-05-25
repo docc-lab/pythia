@@ -20,6 +20,7 @@ use pythia_common::REQUEST_TYPE_REGEXES;
 
 use crate::critical::CriticalPath;
 use crate::reader::Reader;
+use crate::rpclib::free_keys;
 use crate::rpclib::get_events_from_client;
 use crate::settings::Settings;
 use crate::trace::Event;
@@ -63,6 +64,7 @@ impl Reader for OSProfilerReader {
             ids.push(id.clone());
         }
         let mut traces = Vec::new();
+        let mut keys = Vec::new();
         for id in &ids {
             match self.trace_error_count.get(id) {
                 Some(&i) => {
@@ -94,6 +96,7 @@ impl Reader for OSProfilerReader {
                     if stable {
                         match CriticalPath::from_trace(&t) {
                             Ok(_) => {
+                                keys.extend(t.keys.iter().cloned());
                                 traces.push(t);
                                 self.prev_traces.remove(id);
                                 self.trace_error_count.remove(id);
@@ -111,6 +114,9 @@ impl Reader for OSProfilerReader {
                     *self.trace_error_count.get_mut(id).unwrap() += 1;
                 }
             }
+        }
+        for node in self.client_list.iter() {
+            free_keys(node, keys.clone());
         }
         traces
     }
@@ -301,6 +307,7 @@ impl OSProfilerReader {
         }
         sort_event_list(event_list);
         let base_id = event_list[0].base_id;
+        dag.keys.push(format!("osprofiler:{}", base_id));
         let start_time = event_list[0].timestamp;
         let mut tracepoint_id_map: HashMap<Uuid, String> = HashMap::new();
         // Latest event with the same id, end if event already finished, start if it didn't

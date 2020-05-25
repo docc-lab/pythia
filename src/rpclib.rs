@@ -46,6 +46,10 @@ impl PythiaClient {
     fn read_node_stats(&self) -> impl Future<Item = NodeStats, Error = RpcError> {
         self.0.call_method("read_node_stats", "", ())
     }
+
+    fn free_keys(&self, keys: Vec<String>) -> impl Future<Item = (), Error = RpcError> {
+        self.0.call_method("free_keys", "", keys)
+    }
 }
 
 pub fn read_client_stats(client_uri: &str) -> NodeStats {
@@ -157,6 +161,34 @@ pub fn set_client_tracepoints(
     let run = http::connect(client_uri)
         .and_then(move |client: PythiaClient| {
             client.set_tracepoints(settings).and_then(move |x| {
+                drop(client);
+                tx.unbounded_send(x).unwrap();
+                Ok(())
+            })
+        })
+        .map_err(|e| eprintln!("RPC Client error: {:?}", e));
+
+    rt::run(run);
+    loop {
+        match rx.poll() {
+            Ok(Async::Ready(Some(()))) => {
+                return;
+            }
+            Ok(Async::NotReady) => {}
+            Ok(Async::Ready(None)) => {
+                break;
+            }
+            Err(e) => panic!("Got error from poll: {:?}", e),
+        }
+    }
+}
+
+pub fn free_keys(client_uri: &str, keys: Vec<String>) {
+    let (tx, mut rx) = futures::sync::mpsc::unbounded();
+
+    let run = http::connect(client_uri)
+        .and_then(move |client: PythiaClient| {
+            client.free_keys(keys).and_then(move |x| {
                 drop(client);
                 tx.unbounded_send(x).unwrap();
                 Ok(())

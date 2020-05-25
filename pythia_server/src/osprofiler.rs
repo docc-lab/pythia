@@ -27,17 +27,23 @@ impl OSProfilerReader {
         }
     }
 
+    pub fn free_keys(&mut self, keys: Vec<String>) {
+        self.connection.del::<_, ()>(keys).ok();
+    }
+
     fn restart_connection(&mut self) {
         let client = redis::Client::open(&self.redis_url[..]).unwrap();
         self.connection = client.get_connection().unwrap();
     }
 
-    pub fn get_input_kbps(&mut self) -> f32 {
-        redis::cmd("INFO")
+    pub fn get_stats(&mut self) -> (f32, u32) {
+        let info = redis::cmd("INFO")
             .query::<redis::InfoDict>(&mut self.connection)
-            .unwrap()
-            .get("instantaneous_input_kbps")
-            .unwrap()
+            .unwrap();
+        (
+            info.get("instantaneous_input_kbps").unwrap(),
+            info.get("used_memory").unwrap(),
+        )
     }
 
     /// Public wrapper for get_matches_ that accepts string input and does not return RedisResult
