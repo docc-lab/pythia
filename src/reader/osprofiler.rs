@@ -351,11 +351,20 @@ impl OSProfilerReader {
                         id_map.insert(event.trace_id, nidx);
                         if dag.start_node == NodeIndex::end() {
                             dag.start_node = nidx;
+                            dag.end_node = nidx;
                         }
                         Some(nidx)
                     }
                 }
             };
+            match nidx {
+                Some(nid) => {
+                    if dag.g[nid].timestamp > dag.g[dag.end_node].timestamp {
+                        dag.end_node = nid;
+                    }
+                }
+                None => {}
+            }
             if let OSProfilerEnum::Annotation(s) = &event.info {
                 match &s {
                     AnnotationEnum::WaitFor(_) => {
@@ -551,19 +560,12 @@ impl OSProfilerReader {
                 prev_nidx = nidx;
             }
         }
-        dag.end_node = match nidx {
-            Some(nid) => nid,
-            None => dag.start_node,
-        };
         for (trace_id, parent) in async_traces.iter() {
             let last_node = self.add_asynch(&mut dag, trace_id, *parent)?;
             if last_node.is_none() {
                 continue;
             }
             let last_node = last_node.unwrap();
-            if dag.g[last_node].timestamp > dag.g[dag.end_node].timestamp {
-                dag.end_node = last_node;
-            }
             match &waiters.get(trace_id) {
                 Some(parent) => {
                     dag.g.add_edge(
