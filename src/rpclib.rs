@@ -184,6 +184,9 @@ pub fn set_client_tracepoints(
 }
 
 pub fn free_keys(client_uri: &str, keys: Vec<String>) {
+    if keys.len() == 0 {
+        return;
+    }
     let (tx, mut rx) = futures::sync::mpsc::unbounded();
 
     let run = http::connect(client_uri)
