@@ -47,13 +47,21 @@ impl Manifest {
 
     pub fn find_matches<'a>(&'a self, group: &Group) -> Vec<&'a HierarchicalCriticalPath> {
         let now = Instant::now();
-        let matches = match self.per_request_type.get(&group.request_type) {
-            Some(ss) => ss.find_matches(group, false),
-            None => {
-                panic!(
-                    "Request type {:?} not present in manifest",
-                    group.request_type
-                );
+        let matches = if group.request_type == RequestType::Unknown {
+            let mut result = Vec::new();
+            for ss in self.per_request_type.values() {
+                result.extend(ss.find_matches(group, false).iter());
+            }
+            result
+        } else {
+            match self.per_request_type.get(&group.request_type) {
+                Some(ss) => ss.find_matches(group, false),
+                None => {
+                    panic!(
+                        "Request type {:?} not present in manifest",
+                        group.request_type
+                    );
+                }
             }
         };
         eprintln!(
