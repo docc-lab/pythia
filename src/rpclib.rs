@@ -48,7 +48,7 @@ impl PythiaClient {
     }
 
     fn free_keys(&self, keys: Vec<String>) -> impl Future<Item = (), Error = RpcError> {
-        self.0.call_method("free_keys", "", keys)
+        self.0.call_method("free_keys", "", (keys,))
     }
 }
 
