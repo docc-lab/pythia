@@ -47,8 +47,8 @@ fn main() {
 
     let mut quit_in = -1;
     let mut targets = HashSet::new();
-    targets.insert(TracepointID::from_str("Client.java:458"));
-    targets.insert(TracepointID::from_str("ProtoUtil.java:182"));
+    targets.insert(TracepointID::from_str("nova/usr/local/lib/python3.6/dist-packages/nova/conductor/manager.py:1210:nova.conductor.manager.ComputeTaskManager._volume_size"));
+    targets.insert(TracepointID::from_str("nova/usr/local/lib/python3.6/dist-packages/nova/conductor/manager.py:1222:nova.conductor.manager.ComputeTaskManager._create_block_device_mapping"));
     eprintln!("Targets are {:?}", targets);
 
     let filename = std::env::args().nth(1).unwrap();
@@ -68,7 +68,7 @@ fn main() {
                 if targets.len() == 0 {
                     panic!("Targets are in the skeleton");
                 }
-a
+                a
             } else {
                 a
             }
