@@ -22,6 +22,8 @@ pub trait PythiaAPI {
     fn set_all_tracepoints(&self, to_write: [u8; 1]) -> Result<()>;
     #[rpc(name = "read_node_stats")]
     fn read_node_stats(&self) -> Result<Value>;
+    #[rpc(name = "free_keys")]
+    fn free_keys(&self, keys: Vec<String>) -> Result<()>;
 }
 
 struct PythiaAPIImpl {
@@ -50,7 +52,20 @@ impl PythiaAPI for PythiaAPIImpl {
 
     fn read_node_stats(&self) -> Result<Value> {
         eprintln!("Measuring node stats");
-        Ok(serde_json::to_value(self.stats.lock().unwrap().read_node_stats(&mut self.reader.lock().unwrap()).unwrap()).unwrap())
+        Ok(serde_json::to_value(
+            self.stats
+                .lock()
+                .unwrap()
+                .read_node_stats(&mut self.reader.lock().unwrap())
+                .unwrap(),
+        )
+        .unwrap())
+    }
+
+    fn free_keys(&self, keys: Vec<String>) -> Result<()> {
+        eprintln!("Freeing keys {:?}", keys);
+        self.reader.lock().unwrap().free_keys(keys);
+        Ok(())
     }
 }
 
@@ -59,7 +74,10 @@ fn main() {
     let settings = Settings::read();
     let reader = Arc::new(Mutex::new(OSProfilerReader::from_settings(&settings)));
     let controller = Arc::new(Mutex::new(OSProfilerController::from_settings(&settings)));
-    let stats = Arc::new(Mutex::new(NodeStatReader::from_settings(&settings, &mut reader.lock().unwrap())));
+    let stats = Arc::new(Mutex::new(NodeStatReader::from_settings(
+        &settings,
+        &mut reader.lock().unwrap(),
+    )));
     let mut io = IoHandler::new();
     io.extend_with(
         PythiaAPIImpl {
