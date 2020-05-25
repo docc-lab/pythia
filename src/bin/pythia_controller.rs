@@ -2,6 +2,7 @@
 extern crate lazy_static;
 
 // use std::collections::HashSet;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::prelude::*;
 use std::sync::mpsc::channel;
@@ -45,14 +46,16 @@ fn main() {
     let mut last_gc = Instant::now();
 
     let mut quit_in = -1;
-    let target = TracepointID::from_str("nova/usr/local/lib/python3.6/dist-packages/nova/conductor/manager.py:1222:nova.conductor.manager.ComputeTaskManager._create_block_device_mapping");
-    eprintln!("Target is {}", target);
+    let mut targets = HashSet::new();
+    targets.insert(TracepointID::from_str("Client.java:458"));
+    targets.insert(TracepointID::from_str("ProtoUtil.java:182"));
+    eprintln!("Targets are {:?}", targets);
 
     let filename = std::env::args().nth(1).unwrap();
     eprintln!("Printing results to {}", filename);
     let mut output_file = File::create(filename).unwrap();
     writeln!(output_file, "{:?}", *SETTINGS).ok();
-    writeln!(output_file, "Target: {}", target).ok();
+    writeln!(output_file, "Targets: {:?}", targets).ok();
 
     // Enable skeleton
     CONTROLLER.disable_all();
@@ -60,8 +63,12 @@ fn main() {
         .skeleton()
         .iter()
         .map(|a| {
-            if *a == target {
-                panic!("Target is in the skeleton");
+            if !targets.get(a).is_none() {
+                targets.remove(a);
+                if targets.len() == 0 {
+                    panic!("Targets are in the skeleton");
+                }
+a
             } else {
                 a
             }
@@ -215,9 +222,14 @@ fn main() {
                         .collect::<Vec<_>>();
                     budget -= decisions.len();
                     for d in &decisions {
-                        if d.0 == target {
-                            eprintln!("Found the target");
-                            quit_in = 20;
+                        if !targets.get(&d.0).is_none() {
+                            targets.remove(&d.0);
+                            if targets.len() == 0 {
+                                eprintln!("Found the target");
+                                quit_in = 20;
+                            } else {
+                                eprintln!("Found one target");
+                            }
                         }
                     }
                     CONTROLLER.enable(&decisions);
