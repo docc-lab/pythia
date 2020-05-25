@@ -332,7 +332,6 @@ impl OSProfilerReader {
                     .collect();
                 if matches.len() > 0 {
                     assert!(matches.len() == 1);
-                    assert!(dag.request_type == RequestType::Unknown);
                     dag.request_type = REQUEST_TYPES[matches[0]];
                 }
             }
