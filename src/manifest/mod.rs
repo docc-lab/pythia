@@ -22,7 +22,7 @@ use crate::trace::TracepointID;
 
 pub use crate::manifest::searchspace::HierarchicalCriticalPath;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Manifest {
     pub per_request_type: HashMap<RequestType, SearchSpace>,
     pub request_type_tracepoints: Vec<TracepointID>,

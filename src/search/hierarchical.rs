@@ -136,3 +136,49 @@ impl HierarchicalSearch {
         result
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::controller::Controller;
+    use crate::controller::TestController;
+    use crate::manifest::HierarchicalCriticalPath;
+    use crate::manifest::Manifest;
+    use crate::search::HierarchicalSearch;
+    use crate::settings::Settings;
+    use crate::trace::TracepointID;
+
+    use pythia_common::RequestType;
+
+    lazy_static! {
+        static ref SETTINGS: Settings = Settings::read();
+        static ref CONTROLLER: Box<dyn Controller> = Box::new(TestController::new());
+        static ref MANIFEST: Manifest = Manifest::from_file(&SETTINGS.manifest_file.as_path())
+            .expect("Couldn't read manifest from cache");
+    }
+
+    #[test]
+    fn it_works() {
+        CONTROLLER.disable_all();
+        let search = HierarchicalSearch::new(&SETTINGS, &MANIFEST, &CONTROLLER);
+        let mut manifest = MANIFEST.clone();
+        let mut paths: Vec<HierarchicalCriticalPath> = manifest
+            .per_request_type
+            .get_mut(&RequestType::ServerCreate)
+            .unwrap()
+            .paths
+            .values()
+            .cloned()
+            .collect();
+        for path in paths.iter_mut() {
+            path.hierarchy_starts.insert(path.start_node);
+        }
+        println!(
+            "{:?}",
+            search.search_context(
+                &paths.iter().map(|x| x).collect(), vec![
+                TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
+                TracepointID::from_str("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action")
+                ])
+            );
+    }
+}

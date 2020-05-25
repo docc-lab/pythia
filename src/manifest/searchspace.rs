@@ -134,6 +134,7 @@ impl HierarchicalCriticalPath {
             }
         }
         assert!(self.g[prev_node].variant == EventType::Entry);
+        self.hierarchy_starts.insert(prev_node);
         context.push(prev_node);
         loop {
             let next_node = match self.next_node(prev_node) {
@@ -171,9 +172,9 @@ impl HierarchicalCriticalPath {
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct SearchSpace {
-    paths: HashMap<String, HierarchicalCriticalPath>, // key is the hash of the critical path
+    pub paths: HashMap<String, HierarchicalCriticalPath>, // key is the hash of the critical path
     occurances: HashMap<String, usize>,
     pub added_paths: usize,
     entry_points: HashSet<TracepointID>,

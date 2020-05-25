@@ -28,3 +28,21 @@ pub fn controller_from_settings(settings: &Settings) -> Box<dyn Controller> {
         ApplicationType::Uber => panic!("Can't control uber"),
     }
 }
+
+pub struct TestController {}
+
+impl TestController {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Controller for TestController {
+    fn enable(&self, _: &Vec<(TracepointID, Option<RequestType>)>) {}
+    fn disable(&self, _: &Vec<(TracepointID, Option<RequestType>)>) {}
+    fn is_enabled(&self, _: &(TracepointID, Option<RequestType>)) -> bool {
+        false
+    }
+    fn disable_all(&self) {}
+    fn enable_all(&self) {}
+}
