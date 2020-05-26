@@ -18,6 +18,7 @@ pub struct BudgetManager {
     last_stats: HashMap<String, NodeStats>,
     last_seen: HashMap<(TracepointID, Option<RequestType>), Instant>,
     gc_keep_duration: Duration,
+    trace_size_limit: u32,
 }
 
 impl BudgetManager {
@@ -27,6 +28,7 @@ impl BudgetManager {
             last_stats: HashMap::new(),
             last_seen: HashMap::new(),
             gc_keep_duration: settings.gc_keep_duration,
+            trace_size_limit: settings.trace_size_limit,
         }
     }
 
@@ -50,12 +52,11 @@ impl BudgetManager {
     }
 
     pub fn overrun(&self) -> bool {
+        let mut total_traces = 0;
         for stats in self.last_stats.values() {
-            if stats.trace_input_kbps > 500.0 {
-                return true;
-            }
+            total_traces += stats.trace_size;
         }
-        false
+        total_traces > self.trace_size_limit
     }
 
     pub fn update_new_paths(&mut self, paths: &Vec<CriticalPath>) {

@@ -47,8 +47,7 @@ fn main() {
 
     let mut quit_in = -1;
     let mut targets = HashSet::new();
-    targets.insert(TracepointID::from_str("nova/usr/local/lib/python3.6/dist-packages/nova/conductor/manager.py:1210:nova.conductor.manager.ComputeTaskManager._volume_size"));
-    targets.insert(TracepointID::from_str("nova/usr/local/lib/python3.6/dist-packages/nova/conductor/manager.py:1222:nova.conductor.manager.ComputeTaskManager._create_block_device_mapping"));
+    targets.insert(TracepointID::from_str("nova/usr/local/lib/python3.6/dist-packages/nova/compute/manager.py:1859:nova.compute.manager.ComputeManager._update_scheduler_instance_info"));
     eprintln!("Targets are {:?}", targets);
 
     let filename = std::env::args().nth(1).unwrap();
