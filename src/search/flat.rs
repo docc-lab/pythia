@@ -104,14 +104,21 @@ impl FlatSearch {
                 .controller
                 .is_enabled(&(path.g[cur_path_idx].tracepoint_id, Some(path.request_type)))
             {
-                cur_path_idx = path.next_node(cur_path_idx).unwrap();
-                if cur_path_idx == path_target {
-                    cur_path_idx = path.prev_node(cur_path_idx).unwrap();
-                    cur_path_idx = path.prev_node(cur_path_idx).unwrap();
-                    if cur_path_idx == path_source {
-                        println!("Couldn't find not enabled nodes in between");
-                        continue;
+                match path.next_node(cur_path_idx) {
+                    Some(nidx) => {
+                        cur_path_idx = nidx;
+                        if cur_path_idx == path_target {
+                            cur_path_idx = path.prev_node(cur_path_idx).unwrap();
+                            cur_path_idx = path.prev_node(cur_path_idx).unwrap();
+                        }
                     }
+                    None => {
+                        cur_path_idx = path.prev_node(cur_path_idx).unwrap();
+                    }
+                };
+                if cur_path_idx == path_source {
+                    println!("Couldn't find not enabled nodes in between");
+                    continue;
                 }
             }
             if cur_path_idx == path_target {
