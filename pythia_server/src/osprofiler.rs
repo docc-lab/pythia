@@ -42,7 +42,7 @@ impl OSProfilerReader {
             .unwrap();
         (
             info.get("instantaneous_input_kbps").unwrap(),
-            info.get("used_memory").unwrap(),
+            info.get("used_memory_dataset").unwrap(),
         )
     }
 
