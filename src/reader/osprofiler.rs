@@ -36,6 +36,7 @@ pub struct OSProfilerReader {
     prev_traces: HashMap<String, Duration>,
     trace_error_count: HashMap<String, usize>,
     for_searchspace: bool,
+    free_keys: bool,
 }
 
 impl Reader for OSProfilerReader {
@@ -115,8 +116,10 @@ impl Reader for OSProfilerReader {
                 }
             }
         }
+        if self.free_keys {
         for node in self.client_list.iter() {
             free_keys(node, keys.clone());
+        }
         }
         traces
     }
@@ -274,6 +277,7 @@ impl OSProfilerReader {
             prev_traces: HashMap::new(),
             trace_error_count: HashMap::new(),
             for_searchspace: false,
+            free_keys: settings.free_keys,
         }
     }
 

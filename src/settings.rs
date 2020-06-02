@@ -15,6 +15,7 @@ const TRACEPOINTS_PER_EPOCH: usize = 3;
 const DISABLE_RATIO: f32 = 0.1;
 const TRACE_SIZE_LIMIT: u32 = 100000000;
 const N_WORKERS: usize = 4;
+const FREE_KEYS: bool = false;
 
 #[derive(Debug)]
 pub struct Settings {
@@ -35,6 +36,7 @@ pub struct Settings {
     pub disable_ratio: f32,
     pub trace_size_limit: u32,
     pub n_workers: usize,
+    pub free_keys: bool,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -86,6 +88,7 @@ impl Settings {
             disable_ratio: DISABLE_RATIO,
             trace_size_limit: TRACE_SIZE_LIMIT,
             n_workers: N_WORKERS,
+            free_keys: FREE_KEYS,
         }
     }
 }

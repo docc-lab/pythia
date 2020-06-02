@@ -300,6 +300,16 @@ impl SearchSpace {
         );
     }
 
+    pub fn get_top_hierarchy(&self) -> Vec<TracepointID> {
+        let mut result = HashSet::new();
+        for p in self.paths.values() {
+            for &tp in &p.hierarchy_starts {
+                result.insert(p.g[tp].tracepoint_id);
+            }
+        }
+        result.drain().collect()
+    }
+
     pub fn get_entry_points(&self) -> Vec<TracepointID> {
         self.entry_points.iter().cloned().collect()
     }

@@ -176,6 +176,9 @@ impl Manifest {
             for tracepoint in ss.get_synchronization_points() {
                 result.insert(tracepoint);
             }
+            for tracepoint in ss.get_top_hierarchy() {
+                result.insert(tracepoint);
+            }
         }
         result.extend(self.request_type_tracepoints.iter());
         result.iter().cloned().collect()
