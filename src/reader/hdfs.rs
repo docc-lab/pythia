@@ -34,6 +34,7 @@ pub struct HDFSReader {
     jiffy: Duration,
     processed_traces: HashSet<String>,
     for_searchspace: bool,
+    simplify_trace: bool,
 }
 
 impl Reader for HDFSReader {
@@ -55,7 +56,7 @@ impl Reader for HDFSReader {
         let mut trace_id: Option<String> = None;
         let mut date_passed = false;
         let main_re = Regex::new(r"tag/main").unwrap();
-	let delete_all = self.processed_traces.len() == 0;
+        let delete_all = self.processed_traces.len() == 0;
         for (idx, line) in xtrace_page
             .lines()
             .filter(|&s| re1.is_match(s) || re2.is_match(s))
@@ -79,9 +80,9 @@ impl Reader for HDFSReader {
                         .is_none()
                 {
                     self.processed_traces.insert(trace_id.clone().unwrap());
-		if !delete_all {
-                    result.push(trace_id.clone().unwrap());
-}
+                    if !delete_all {
+                        result.push(trace_id.clone().unwrap());
+                    }
                 }
             }
         }
@@ -136,6 +137,7 @@ impl HDFSReader {
             jiffy: settings.jiffy,
             processed_traces: HashSet::new(),
             for_searchspace: false,
+            simplify_trace: false,
         }
     }
 
@@ -173,30 +175,36 @@ impl HDFSReader {
     }
 
     fn should_skip_edge(&self, mynode: &Event, parent: &Event) -> bool {
-false
-//        (mynode.tracepoint_id == TracepointID::from_str("Client.java:1076")
-//            && parent.tracepoint_id == TracepointID::from_str("Client.java:1044"))
-//            || (mynode.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:441")
-//                && parent.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:1669"))
-//            || (mynode.tracepoint_id == TracepointID::from_str("BlockReceiver.java:1322")
-//                && parent.tracepoint_id == TracepointID::from_str("BlockReceiver.java:903"))
-//            || (mynode.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:441")
-//                && parent.tracepoint_id == TracepointID::from_str("SocketOutputStream.java:63"))
-//            || (mynode.tracepoint_id == TracepointID::from_str("PacketHeader.java:164")
-//                && parent.tracepoint_id == TracepointID::from_str("SocketInputStream.java:57"))
-//            || (mynode.tracepoint_id == TracepointID::from_str("BlockReceiver.java:1322")
-//                && parent.tracepoint_id == TracepointID::from_str("SocketOutputStream.java:63"))
-//            || (mynode.tracepoint_id == TracepointID::from_str("PipelineAck.java:257")
-//                && parent.tracepoint_id == TracepointID::from_str("SocketInputStream.java:57"))
-//            || (mynode.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:2271")
-//                && parent.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:1805"))
+        if self.simplify_trace {
+            (mynode.tracepoint_id == TracepointID::from_str("Client.java:1076")
+                && parent.tracepoint_id == TracepointID::from_str("Client.java:1044"))
+                || (mynode.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:441")
+                    && parent.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:1669"))
+                || (mynode.tracepoint_id == TracepointID::from_str("BlockReceiver.java:1322")
+                    && parent.tracepoint_id == TracepointID::from_str("BlockReceiver.java:903"))
+                || (mynode.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:441")
+                    && parent.tracepoint_id == TracepointID::from_str("SocketOutputStream.java:63"))
+                || (mynode.tracepoint_id == TracepointID::from_str("PacketHeader.java:164")
+                    && parent.tracepoint_id == TracepointID::from_str("SocketInputStream.java:57"))
+                || (mynode.tracepoint_id == TracepointID::from_str("BlockReceiver.java:1322")
+                    && parent.tracepoint_id == TracepointID::from_str("SocketOutputStream.java:63"))
+                || (mynode.tracepoint_id == TracepointID::from_str("PipelineAck.java:257")
+                    && parent.tracepoint_id == TracepointID::from_str("SocketInputStream.java:57"))
+                || (mynode.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:2271")
+                    && parent.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:1805"))
+        } else {
+            false
+        }
     }
 
     fn should_skip_node(&self, node: &HDFSEvent, event: &Event) -> bool {
-false
-//        node.label == "waited"
-//            || event.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:387")
-//            || event.tracepoint_id == TracepointID::from_str("BlockReceiver.java:1280")
+        if self.simplify_trace {
+            node.label == "waited"
+                || event.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:387")
+                || event.tracepoint_id == TracepointID::from_str("BlockReceiver.java:1280")
+        } else {
+            false
+        }
     }
 
     fn from_json(&self, data: &mut HDFSTrace) -> Trace {

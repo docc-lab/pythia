@@ -45,9 +45,20 @@ impl Reader for OSProfilerReader {
     }
 
     fn reset_state(&mut self) {
-        redis::cmd("flushall")
-            .query::<()>(&mut self.connection)
-            .ok();
+        if self.free_keys {
+            redis::cmd("flushall")
+                .query::<()>(&mut self.connection)
+                .ok();
+        } else {
+            loop {
+                match self.connection.lpop::<_, String>("osprofiler_traces") {
+                    Ok(_) => {}
+                    Err(_) => {
+                        break;
+                    }
+                };
+            }
+        }
     }
 
     fn get_recent_traces(&mut self) -> Vec<Trace> {
@@ -117,9 +128,9 @@ impl Reader for OSProfilerReader {
             }
         }
         if self.free_keys {
-        for node in self.client_list.iter() {
-            free_keys(node, keys.clone());
-        }
+            for node in self.client_list.iter() {
+                free_keys(node, keys.clone());
+            }
         }
         traces
     }
