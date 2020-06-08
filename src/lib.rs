@@ -24,8 +24,8 @@ use std::time::Duration;
 use std::time::Instant;
 
 use itertools::Itertools;
+#[cfg(target_os = "linux")]
 use procinfo::pid::statm_self;
-
 use pythia_common::RequestType;
 
 use crate::controller::controller_from_settings;
@@ -202,122 +202,125 @@ pub fn enable_skeleton() {
 }
 
 pub fn manifest_stats(manfile: &str) {
-    let settings = Settings::read();
-    let mut reader = reader_from_settings(&settings);
-    reader.for_searchspace();
-    let traces = reader.read_trace_file(manfile);
-    let now = Instant::now();
-    let manifest = Manifest::from_trace_list(&traces);
-    let elapsed = now.elapsed();
-    println!("Overwriting manifest file");
-    let manifest_file = settings.manifest_file;
-    manifest.to_file(manifest_file.as_path());
-    let prev_stats = statm_self().unwrap();
-    let manifest =
-        Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
-    let after_stats = statm_self().unwrap();
-    let critical_paths = traces
-        .iter()
-        .filter_map(|t| CriticalPath::from_trace(t).ok())
-        .collect::<Vec<CriticalPath>>();
-    let groups = Group::from_critical_paths(critical_paths);
+    #[cfg(target_os = "linux")]
+    {
+        let settings = Settings::read();
+        let mut reader = reader_from_settings(&settings);
+        reader.for_searchspace();
+        let traces = reader.read_trace_file(manfile);
+        let now = Instant::now();
+        let manifest = Manifest::from_trace_list(&traces);
+        let elapsed = now.elapsed();
+        println!("Overwriting manifest file");
+        let manifest_file = settings.manifest_file;
+        manifest.to_file(manifest_file.as_path());
+        let prev_stats = statm_self().unwrap();
+        let manifest = Manifest::from_file(manifest_file.as_path())
+            .expect("Couldn't read manifest from cache");
+        let after_stats = statm_self().unwrap();
+        let critical_paths = traces
+            .iter()
+            .filter_map(|t| CriticalPath::from_trace(t).ok())
+            .collect::<Vec<CriticalPath>>();
+        let groups = Group::from_critical_paths(critical_paths);
 
-    // Start outputting stats
-    eprintln!(
-        "Trace count: {}, event count: {}",
-        traces.len(),
-        traces.iter().map(|t| t.g.node_count()).sum::<usize>()
-    );
-    eprintln!("Manifest construction took {:?}", elapsed);
-    let output = Command::new("du")
-        .arg("-sh")
-        .arg(manifest_file)
-        .output()
-        .unwrap();
-    eprint!(
-        "Manifest size on disk:\n{}",
-        String::from_utf8(output.stdout).unwrap()
-    );
-    eprintln!(
-        "Manifest size in # of tracepoints: {}",
-        manifest
+        // Start outputting stats
+        eprintln!(
+            "Trace count: {}, event count: {}",
+            traces.len(),
+            traces.iter().map(|t| t.g.node_count()).sum::<usize>()
+        );
+        eprintln!("Manifest construction took {:?}", elapsed);
+        let output = Command::new("du")
+            .arg("-sh")
+            .arg(manifest_file)
+            .output()
+            .unwrap();
+        eprint!(
+            "Manifest size on disk:\n{}",
+            String::from_utf8(output.stdout).unwrap()
+        );
+        eprintln!(
+            "Manifest size in # of tracepoints: {}",
+            manifest
+                .per_request_type
+                .iter()
+                .map(|(_, p)| p.path_lengths().iter().sum::<usize>())
+                .sum::<usize>()
+        );
+        eprintln!(
+            "Memory footprint (in pages):\nsize: {}, resident: {}, share: {}, text: {}, data: {}",
+            after_stats.size - prev_stats.size,
+            after_stats.resident - prev_stats.resident,
+            after_stats.share - prev_stats.share,
+            after_stats.text - prev_stats.text,
+            after_stats.data - prev_stats.data
+        );
+        let output = Command::new("getconf").arg("PAGESIZE").output().unwrap();
+        eprint!(
+            "Page size in bytes: {}",
+            String::from_utf8(output.stdout).unwrap()
+        );
+        eprintln!(
+            "Number of paths per request type:\n{}",
+            manifest
+                .per_request_type
+                .iter()
+                .map(|(k, v)| { format!("{}: {}", k, v.path_count()) })
+                .join("\n")
+        );
+        eprintln!(
+            "Total number of paths: {:?}, added paths: {:?}",
+            manifest
+                .per_request_type
+                .iter()
+                .map(|(_, v)| v.path_count())
+                .sum::<usize>(),
+            manifest
+                .per_request_type
+                .iter()
+                .map(|(_, v)| v.added_paths)
+                .sum::<usize>()
+        );
+        eprintln!(
+            "Number of unique tracepoints observed in search space: {}",
+            manifest
+                .per_request_type
+                .iter()
+                .map(|(_, v)| { v.trace_points() })
+                .flatten()
+                .collect::<HashSet<_>>()
+                .len()
+        );
+        let path_lens = manifest
             .per_request_type
             .iter()
-            .map(|(_, p)| p.path_lengths().iter().sum::<usize>())
-            .sum::<usize>()
-    );
-    eprintln!(
-        "Memory footprint (in pages):\nsize: {}, resident: {}, share: {}, text: {}, data: {}",
-        after_stats.size - prev_stats.size,
-        after_stats.resident - prev_stats.resident,
-        after_stats.share - prev_stats.share,
-        after_stats.text - prev_stats.text,
-        after_stats.data - prev_stats.data
-    );
-    let output = Command::new("getconf").arg("PAGESIZE").output().unwrap();
-    eprint!(
-        "Page size in bytes: {}",
-        String::from_utf8(output.stdout).unwrap()
-    );
-    eprintln!(
-        "Number of paths per request type:\n{}",
-        manifest
-            .per_request_type
-            .iter()
-            .map(|(k, v)| { format!("{}: {}", k, v.path_count()) })
-            .join("\n")
-    );
-    eprintln!(
-        "Total number of paths: {:?}, added paths: {:?}",
-        manifest
-            .per_request_type
-            .iter()
-            .map(|(_, v)| v.path_count())
-            .sum::<usize>(),
-        manifest
-            .per_request_type
-            .iter()
-            .map(|(_, v)| v.added_paths)
-            .sum::<usize>()
-    );
-    eprintln!(
-        "Number of unique tracepoints observed in search space: {}",
-        manifest
-            .per_request_type
-            .iter()
-            .map(|(_, v)| { v.trace_points() })
+            .map(|(_, v)| v.path_lengths())
             .flatten()
-            .collect::<HashSet<_>>()
-            .len()
-    );
-    let path_lens = manifest
-        .per_request_type
-        .iter()
-        .map(|(_, v)| v.path_lengths())
-        .flatten()
-        .collect::<Vec<usize>>();
-    eprintln!(
-        "Min/Average/Max path length: {}, {}, {}",
-        path_lens.iter().min().unwrap(),
-        path_lens.iter().map(|&x| x as f64).sum::<f64>() / path_lens.len() as f64,
-        path_lens.iter().max().unwrap(),
-    );
-    // Warm-up
-    let _ = groups
-        .iter()
-        .take(10)
-        .map(|t| manifest.match_performance(t))
-        .collect::<Vec<_>>();
-    let performances = groups
-        .iter()
-        .map(|t| manifest.match_performance(t))
-        .collect::<Vec<_>>();
-    eprintln!(
-        "Time to match: min {:?}, max {:?}, mean {:?}",
-        performances.iter().min().unwrap(),
-        performances.iter().max().unwrap(),
-        performances.iter().sum::<Duration>() / (performances.len() as u32)
-    );
+            .collect::<Vec<usize>>();
+        eprintln!(
+            "Min/Average/Max path length: {}, {}, {}",
+            path_lens.iter().min().unwrap(),
+            path_lens.iter().map(|&x| x as f64).sum::<f64>() / path_lens.len() as f64,
+            path_lens.iter().max().unwrap(),
+        );
+        // Warm-up
+        let _ = groups
+            .iter()
+            .take(10)
+            .map(|t| manifest.match_performance(t))
+            .collect::<Vec<_>>();
+        let performances = groups
+            .iter()
+            .map(|t| manifest.match_performance(t))
+            .collect::<Vec<_>>();
+        eprintln!(
+            "Time to match: min {:?}, max {:?}, mean {:?}",
+            performances.iter().min().unwrap(),
+            performances.iter().max().unwrap(),
+            performances.iter().sum::<Duration>() / (performances.len() as u32)
+        );
+    }
 }
 
 pub fn show_manifest(request_type: &str) {

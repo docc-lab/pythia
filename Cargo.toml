@@ -32,5 +32,6 @@ bimap = "*"
 genawaiter = "*"
 itertools = "*"
 config = "*"
-procinfo = "*"
 threadpool = "*"
+[target.'cfg(target_os = "linux")'.dependencies]
+procinfo = "*"
