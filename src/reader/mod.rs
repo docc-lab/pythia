@@ -47,6 +47,7 @@ pub trait Reader {
     }
 }
 
+/// Constructor for Reader
 pub fn reader_from_settings(settings: &Settings) -> Box<dyn Reader> {
     match &settings.application {
         ApplicationType::OpenStack => Box::new(OSProfilerReader::from_settings(settings)),

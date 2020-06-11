@@ -250,7 +250,7 @@ impl Reader for OSProfilerReader {
     */
 
     fn get_trace_from_base_id(&mut self, id: &str) -> Result<Trace, Box<dyn Error>> {
-        println!("Working on {}", id);
+        eprintln!("Working on {}", id);
         let mut result = match Uuid::parse_str(id) {
             Ok(uuid) => {
                 let event_list = self.get_all_matches(&uuid);
