@@ -6,6 +6,7 @@ use redis::FromRedisValue;
 use redis::Value;
 use uuid::Uuid;
 
+
 use pythia_common::OSProfilerEnum;
 use pythia_common::OSProfilerSpan;
 
@@ -113,3 +114,42 @@ fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
     }
     Ok(result)
 }
+/*
+#[cfg(test)]
+mod tests {
+/*use redis::Commands;
+use redis::Connection;
+use redis::FromRedisValue;
+use redis::Value;
+use uuid::Uuid;
+use std::collections::HashMap;
+use std::fmt; */
+
+use chrono::naive::{NaiveDate, NaiveTime, NaiveDateTime};
+
+use pythia_common::OSProfilerEnum;
+use pythia_common::OSProfilerSpan;
+
+use crate::settings::Settings;
+
+    use super::*;
+
+    #[test]
+        fn test_parse() {
+         let mut value = String::new();
+
+        let d = NaiveDate::from_ymd(2015, 6, 3);
+        let t = NaiveTime::from_hms_milli(12, 34, 56, 789);
+
+       let dt = NaiveDateTime::new(d, t);
+       let y:u64= 293402358;
+
+    let current_info = OSProfilerEnum {value: y, tracepoint_id: "nova/usr/local".to_string(), host: "cloudlab".to_string(), thread_id: 5743728237, pid: 4771};
+      let my_uuid = Uuid::parse_str("936DA01F9ABD4d9d80C702AF85C822A8").unwrap();
+            let testStruct = OSProfilerSpan {trace_id: my_uuid, parent_id: my_uuid, project: "nova".to_string(), name:"build_instance".to_string(), base_id: my_uuid, service: "nova".to_string(), tracepoint_id: "nova/manager.py".to_string(), timestamp: dt, info: current_info};
+
+
+            assert_eq!(parse_field({trace_id: my_uuid, parent_id: my_uuid, project: "nova", name:"build_instance", base_id: my_uuid, service: "nova", tracepoint_id: "nova/manager.py", timestamp: dt , info: {"value": y, tracepoint_id: "nova/usr/local", host: "cloudlab", thread_id: 5743728237, pid: 4771}}),Ok(testStruct));
+    }
+}
+*/

@@ -830,6 +830,7 @@ dependencies = [
 name = "pythia_server"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "config",
  "jsonrpc-core",
  "jsonrpc-derive",
