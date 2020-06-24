@@ -126,6 +126,17 @@ pub enum AnnotationEnum {
     Child(ChildAnnotationInfo),
     Plain(PlainAnnotationInfo),
     Log(LogAnnotationInfo),
+    KeyValue(KeyValueAnnotationInfo),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct KeyValueAnnotationInfo {
+    value: u64,
+    tracepoint_id: String,
+    host: String,
+    thread_id: u64,
+    pid: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
