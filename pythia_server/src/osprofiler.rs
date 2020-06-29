@@ -6,10 +6,10 @@ use redis::FromRedisValue;
 use redis::Value;
 use uuid::Uuid;
 
-
-use pythia_common::OSProfilerEnum;
+//use pythia_common::OSProfilerEnum;
+use pythia_common::osprofiler;
 use pythia_common::OSProfilerSpan;
-
+//mod pythia_common::osprofiler;
 use crate::settings::Settings;
 
 pub struct OSProfilerReader {
@@ -85,7 +85,7 @@ impl OSProfilerReader {
         let mut result = Vec::new();
         let to_parse = to_parse.unwrap();
         for dict_string in to_parse[1..to_parse.len() - 1].split("}{") {
-            match parse_field(&("{".to_string() + dict_string + "}")) {
+            match osprofiler::parse_field(&("{".to_string() + dict_string + "}")) {
                 Ok(span) => {
                     result.push(span);
                 }

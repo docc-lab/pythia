@@ -276,8 +276,6 @@ pub mod serde_timestamp {
     }
 }
 
-
-
 pub fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
     let result: OSProfilerSpan = match serde_json::from_str(field) {
         Ok(a) => a,
@@ -300,27 +298,42 @@ pub fn parse_field(field: &String) -> Result<OSProfilerSpan, String> {
 #[cfg(test)]
 mod tests {
 
-use chrono::naive::{NaiveDate, NaiveTime, NaiveDateTime};
+    use chrono::naive::{NaiveDate, NaiveDateTime, NaiveTime};
 
     use super::*;
 
     #[test]
-        fn test_parse() {
-
+    fn test_parse() {
         let d = NaiveDate::from_ymd(2020, 06, 23);
         let t = NaiveTime::from_hms_milli(14, 32, 34, 0058);
 
-       let dt = NaiveDateTime::new(d, t);
-       let y:u64= 293402358;
+        let dt = NaiveDateTime::new(d, t);
+        let y: u64 = 293402358;
 
-    let current_info = OSProfilerEnum::Annotation(AnnotationEnum::KeyValue(KeyValueAnnotationInfo {value: y, tracepoint_id: "nova/usr/local".to_string(), host: "cloudlab".to_string(), thread_id: 5743728237, pid: 4771}));
+        let current_info =
+            OSProfilerEnum::Annotation(AnnotationEnum::KeyValue(KeyValueAnnotationInfo {
+                value: y,
+                tracepoint_id: "nova/usr/local".to_string(),
+                host: "cloudlab".to_string(),
+                thread_id: 5743728237,
+                pid: 4771,
+            }));
 
-    let my_uuid = Uuid::parse_str("936DA01F9ABD4d9d80C702AF85C822A8").unwrap();
+        let my_uuid = Uuid::parse_str("936DA01F9ABD4d9d80C702AF85C822A8").unwrap();
 
-    let test_struct = OSProfilerSpan {trace_id: my_uuid, parent_id: my_uuid, project: "nova".to_string(), name:"build_instance".to_string(), base_id: my_uuid, service: "nova".to_string(), tracepoint_id: "nova/manager.py".to_string(), timestamp: dt, info: current_info};
+        let test_struct = OSProfilerSpan {
+            trace_id: my_uuid,
+            parent_id: my_uuid,
+            project: "nova".to_string(),
+            name: "build_instance".to_string(),
+            base_id: my_uuid,
+            service: "nova".to_string(),
+            tracepoint_id: "nova/manager.py".to_string(),
+            timestamp: dt,
+            info: current_info,
+        };
 
-//checking if parse_field function works with the added struct to parse the code correctly
-         assert_eq!(parse_field(&(r#"{"trace_id": "936DA01F9ABD4d9d80C702AF85C822A8", "parent_id": "936DA01F9ABD4d9d80C702AF85C822A8", "project": "nova", "name": "build_instance",  "base_id": "936DA01F9ABD4d9d80C702AF85C822A8", "service": "nova", "tracepoint_id": "nova/manager.py", "timestamp": "2020-06-23T14:32:34.058", "info": {"value":293402358,"tracepoint_id": "nova/usr/local", "host": "cloudlab", "thread_id": 5743728237, "pid": 4771}}"#).to_string()),Ok(test_struct));
-
-        }
+        //checking if parse_field function works with the added struct to parse the code correctly
+        assert_eq!(parse_field(&(r#"{"trace_id": "936DA01F9ABD4d9d80C702AF85C822A8", "parent_id": "936DA01F9ABD4d9d80C702AF85C822A8", "project": "nova", "name": "build_instance",  "base_id": "936DA01F9ABD4d9d80C702AF85C822A8", "service": "nova", "tracepoint_id": "nova/manager.py", "timestamp": "2020-06-23T14:32:34.058", "info": {"value":293402358,"tracepoint_id": "nova/usr/local", "host": "cloudlab", "thread_id": 5743728237, "pid": 4771}}"#).to_string()),Ok(test_struct));
+    }
 }

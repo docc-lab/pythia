@@ -2,7 +2,7 @@
 extern crate lazy_static;
 
 mod budget;
-mod osprofiler;
+pub mod osprofiler;
 
 use std::error::Error;
 use std::fmt;
