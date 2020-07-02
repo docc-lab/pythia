@@ -1,3 +1,8 @@
+//! This is the source code for Pythia.
+//!
+//! # Project Structure
+//! * [Controller](../pythia_controller/index.html)
+
 #[macro_use]
 extern crate lazy_static;
 
