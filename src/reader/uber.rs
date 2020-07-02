@@ -139,6 +139,7 @@ impl UberReader {
                     timestamp: start_time,
                     is_synthetic: false,
                     variant: EventType::Entry,
+                    key_value_pair: HashMap::new(),
                 },
                 parent_id: parent,
             });
@@ -149,6 +150,7 @@ impl UberReader {
                     timestamp: end_time,
                     is_synthetic: false,
                     variant: EventType::Exit,
+                    key_value_pair: HashMap::new(),
                 },
                 parent_id: parent,
             });

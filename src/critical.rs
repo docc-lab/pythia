@@ -487,6 +487,7 @@ impl CriticalPath {
             trace_id: node.trace_id,
             timestamp: self.g.g[after].timestamp + chrono::Duration::nanoseconds(1),
             is_synthetic: true,
+            key_value_pair: HashMap::new(),
         });
         self.g.g.add_edge(
             after,

@@ -12,6 +12,7 @@ use redis::Connection;
 use uuid::Uuid;
 
 use pythia_common::AnnotationEnum;
+use pythia_common::AnnotationEnum::KeyValue;//(KeyValueAnnotationInfo);
 use pythia_common::OSProfilerEnum;
 use pythia_common::OSProfilerSpan;
 use pythia_common::RequestType;
@@ -638,6 +639,18 @@ fn sort_event_list(event_list: &mut Vec<OSProfilerSpan>) {
 
 impl Event {
     fn from_osp_span(event: &OSProfilerSpan) -> Event {
+   //  let mut map = HashMap::new();
+     //match event.info {
+       // OSProfilerEnum::Annotation(AnnotationEnum::KeyValue(KeyValueAnnotationInfo)) => {
+         //   map.insert("value".to_string(), event.info.value)
+       // }
+    //    _ => ,
+    // }
+    // if let OSProfilerEnum::Annotation(AnnotationEnum::KeyValue(KeyValueAnnotationInfo)) = event.info {
+      //  map.insert("value".to_string(), "HELLO".to_string());
+      //     map.insert("value".to_string(), event.info.value);
+   //  }
+     //   map.insert("value".to_string(), KeyValue(pythia_common::osprofiler::KeyValueAnnotationInfo{"value"}));
         Event {
             trace_id: event.trace_id,
             tracepoint_id: TracepointID::from_str(&event.tracepoint_id),
@@ -650,6 +663,9 @@ impl Event {
                 OSProfilerEnum::Annotation(_) => EventType::Annotation,
             },
             is_synthetic: false,
+        //    key_value_pair: map,
+            key_value_pair: HashMap::new(),
+
+            }
         }
-    }
 }

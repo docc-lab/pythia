@@ -321,6 +321,7 @@ impl Event {
             timestamp: convert_hdfs_timestamp(event.timestamp, event.hrt),
             variant: EventType::Annotation,
             is_synthetic: false,
+            key_value_pair: HashMap::new(),
         }
     }
 }

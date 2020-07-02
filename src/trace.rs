@@ -21,6 +21,14 @@ use uuid::Uuid;
 
 use pythia_common::RequestType;
 
+use std::collections::HashMap;
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub enum Value {
+    Int(u64),
+    Str(String),
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Trace {
     pub g: StableGraph<Event, DAGEdge>,
@@ -166,6 +174,7 @@ pub struct Event {
     pub timestamp: NaiveDateTime,
     pub is_synthetic: bool,
     pub variant: EventType,
+    pub key_value_pair: HashMap<String,Value>,
 }
 
 #[derive(Serialize, Deserialize, Hash, Debug, Clone, Copy, Eq, PartialEq)]
