@@ -6,7 +6,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
 ## Documentation
-`cargo rustdoc`
+After pulling the code, use `cargo doc --open`
 
 Using Pythia server:
 ```
