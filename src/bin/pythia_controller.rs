@@ -24,6 +24,7 @@ use pythia::search::get_strategy;
 use pythia::settings::Settings;
 use pythia::trace::TracepointID;
 
+// These are static because search strategy expects static references.
 lazy_static! {
     static ref SETTINGS: Settings = Settings::read();
     static ref CONTROLLER: Box<dyn Controller> = controller_from_settings(&SETTINGS);
@@ -47,6 +48,7 @@ fn main() {
 
     let mut quit_in = -1;
     let mut targets = HashSet::new();
+    // The targets are set here. Any typos, and Pythia won't stop.
     targets.insert(TracepointID::from_str("nova/usr/local/lib/python3.6/dist-packages/nova/compute/manager.py:1859:nova.compute.manager.ComputeManager._update_scheduler_instance_info"));
     eprintln!("Targets are {:?}", targets);
 

@@ -1,7 +1,51 @@
 //! This is the source code for Pythia.
 //!
-//! # Project Structure
-//! * [Controller](../pythia_controller/index.html)
+//! The main Pythia loop is implemented inside the
+//! [`pythia_controller`](../pythia_controller/index.html) module; however that
+//! module has only the main loop. This module contains the rest of the code used
+//! by the main Pythia loop. The remaining 2 modules are
+//! `pythia_server` which are the agents that
+//! should run on each application node, and
+//! [`pythia_common`](../pythia_common/index.html) which contains common code
+//! between these two modules.
+//!
+//! # Installing Pythia
+//! 1. Create symlinks from `/etc/` to the folders under `etc` in this repo. The
+//! main Pythia loop needs the `controller.toml` configuration file, the Pythia
+//! agents need `server.toml` file, and the systemd service can be used to easily
+//! launch the pythia agents.
+//! 2. Run `cargo install --path .` and `cargo install --path ./pythia_server`, which
+//! will install both the agent and the pythia binaries into somewhere (I think `~/.cargo/`).
+//! 3. Update the configuration files to your liking. The application name is the most important one.
+//!
+//! # Creating a search space
+//! 1. Run some workload with all the instrumentation enabled. For OpenStack,
+//! this workload is in the script
+//! `/local/tracing-pythia/workloads/offline_profiling.sh`. You probably need to
+//! manually pull the latest version of the code to get the script.
+//! 2. This script generates a list of trace_ids in the file `~/offline_profiling.sh`.
+//! 3. Use `cargo run manifest <path/to/trace/ids>` to generate the manifest. It is
+//! stored in `/opt/stack/manifest.json`.
+//!
+//! # Using Pythia utils
+//! There are a bunch of functions defined in this file, they are used from `cargo run`. Try
+//! `cargo run -- --help` to see a list of functions. Typically they are used in the debugging
+//! stage. Another way to run it is `cargo install --path .` and then use `pythia`. Some important ones:
+//! * `pythia get-trace <trace_id>` read a single trace and print the dot file
+//! * `pythia [enable|disable]-all` to enable/disable all tracepoints
+//! * `pythia manifest-stats` construct a manifest and print all the stats used for the paper.
+//!
+//! # Running Pythia loop
+//! 1. Make sure everything is configured correctly, read the comments in the toml files
+//! 2. Make sure the agents are running on all nodes and configuration has the correct agent
+//! addresses
+//! 3. Create a search space according to what's written above
+//! 4. Decide the stopping condition. This is done by changing the target points in the file `src/bin/pythia_controller.rs`.
+//! 5. Simply `cargo run --bin pythia_controller /path/to/log/output`. I typically keep the stdout/stderr
+//! and enable backtrace to have a more detailed view of things. So, this command could also be used:
+//! `RUST_BACKTRACE=1 cargo run --bin pythia_controller /path/to/log/output 2>&1 | tee /path/to/verbose/logs`
+//! 6. Execute some requests, and wait for Pythia to do its thing. For OpenStack, there is a
+//! `/local/tracing-pythia/workloads/continuous_workload.sh` that will run many requests in a loop.
 
 #[macro_use]
 extern crate lazy_static;
@@ -42,9 +86,6 @@ use crate::settings::ApplicationType;
 use crate::settings::Settings;
 use crate::trace::Trace;
 
-pub fn make_decision(_epoch_file: &str, _dry_run: bool, _budget: usize) {
-    panic!("This broke while transitioning to continuously running loop");
-}
 // use rand::seq::SliceRandom;
 // use crate::cct::CCT;
 // use crate::flat::FlatSpace;
@@ -411,7 +452,7 @@ pub fn measure_search_space_feasibility(trace_file: &str) {
     if settings.application == ApplicationType::HDFS {
         trace.prune();
     }
-    println!("{}", Manifest::try_constructing(&trace));
+    println!("{}", Manifest::from_trace_list(&vec![trace]));
 }
 
 pub fn group_folder(trace_folder: &str) {

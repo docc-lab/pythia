@@ -1,3 +1,6 @@
+//! The code shared between the two Pythia projects. Mostly
+//! type definitions.
+
 #[macro_use]
 extern crate lazy_static;
 
@@ -16,6 +19,9 @@ pub use crate::osprofiler::REQUEST_TYPE_REGEXES;
 
 pub use crate::budget::NodeStats;
 
+/// Error raised from within Pythia. It just has a String error message.
+///
+/// Rust requires everyone to have their own error type.
 #[derive(Debug)]
 pub struct PythiaError(String);
 

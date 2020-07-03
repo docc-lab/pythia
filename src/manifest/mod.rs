@@ -1,3 +1,7 @@
+//! This module has the searchspace.
+//!
+//! Manifest has one SearchSpace per request type, and mostly relays functions to the relevant
+//! SearchSpace.
 mod searchspace;
 
 use std::collections::HashMap;
@@ -29,6 +33,7 @@ pub struct Manifest {
 }
 
 impl Manifest {
+    /// Returns the set of trace points seen for each request type
     pub fn get_per_request_types(&self) -> HashMap<RequestType, HashSet<TracepointID>> {
         let mut result = HashMap::new();
         for (rt, ss) in self.per_request_type.iter() {
@@ -104,24 +109,6 @@ impl Manifest {
         }
     }
 
-    pub fn try_constructing(trace: &Trace) -> Manifest {
-        let mut map = HashMap::<RequestType, SearchSpace>::new();
-        match map.get_mut(&trace.request_type) {
-            Some(space) => {
-                space.add_trace(&trace, true);
-            }
-            None => {
-                let mut space = SearchSpace::default();
-                space.add_trace(&trace, true);
-                map.insert(trace.request_type, space);
-            }
-        }
-        Manifest {
-            per_request_type: map,
-            request_type_tracepoints: Vec::new(),
-        }
-    }
-
     pub fn from_trace_list(traces: &Vec<Trace>) -> Manifest {
         let mut map = HashMap::<RequestType, SearchSpace>::new();
         for trace in traces {
@@ -167,6 +154,8 @@ impl Manifest {
         serde_json::from_reader(reader).unwrap()
     }
 
+    /// This is where a skeleton is defined. Adding/removing things to skeleton and
+    /// changing the definition of a skeleton is done only from here.
     pub fn skeleton(&self) -> Vec<TracepointID> {
         let mut result = HashSet::new();
         for ss in self.per_request_type.values() {

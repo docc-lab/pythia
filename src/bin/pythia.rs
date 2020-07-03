@@ -3,8 +3,8 @@ use std::time::Instant;
 
 use pythia::{
     disable_all, disable_tracepoint, dump_traces, enable_all, enable_skeleton, get_crit,
-    get_manifest, get_trace, group_folder, group_from_ids, make_decision, manifest_from_folder,
-    manifest_stats, measure_search_space_feasibility, read_trace_file, recent_traces, show_config,
+    get_manifest, get_trace, group_folder, group_from_ids, manifest_from_folder, manifest_stats,
+    measure_search_space_feasibility, read_trace_file, recent_traces, show_config,
     show_key_value_pairs, show_manifest,
 };
 
@@ -51,17 +51,6 @@ fn main() {
         .subcommand(
             SubCommand::with_name("key-value")
                 .arg(Arg::with_name("trace-id").required(true).index(1)),
-        )
-        .subcommand(
-            SubCommand::with_name("diagnose")
-                .arg(Arg::with_name("epoch-file").required(true).index(1))
-                .arg(
-                    Arg::with_name("budget")
-                        .long("budget")
-                        .short("b")
-                        .takes_value(true),
-                )
-                .arg(Arg::with_name("dry-run").long("dry-run")),
         )
         .subcommand(SubCommand::with_name("disable-all"))
         .subcommand(SubCommand::with_name("recent-traces"))
@@ -128,16 +117,6 @@ fn main() {
         }
         ("key-value", Some(matches)) => {
             show_key_value_pairs(matches.value_of("trace-id").unwrap());
-        }
-        ("diagnose", Some(matches)) => {
-            make_decision(
-                matches.value_of("epoch-file").unwrap(),
-                matches.occurrences_of("dry-run") > 0,
-                match matches.value_of("budget") {
-                    Some(x) => x.parse::<usize>().ok().unwrap(),
-                    None => 0,
-                },
-            );
         }
         ("disable-all", Some(_)) => {
             disable_all();

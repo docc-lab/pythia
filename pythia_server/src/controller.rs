@@ -1,3 +1,10 @@
+//! This module writes to shared tracepoint files.
+//!
+//! These files are inside `manifest_root` and each trace point has a separate file.
+//! The files are appended with a request type if the setting is to be applied
+//! to only a single request type. Any `/` in the trace point id is kept as is,
+//! so the manifest has a lot of subfolders.
+
 use std::fs::{read_dir, File};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};

@@ -1,3 +1,6 @@
+//! Controller has an API for sending control signals. OSProfilerController sends the orders to
+//! agents while HDFSController writes the control signals to a local file. TestController does nothing.
+
 mod hdfs;
 mod osprofiler;
 

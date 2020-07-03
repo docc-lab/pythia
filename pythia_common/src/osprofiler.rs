@@ -10,6 +10,9 @@ use uuid::Uuid;
 
 use crate::PythiaError;
 
+/// Type of a request.
+///
+/// It's defined here because for now we only use them for OpenStack.
 #[derive(Serialize, Deserialize, Debug, Copy, Eq, PartialEq, Hash, Clone)]
 pub enum RequestType {
     ServerCreate,
@@ -23,7 +26,9 @@ pub enum RequestType {
 }
 
 lazy_static! {
-    // The ordering of the below two structures should match each other
+    // The ordering of the below two structures should match each other. If any
+    // tracepoint id in the trace matches any of these regexes, we set the
+    // request type accordingly.
     pub static ref REQUEST_TYPE_REGEXES: RegexSet = RegexSet::new(&[
         r"openstackclient\.compute\.v2\.server\.CreateServer\.take_action",
         r"openstackclient\.compute\.v2\.server\.ListServer\.take_action",
@@ -68,6 +73,9 @@ impl fmt::Display for RequestType {
 }
 
 impl OSProfilerSpan {
+    /// We need this method because span endings do not have tracepoint IDs in OSProfiler.
+    ///
+    /// So, we keep track of previous trace ids and tracepoint ids, and for exits we use the hashmap.
     pub fn get_tracepoint_id(
         &self,
         map: &mut HashMap<Uuid, String>,
@@ -96,6 +104,11 @@ impl OSProfilerSpan {
     }
 }
 
+/// What an OSProfiler event json has.
+///
+/// What we collect from redis needs to exactly match this struct, otherwise
+/// it will not be parsed correctly. Most of the info here is thrown out, but
+/// we parse all of it just in case.
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct OSProfilerSpan {
     pub trace_id: Uuid,

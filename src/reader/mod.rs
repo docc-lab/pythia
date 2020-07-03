@@ -1,3 +1,5 @@
+//! This module contains a Reader trait, which reads traces.
+
 mod hdfs;
 mod osprofiler;
 mod uber;
@@ -19,13 +21,28 @@ use crate::settings::Settings;
 use crate::trace::Trace;
 
 pub trait Reader {
+    /// The file can contain a trace json, written by serde or by the tracing
+    /// infrastructure
     fn read_file(&mut self, filename: &str) -> Trace;
-    fn get_trace_from_base_id(&mut self, id: &str) -> Result<Trace, Box<dyn Error>>;
-    fn get_recent_traces(&mut self) -> Vec<Trace>;
-    fn reset_state(&mut self);
+    /// The folder contains files that may include trace jsons, written by serde
+    /// or by the tracing infrastructure
     fn read_dir(&mut self, foldername: &str) -> Vec<Trace>;
+    fn get_trace_from_base_id(&mut self, id: &str) -> Result<Trace, Box<dyn Error>>;
+
+    /// This function collects new traces that have finished.
+    ///
+    /// It is called multiple times for OpenStack, which collects traces in the first
+    /// call and returns traces whose duration did not change in the second call.
+    fn get_recent_traces(&mut self) -> Vec<Trace>;
+
+    /// Used before get_recent_traces, so we know what is *recent*.
+    fn reset_state(&mut self);
+    /// Some readers have different behavior when reading traces for the search
+    /// space (e.g., pruning normally vs. not pruning for search space). Calling
+    /// this function indicates this Reader will be used for search space
     fn for_searchspace(&mut self);
 
+    /// Read a file with one request ID per line
     fn read_trace_file(&mut self, tracefile: &str) -> Vec<Trace> {
         let trace_ids = std::fs::read_to_string(tracefile).unwrap();
         let mut traces = Vec::new();

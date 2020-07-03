@@ -1,5 +1,5 @@
-/// Stuff related to working with osprofiler
-///
+//! Stuff related to reading data from osprofiler
+//!
 use redis::Commands;
 use redis::Connection;
 use redis::FromRedisValue;

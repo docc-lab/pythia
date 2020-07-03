@@ -12,7 +12,9 @@ use pythia_common::NodeStats;
 use crate::osprofiler::OSProfilerReader;
 use crate::settings::Settings;
 
+/// Contains values last read, time of last reading and some settings.
 pub struct NodeStatReader {
+    /// Name of network interface
     interface: String,
     last_stats: Option<NetworkStats>,
     last_cputime: Option<u64>,

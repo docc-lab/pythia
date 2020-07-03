@@ -44,6 +44,8 @@ impl Reader for HDFSReader {
 
     fn reset_state(&mut self) {}
 
+    /// This function parses an xtrace webpage to get all requests executed from
+    /// shell (with FsShell tag) and those with high enough elapsed time since last update
     fn get_recent_traces(&mut self) -> Vec<Trace> {
         let re1 = Regex::new(r"<td>").unwrap();
         let re2 = Regex::new(r"tag/").unwrap();

@@ -1,3 +1,6 @@
+//! This module has the search space without the complexity of
+//! supporting multiple request types.
+
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
@@ -13,7 +16,6 @@ use petgraph::visit::IntoNodeReferences;
 use petgraph::Direction;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use pythia_common::RequestType;
 
@@ -26,6 +28,7 @@ use crate::trace::Trace;
 use crate::trace::TraceNode;
 use crate::trace::TracepointID;
 
+/// Maybe we don't need this, but in case we want to add more stuff to the edge.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct HierarchicalEdge {
     variant: EdgeType,
@@ -54,22 +57,28 @@ impl HierarchicalEdge {
     }
 }
 
+/// This is the search space described in the paper.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct HierarchicalCriticalPath {
+    /// This graph contains both happens-before and hierarchical edges.
     pub g: StableGraph<TraceNode, HierarchicalEdge>,
-    pub base_id: Uuid,
     pub start_node: NodeIndex,
     pub end_node: NodeIndex,
+    /// Trace points at the top of the hierarchy
     pub hierarchy_starts: HashSet<NodeIndex>,
     pub request_type: RequestType,
     hash: String,
 }
 
 impl HierarchicalCriticalPath {
+    /// This is an iterator, so it creates the paths one at a time, to avoid running out of memory.
+    ///
+    /// If we put all paths in a vector, we run out of memory for some traces.
     pub fn all_possible_paths<'a>(trace: &'a Trace) -> impl Iterator<Item = Self> + 'a {
         CriticalPath::all_possible_paths(trace).map(|x| HierarchicalCriticalPath::from_path(&x))
     }
 
+    /// Copies critical path and then adds hierarchical edges
     pub fn from_path(path: &CriticalPath) -> Self {
         let mut g = StableGraph::new();
         // Add all nodes and happens before edges to the graph
@@ -99,13 +108,13 @@ impl HierarchicalCriticalPath {
             hash: "".to_string(),
             request_type: path.request_type,
             hierarchy_starts: HashSet::new(),
-            base_id: path.g.base_id.clone(),
         };
         result.add_hierarchical_edges();
         result.calculate_hash();
         result
     }
 
+    /// Hierarchical children of a node. The node needs to be a span start.
     pub fn child_nodes(&self, nidx: NodeIndex) -> Vec<NodeIndex> {
         EdgeFiltered::from_fn(&self.g, |e| e.weight().variant == EdgeType::Hierarchical)
             .neighbors_directed(nidx, Direction::Outgoing)
@@ -172,12 +181,18 @@ impl HierarchicalCriticalPath {
     }
 }
 
+/// Collection of all HierarchicalCriticalPaths
+///
+/// Also contains more information that is pre-calculated from these paths
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct SearchSpace {
-    pub paths: HashMap<String, HierarchicalCriticalPath>, // key is the hash of the critical path
+    /// Key is the hash of the critical path
+    pub paths: HashMap<String, HierarchicalCriticalPath>,
     occurances: HashMap<String, usize>,
     pub added_paths: usize,
     entry_points: HashSet<TracepointID>,
+    /// List of tracepoints where multiple branches of execution joined, and the last tracepoint of each
+    /// branch of execution.
     synchronization_points: HashSet<TracepointID>,
 }
 
@@ -227,6 +242,7 @@ impl SearchSpace {
             .collect()
     }
 
+    /// Add a new offline profiling trace to the existing search space
     pub fn add_trace(&mut self, trace: &Trace, verbose: bool) {
         eprintln!("Adding {}", trace.base_id);
         let mut count = 0;
