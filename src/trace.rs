@@ -163,6 +163,7 @@ impl Trace {
 
 impl fmt::Display for Trace {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+       // println!("Value is: {}", Value::Int(val));
         write!(f, "{}", Dot::new(&self.g))
     }
 }

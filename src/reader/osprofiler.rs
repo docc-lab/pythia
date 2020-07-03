@@ -12,7 +12,7 @@ use redis::Connection;
 use uuid::Uuid;
 
 use pythia_common::AnnotationEnum;
-use pythia_common::AnnotationEnum::KeyValue;//(KeyValueAnnotationInfo);
+//use pythia_common::AnnotationEnum::KeyValue;//(KeyValueAnnotationInfo);
 use pythia_common::OSProfilerEnum;
 use pythia_common::OSProfilerSpan;
 use pythia_common::RequestType;
@@ -30,6 +30,8 @@ use crate::trace::Trace;
 use crate::trace::TracepointID;
 use crate::trace::{DAGEdge, EdgeType};
 use crate::PythiaError;
+
+use crate::trace::Value::Int;
 
 pub struct OSProfilerReader {
     connection: Connection,
@@ -639,18 +641,13 @@ fn sort_event_list(event_list: &mut Vec<OSProfilerSpan>) {
 
 impl Event {
     fn from_osp_span(event: &OSProfilerSpan) -> Event {
-   //  let mut map = HashMap::new();
-     //match event.info {
-       // OSProfilerEnum::Annotation(AnnotationEnum::KeyValue(KeyValueAnnotationInfo)) => {
-         //   map.insert("value".to_string(), event.info.value)
-       // }
-    //    _ => ,
-    // }
-    // if let OSProfilerEnum::Annotation(AnnotationEnum::KeyValue(KeyValueAnnotationInfo)) = event.info {
-      //  map.insert("value".to_string(), "HELLO".to_string());
-      //     map.insert("value".to_string(), event.info.value);
-   //  }
-     //   map.insert("value".to_string(), KeyValue(pythia_common::osprofiler::KeyValueAnnotationInfo{"value"}));
+     let mut map = HashMap::new();
+     if let OSProfilerEnum::Annotation(AnnotationEnum::KeyValue(key_value_annotation_info)) = &event.info {
+         let val = Int(key_value_annotation_info.value);
+       //  println!("val is {:?}", val);
+           map.insert("value".to_string(), val);
+
+     }
         Event {
             trace_id: event.trace_id,
             tracepoint_id: TracepointID::from_str(&event.tracepoint_id),
@@ -663,9 +660,7 @@ impl Event {
                 OSProfilerEnum::Annotation(_) => EventType::Annotation,
             },
             is_synthetic: false,
-        //    key_value_pair: map,
-            key_value_pair: HashMap::new(),
-
+            key_value_pair: map,
             }
         }
 }

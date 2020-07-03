@@ -132,7 +132,7 @@ pub enum AnnotationEnum {
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct KeyValueAnnotationInfo {
-    value: u64,
+    pub value: u64,
     tracepoint_id: String,
     host: String,
     thread_id: u64,
