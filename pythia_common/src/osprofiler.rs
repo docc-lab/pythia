@@ -147,7 +147,7 @@ pub enum AnnotationEnum {
 pub struct KeyValueAnnotationInfo {
     pub value: u64,
     tracepoint_id: String,
-    host: String,
+    pub host: String,
     thread_id: u64,
     pid: u64,
 }

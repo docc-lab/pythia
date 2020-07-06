@@ -21,6 +21,7 @@ use pythia_common::REQUEST_TYPE_REGEXES;
 
 use crate::critical::CriticalPath;
 use crate::reader::Reader;
+
 use crate::rpclib::free_keys;
 use crate::rpclib::get_events_from_client;
 use crate::settings::Settings;
@@ -32,6 +33,7 @@ use crate::trace::{DAGEdge, EdgeType};
 use crate::PythiaError;
 
 use crate::trace::Value::Int;
+use crate::trace::Value::Str;
 
 pub struct OSProfilerReader {
     connection: Connection,
@@ -643,10 +645,13 @@ impl Event {
     fn from_osp_span(event: &OSProfilerSpan) -> Event {
      let mut map = HashMap::new();
      if let OSProfilerEnum::Annotation(AnnotationEnum::KeyValue(key_value_annotation_info)) = &event.info {
-         let val = Int(key_value_annotation_info.value);
-       //  println!("val is {:?}", val);
+         let host1 = &key_value_annotation_info.host;
+         let host = Str(host1.to_string());
+        let val = Int(key_value_annotation_info.value);
+           // println!("host is {:?}", host);
+           // println!("val is {:?}", val);
            map.insert("value".to_string(), val);
-
+           map.insert("host".to_string(),host);
      }
         Event {
             trace_id: event.trace_id,
