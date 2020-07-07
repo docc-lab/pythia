@@ -572,10 +572,11 @@ pub fn get_trace(trace_id: &str, to_file: bool, prune: bool) {
 }
 
 pub fn show_key_value_pairs(trace_id: &str) {
-    // let settings = Settings::read();
-    // let mut reader = OSProfilerreader_from_settings(&settings);
-    // let pairs = reader.get_key_value_pairs(trace_id);
-    // println!("{:?}", pairs);
+ /*    let settings = Settings::read();
+    let mut reader = reader_from_settings(&settings);
+    let trace = reader.get_trace_from_base_id(trace_id).unwrap();
+     let pairs = trace.get_keys();
+     println!("{:?}", pairs); */
     println!("{:?}", trace_id);
 }
 

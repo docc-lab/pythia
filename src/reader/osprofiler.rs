@@ -149,9 +149,11 @@ impl Reader for OSProfilerReader {
     fn read_dir(&mut self, _foldername: &str) -> Vec<Trace> {
         Vec::new()
     }
+/*
+   // pub fn print_key_vaue_pairs(tra)
 
-    /*
-    pub fn get_key_value_pairs(&mut self, id: &str) -> HashMap<String, String> {
+    //pub fn get_key_value_pairs(&mut self, id: &str) -> HashMap<String, String> {
+
         let base_id = Uuid::parse_str(id).ok().unwrap();
         let mut event_list = self.get_matches_(&base_id).unwrap();
         sort_event_list(&mut event_list);
@@ -251,8 +253,8 @@ impl Reader for OSProfilerReader {
             println!("{:?}", event);
         }
         result
-    }
-    */
+    }*/
+
 
     fn get_trace_from_base_id(&mut self, id: &str) -> Result<Trace, Box<dyn Error>> {
         eprintln!("Working on {}", id);
@@ -648,8 +650,8 @@ impl Event {
          let host1 = &key_value_annotation_info.host;
          let host = Str(host1.to_string());
         let val = Int(key_value_annotation_info.value);
-           // println!("host is {:?}", host);
-           // println!("val is {:?}", val);
+          //  println!("host is {:?}", host);
+          //  println!("val is {:?}", val);
            map.insert("value".to_string(), val);
            map.insert("host".to_string(),host);
      }
@@ -669,3 +671,5 @@ impl Event {
             }
         }
 }
+
+
