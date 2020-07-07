@@ -1,6 +1,6 @@
-/// General trace implementation
-///
-///
+//! General trace implementation
+//!
+
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Display;
@@ -29,6 +29,7 @@ pub enum Value {
     Str(String),
 }
 
+/// A general-purpose trace which does not contain application-specific things
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Trace {
     pub g: StableGraph<Event, DAGEdge>,
@@ -37,7 +38,8 @@ pub struct Trace {
     pub end_node: NodeIndex,
     pub request_type: RequestType,
     pub duration: Duration,
-    pub keys: Vec<String>, // used by osprofiler to find keys to delete from redis
+    /// used by osprofiler to find keys to delete from redis
+    pub keys: Vec<String>,
 }
 
 impl Trace {
@@ -58,6 +60,7 @@ impl Trace {
         serde_json::to_writer(writer, self).ok();
     }
 
+    /// Does a forward-scan of nodes for the node with the given trace_id
     pub fn can_reach_from_node(&self, trace_id: Uuid, nidx: NodeIndex) -> bool {
         let mut cur_nidx = nidx;
         loop {
@@ -83,6 +86,7 @@ impl Trace {
         }
     }
 
+    /// Return nodes with outdegree == 0
     pub fn possible_end_nodes(&self) -> Vec<NodeIndex> {
         let mut result = Vec::new();
         for i in self.g.node_indices() {
@@ -113,6 +117,7 @@ impl Trace {
         (start, end)
     }
 
+    /// Remove branches that do not end in the ending node
     pub fn prune(&mut self) {
         let mut removed_count = 0;
         loop {
@@ -163,25 +168,30 @@ impl Trace {
 
 impl fmt::Display for Trace {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-       // println!("Value is: {}", Value::Int(val));
+        // println!("Value is: {}", Value::Int(val));
         write!(f, "{}", Dot::new(&self.g))
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Event {
+    /// A trace id is shared between two ends of a span, otherwise it should be unique to events
     pub trace_id: Uuid,
+    /// A tracepoint id represents a place in code
     pub tracepoint_id: TracepointID,
     pub timestamp: NaiveDateTime,
+    /// Synthetic nodes are added to preserve the hierarchy, they are not actual events that
+    /// happened
     pub is_synthetic: bool,
     pub variant: EventType,
-    pub key_value_pair: HashMap<String,Value>,
+    pub key_value_pair: HashMap<String, Value>,
 }
 
 #[derive(Serialize, Deserialize, Hash, Debug, Clone, Copy, Eq, PartialEq)]
 pub enum EventType {
     Entry,
     Exit,
+    /// Annotations are free-standing events that are not part of a span
     Annotation,
 }
 
@@ -207,6 +217,7 @@ pub struct DAGEdge {
     pub variant: EdgeType,
 }
 
+/// These edge types are taken from OpenTracing, but they are not used much in the codebase
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum EdgeType {
     ChildOf,
@@ -222,6 +233,8 @@ impl Display for DAGEdge {
     }
 }
 
+/// A trace node is an abstract node, so it doesn't have a timestamp or trace id, it just has a
+/// tracepoint id and variant.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct TraceNode {
     pub tracepoint_id: TracepointID,
@@ -257,6 +270,7 @@ lazy_static! {
     static ref TRACEPOINT_ID_MAP: Mutex<BiMap<String, usize>> = Mutex::new(BiMap::new());
 }
 
+/// We do some tricks to keep tracepoint ids as `usize`s so it uses less memory than strings.
 #[derive(Hash, Clone, Copy, Eq, PartialEq)]
 pub struct TracepointID {
     id: usize,

@@ -1,3 +1,5 @@
+//! Methods that talk to Pythia agents.
+
 use futures::future::Future;
 use futures::stream::Stream;
 use futures::Async;
@@ -52,6 +54,7 @@ impl PythiaClient {
     }
 }
 
+/// Read the overhead stats from the agent
 pub fn read_client_stats(client_uri: &str) -> NodeStats {
     let (tx, mut rx) = futures::sync::mpsc::unbounded();
 
@@ -79,6 +82,7 @@ pub fn read_client_stats(client_uri: &str) -> NodeStats {
     }
 }
 
+/// Get events matching the trace_id. OSProfiler-specific
 pub fn get_events_from_client(client_uri: &str, trace_id: Uuid) -> Vec<OSProfilerSpan> {
     let (tx, mut rx) = futures::sync::mpsc::unbounded();
 
@@ -122,6 +126,7 @@ pub fn get_events_from_client(client_uri: &str, trace_id: Uuid) -> Vec<OSProfile
     final_result
 }
 
+/// Used by controller
 pub fn set_all_client_tracepoints(client_uri: &str, to_write: [u8; 1]) {
     let (tx, mut rx) = futures::sync::mpsc::unbounded();
 
@@ -152,6 +157,7 @@ pub fn set_all_client_tracepoints(client_uri: &str, to_write: [u8; 1]) {
     }
 }
 
+/// Used by controller
 pub fn set_client_tracepoints(
     client_uri: &str,
     settings: Vec<(TracepointID, Option<RequestType>, [u8; 1])>,
@@ -183,6 +189,7 @@ pub fn set_client_tracepoints(
     }
 }
 
+/// Free the used traces from redis so that we don't use too much memory
 pub fn free_keys(client_uri: &str, keys: Vec<String>) {
     if keys.len() == 0 {
         return;

@@ -13,6 +13,7 @@ use crate::search::SearchStrategy;
 use crate::settings::Settings;
 use crate::trace::TracepointID;
 
+/// This strategy returns a random selection of trace points to enable
 pub struct HistoricSearch {
     controller: &'static Box<dyn Controller>,
     per_request_types: HashMap<RequestType, HashSet<TracepointID>>,

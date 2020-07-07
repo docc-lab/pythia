@@ -12,8 +12,8 @@ use crate::trace::TracepointID;
 pub struct OSProfilerController {
     client_list: Vec<String>,
 
+    /// This should only be valid after disable_all is called
     enabled_tracepoints: Arc<Mutex<HashSet<(TracepointID, Option<RequestType>)>>>,
-    // This should only be valid after disable_all is called
 }
 
 impl Controller for OSProfilerController {

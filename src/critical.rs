@@ -1,3 +1,5 @@
+//! Critical path-related stuff
+
 use std::collections::HashMap;
 use std::error::Error;
 use std::time::Duration;
@@ -22,12 +24,15 @@ use crate::PythiaError;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CriticalPath {
+    /// This is the actual critical path
     pub g: Trace,
     pub start_node: NodeIndex,
     pub end_node: NodeIndex,
     pub duration: Duration,
+    /// A hypothetical critical path is just a path which wasn't critical
     pub is_hypothetical: bool,
     pub request_type: RequestType,
+    /// The hash is lazily calculated at first access
     hash: String,
 }
 
@@ -104,6 +109,8 @@ impl CriticalPath {
         count
     }
 
+    /// Lazily return each path separately. If we try to return `Vec<CriticalPath>`, we run out of
+    /// memory for HDFS.
     pub fn all_possible_paths<'a>(dag: &'a Trace) -> impl Iterator<Item = CriticalPath> + 'a {
         gen!({
             let mut p = CriticalPath {
@@ -167,6 +174,8 @@ impl CriticalPath {
         .into_iter()
     }
 
+    /// Remove spans that have a start but no end and vice versa, and also extra nodes of spans
+    /// that have multiple starts/endings.
     pub fn filter_incomplete_spans(&mut self) -> Result<(), Box<dyn Error>> {
         let mut cur_node = self.start_node;
         let mut span_map = HashMap::new();
@@ -228,9 +237,11 @@ impl CriticalPath {
 
     /// We add synthetic nodes for spans with exit nodes off the critical path
     /// e.g.,
+    /// ```text
     /// A_start -> B_start -> C_start -> C_end -> ... rest of the path
     ///                   \-> D_start -> B_end -> A_end
-    /// We add B_end and A_end (in that order) right before C_start
+    /// ```
+    /// We add `B_end` and `A_end` (in that order) right before `C_start`
     fn add_synthetic_nodes(&mut self, dag: &Trace) -> Result<(), Box<dyn Error>> {
         let mut cur_nidx = self.start_node;
         let mut cur_dag_nidx = dag.start_node;
@@ -385,7 +396,7 @@ impl CriticalPath {
     /// Get all of the active spans that are not finished in the rest of the critical path.
     /// A synthetic node will be added after all unfinished spans.
     ///
-    /// The end of the unfinished span needs to be accessible through dag_nidx, otherwise we
+    /// The end of the unfinished span needs to be accessible through `dag_nidx`, otherwise we
     /// would be adding an erroneous edge
     fn get_unfinished(
         &self,
@@ -474,7 +485,8 @@ impl CriticalPath {
         self.g.g.remove_node(nidx);
     }
 
-    /// Modifies the span to be exit/end, and changes timestamp
+    /// Modifies the span to be entry/exit if input is exit/entry, and changes timestamp to be
+    /// +1 ns.
     fn add_node_after(&mut self, after: NodeIndex, node: &Event) {
         let next_node = self.next_node(after);
         let new_node = self.g.g.add_node(Event {
@@ -518,6 +530,7 @@ impl CriticalPath {
     }
 }
 
+/// Common methods that a Path has
 pub trait Path {
     fn get_hash(&self) -> &str;
     fn set_hash(&mut self, hash: &str);
@@ -544,6 +557,8 @@ pub trait Path {
         self.set_hash(&hasher.result_str());
     }
 
+    /// This is the matching code. A path contains another path if it can be constructed by adding
+    /// nodes to the other path.
     fn contains(&self, other: &dyn Path) -> bool {
         let mut cur_self_idx = self.start_node();
         let mut cur_other_idx = other.start_node();

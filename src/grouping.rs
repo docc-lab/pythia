@@ -1,3 +1,5 @@
+//! Code related to grouping critical paths
+
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
@@ -17,19 +19,23 @@ use crate::critical::Path;
 use crate::trace::TraceNode;
 use crate::trace::TracepointID;
 
+/// A group of critical paths
 #[derive(Clone, Debug)]
 pub struct Group {
+    /// Representative path and the relevant latency etc. statistics
     pub g: StableGraph<TraceNode, GroupEdge>,
     hash: String,
     pub start_node: NodeIndex,
     pub end_node: NodeIndex,
     pub request_type: RequestType,
+    /// The raw critical paths that this group was constructed from
     pub traces: Vec<CriticalPath>,
     pub variance: f64,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct GroupEdge {
+    /// These are the durations of the individual paths.
     pub duration: Vec<Duration>,
 }
 
@@ -116,6 +122,8 @@ impl Group {
         }
     }
 
+    /// After we use a group for diagnosis, we reset the group. This function is incomplete, and we
+    /// should ideally modify the edges as well.
     pub fn used(&mut self) {
         self.traces = Vec::new();
         self.variance = 0.0;
@@ -224,6 +232,7 @@ impl Path for Group {
     }
 }
 
+/// This manages the grouping etc. and stores a collection of groups
 #[derive(Debug)]
 pub struct GroupManager {
     groups: HashMap<String, Group>,
@@ -236,6 +245,7 @@ impl GroupManager {
         }
     }
 
+    /// Add new paths to the appropriate groups
     pub fn update(&mut self, paths: &Vec<CriticalPath>) {
         let mut updated_groups = Vec::new();
         for path in paths {
@@ -253,6 +263,7 @@ impl GroupManager {
         }
     }
 
+    /// Return groups filtered based on occurance and sorted by variance
     pub fn problem_groups(&self) -> Vec<&Group> {
         let mut sorted_groups: Vec<&Group> = self
             .groups
@@ -264,6 +275,7 @@ impl GroupManager {
         sorted_groups
     }
 
+    /// Mark a group as "used": reset its performance data
     pub fn used(&mut self, group: &str) {
         self.groups.get_mut(group).unwrap().used();
     }

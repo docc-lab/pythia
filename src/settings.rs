@@ -1,3 +1,5 @@
+//! This file contains all the hard-coded settings and parsing code for the toml file.
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;

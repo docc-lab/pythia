@@ -1,3 +1,7 @@
+//! This includes search strategies.
+//!
+//! The trait should be implemented by the search strategy.
+
 mod flat;
 mod hierarchical;
 mod historic;
@@ -14,6 +18,8 @@ use crate::settings::Settings;
 use crate::trace::TracepointID;
 
 pub trait SearchStrategy {
+    /// Simply return a list of tracepoints to enable. The number of trace points should be <= the
+    /// budget
     fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> Vec<TracepointID>;
 }
 
@@ -24,6 +30,7 @@ pub enum SearchStrategyType {
     Historic,
 }
 
+/// Constructor for search strategy
 pub fn get_strategy(
     s: &Settings,
     m: &'static Manifest,
