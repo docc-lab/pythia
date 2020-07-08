@@ -26,7 +26,7 @@
 //! 1. Run some workload with all the instrumentation enabled. For OpenStack, this workload is in
 //!    the script `/local/tracing-pythia/workloads/offline_profiling.sh`. You probably need to
 //!    manually pull the latest version of the code to get the script.
-//! 2. This script generates a list of trace_ids in the file `~/offline_profiling.sh`.
+//! 2. This script generates a list of trace_ids in the file `~/offline_profiling.txt`.
 //! 3. Use `cargo run manifest <path/to/trace/ids>` to generate the manifest. It is stored in
 //!    `/opt/stack/manifest.json`.
 //!
