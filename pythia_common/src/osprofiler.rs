@@ -157,7 +157,7 @@ pub struct KeyValueAnnotationInfo {
 pub struct WaitAnnotationInfo {
     function: FunctionEntryFunction,
     thread_id: u64,
-    host: String,
+    pub host: String,
     tracepoint_id: String,
     pid: u64,
     pub wait_for: Uuid,
@@ -167,7 +167,7 @@ pub struct WaitAnnotationInfo {
 #[serde(deny_unknown_fields)]
 pub struct LogAnnotationInfo {
     thread_id: u64,
-    host: String,
+    pub host: String,
     tracepoint_id: String,
     pid: u64,
     msg: String,
@@ -177,7 +177,7 @@ pub struct LogAnnotationInfo {
 #[serde(deny_unknown_fields)]
 pub struct PlainAnnotationInfo {
     thread_id: u64,
-    host: String,
+    pub host: String,
     tracepoint_id: String,
     pid: u64,
 }
@@ -186,7 +186,7 @@ pub struct PlainAnnotationInfo {
 #[serde(deny_unknown_fields)]
 pub struct ChildAnnotationInfo {
     thread_id: u64,
-    host: String,
+    pub host: String,
     tracepoint_id: String,
     pub child_id: Uuid,
     pid: u64,
@@ -197,7 +197,7 @@ pub struct ChildAnnotationInfo {
 pub struct RequestEntryInfo {
     request: RequestEntryRequest,
     thread_id: u64,
-    host: String,
+    pub host: String,
     tracepoint_id: String,
     pid: u64,
 }
@@ -221,7 +221,7 @@ pub enum ExitEnum {
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct NormalExitInfo {
-    host: String,
+    pub host: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -229,7 +229,7 @@ pub struct NormalExitInfo {
 pub struct ErrorExitInfo {
     etype: String,
     message: String,
-    host: String,
+    pub host: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -237,7 +237,7 @@ pub struct ErrorExitInfo {
 pub struct FunctionEntryInfo {
     function: FunctionEntryFunction,
     thread_id: u64,
-    host: String,
+    pub host: String,
     tracepoint_id: String,
     pid: u64,
 }

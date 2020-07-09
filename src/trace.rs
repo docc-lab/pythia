@@ -164,15 +164,18 @@ impl Trace {
         }
         eprintln!("Removed {} nodes when pruning", removed_count);
     }
-/*
-    pub fn get_keys(&self)-> HashMap<String, Value> {
-     //  for i in self.g.node_indices() {
-           let map = g.event_key_values();
-           return map;
-       // return self.g.key_value_pair;
-    }*/
-}
 
+    pub fn get_keys(&self) {
+        for node in self.g.node_indices() {
+            self.g[node].print_key_values();
+        }
+    }
+}
+impl Event {
+    pub fn print_key_values(&self) {
+        println!("{:?}", self.key_value_pair);
+    }
+}
 impl fmt::Display for Trace {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // println!("Value is: {}", Value::Int(val));

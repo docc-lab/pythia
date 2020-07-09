@@ -11,8 +11,8 @@ use redis::Commands;
 use redis::Connection;
 use uuid::Uuid;
 
+use pythia_common::osprofiler::ExitEnum;
 use pythia_common::AnnotationEnum;
-//use pythia_common::AnnotationEnum::KeyValue;//(KeyValueAnnotationInfo);
 use pythia_common::OSProfilerEnum;
 use pythia_common::OSProfilerSpan;
 use pythia_common::RequestType;
@@ -149,112 +149,110 @@ impl Reader for OSProfilerReader {
     fn read_dir(&mut self, _foldername: &str) -> Vec<Trace> {
         Vec::new()
     }
-/*
-   // pub fn print_key_vaue_pairs(tra)
+    /*
 
-    //pub fn get_key_value_pairs(&mut self, id: &str) -> HashMap<String, String> {
+     //pub fn get_key_value_pairs(&mut self, id: &str) -> HashMap<String, String> {
 
-        let base_id = Uuid::parse_str(id).ok().unwrap();
-        let mut event_list = self.get_matches_(&base_id).unwrap();
-        sort_event_list(&mut event_list);
-        let mut tracepoint_id_map: HashMap<Uuid, String> = HashMap::new();
-        for event in event_list.iter_mut() {
-            event.tracepoint_id = event.get_tracepoint_id(&mut tracepoint_id_map);
-        }
-        let mut result = HashMap::new();
-        for event in &event_list {
-            result.insert(
-                format!("{}::project", event.tracepoint_id),
-                event.project.clone(),
-            );
-            result.insert(format!("{}::name", event.tracepoint_id), event.name.clone());
-            result.insert(
-                format!("{}::service", event.tracepoint_id),
-                event.service.clone(),
-            );
-            match &event.variant {
-                OSProfilerEnum::WaitAnnotation(a) => {
-                    result.insert(
-                        format!("{}::host", event.tracepoint_id),
-                        a.info.host.clone(),
-                    );
-                    result.insert(
-                        format!("{}::function::name", event.tracepoint_id),
-                        a.info.function.name.clone(),
-                    );
-                    result.insert(
-                        format!("{}::function::args", event.tracepoint_id),
-                        a.info.function.args.clone(),
-                    );
-                    result.insert(
-                        format!("{}::function::kwargs", event.tracepoint_id),
-                        a.info.function.kwargs.clone(),
-                    );
-                }
-                OSProfilerEnum::Annotation(a) => {
-                    result.insert(
-                        format!("{}::host", event.tracepoint_id),
-                        a.info.host.clone(),
-                    );
-                }
-                OSProfilerEnum::FunctionEntry(a) => {
-                    result.insert(
-                        format!("{}::host", event.tracepoint_id),
-                        a.info.host.clone(),
-                    );
-                    result.insert(
-                        format!("{}::function::name", event.tracepoint_id),
-                        a.info.function.name.clone(),
-                    );
-                    result.insert(
-                        format!("{}::function::args", event.tracepoint_id),
-                        a.info.function.args.clone(),
-                    );
-                    result.insert(
-                        format!("{}::function::kwargs", event.tracepoint_id),
-                        a.info.function.kwargs.clone(),
-                    );
-                }
-                OSProfilerEnum::FunctionExit(a) => {
-                    result.insert(
-                        format!("{}::host", event.tracepoint_id),
-                        a.info.host.clone(),
-                    );
-                    result.insert(
-                        format!("{}::function::result", event.tracepoint_id),
-                        a.info.function.result.clone(),
-                    );
-                }
-                OSProfilerEnum::RequestEntry(a) => {
-                    result.insert(
-                        format!("{}::request::path", event.tracepoint_id),
-                        a.info.request.path.clone(),
-                    );
-                    result.insert(
-                        format!("{}::request::scheme", event.tracepoint_id),
-                        a.info.request.scheme.clone(),
-                    );
-                    result.insert(
-                        format!("{}::request::method", event.tracepoint_id),
-                        a.info.request.method.clone(),
-                    );
-                    result.insert(
-                        format!("{}::request::query", event.tracepoint_id),
-                        a.info.request.query.clone(),
-                    );
-                }
-                OSProfilerEnum::RequestExit(a) => {
-                    result.insert(
-                        format!("{}::host", event.tracepoint_id),
-                        a.info.host.clone(),
-                    );
-                }
-            }
-            println!("{:?}", event);
-        }
-        result
-    }*/
-
+         let base_id = Uuid::parse_str(id).ok().unwrap();
+         let mut event_list = self.get_matches_(&base_id).unwrap();
+         sort_event_list(&mut event_list);
+         let mut tracepoint_id_map: HashMap<Uuid, String> = HashMap::new();
+         for event in event_list.iter_mut() {
+             event.tracepoint_id = event.get_tracepoint_id(&mut tracepoint_id_map);
+         }
+         let mut result = HashMap::new();
+         for event in &event_list {
+             result.insert(
+                 format!("{}::project", event.tracepoint_id),
+                 event.project.clone(),
+             );
+             result.insert(format!("{}::name", event.tracepoint_id), event.name.clone());
+             result.insert(
+                 format!("{}::service", event.tracepoint_id),
+                 event.service.clone(),
+             );
+             match &event.variant {
+                 OSProfilerEnum::WaitAnnotation(a) => {
+                     result.insert(
+                         format!("{}::host", event.tracepoint_id),
+                         a.info.host.clone(),
+                     );
+                     result.insert(
+                         format!("{}::function::name", event.tracepoint_id),
+                         a.info.function.name.clone(),
+                     );
+                     result.insert(
+                         format!("{}::function::args", event.tracepoint_id),
+                         a.info.function.args.clone(),
+                     );
+                     result.insert(
+                         format!("{}::function::kwargs", event.tracepoint_id),
+                         a.info.function.kwargs.clone(),
+                     );
+                 }
+                 OSProfilerEnum::Annotation(a) => {
+                     result.insert(
+                         format!("{}::host", event.tracepoint_id),
+                         a.info.host.clone(),
+                     );
+                 }
+                 OSProfilerEnum::FunctionEntry(a) => {
+                     result.insert(
+                         format!("{}::host", event.tracepoint_id),
+                         a.info.host.clone(),
+                     );
+                     result.insert(
+                         format!("{}::function::name", event.tracepoint_id),
+                         a.info.function.name.clone(),
+                     );
+                     result.insert(
+                         format!("{}::function::args", event.tracepoint_id),
+                         a.info.function.args.clone(),
+                     );
+                     result.insert(
+                         format!("{}::function::kwargs", event.tracepoint_id),
+                         a.info.function.kwargs.clone(),
+                     );
+                 }
+                 OSProfilerEnum::FunctionExit(a) => {
+                     result.insert(
+                         format!("{}::host", event.tracepoint_id),
+                         a.info.host.clone(),
+                     );
+                     result.insert(
+                         format!("{}::function::result", event.tracepoint_id),
+                         a.info.function.result.clone(),
+                     );
+                 }
+                 OSProfilerEnum::RequestEntry(a) => {
+                     result.insert(
+                         format!("{}::request::path", event.tracepoint_id),
+                         a.info.request.path.clone(),
+                     );
+                     result.insert(
+                         format!("{}::request::scheme", event.tracepoint_id),
+                         a.info.request.scheme.clone(),
+                     );
+                     result.insert(
+                         format!("{}::request::method", event.tracepoint_id),
+                         a.info.request.method.clone(),
+                     );
+                     result.insert(
+                         format!("{}::request::query", event.tracepoint_id),
+                         a.info.request.query.clone(),
+                     );
+                 }
+                 OSProfilerEnum::RequestExit(a) => {
+                     result.insert(
+                         format!("{}::host", event.tracepoint_id),
+                         a.info.host.clone(),
+                     );
+                 }
+             }
+             println!("{:?}", event);
+         }
+         result
+     }*/
 
     fn get_trace_from_base_id(&mut self, id: &str) -> Result<Trace, Box<dyn Error>> {
         eprintln!("Working on {}", id);
@@ -645,16 +643,56 @@ fn sort_event_list(event_list: &mut Vec<OSProfilerSpan>) {
 
 impl Event {
     fn from_osp_span(event: &OSProfilerSpan) -> Event {
-     let mut map = HashMap::new();
-     if let OSProfilerEnum::Annotation(AnnotationEnum::KeyValue(key_value_annotation_info)) = &event.info {
-         let host1 = &key_value_annotation_info.host;
-         let host = Str(host1.to_string());
-        let val = Int(key_value_annotation_info.value);
-          //  println!("host is {:?}", host);
-          //  println!("val is {:?}", val);
-           map.insert("value".to_string(), val);
-           map.insert("host".to_string(),host);
-     }
+        let mut map = HashMap::new();
+        if let OSProfilerEnum::Annotation(AnnotationEnum::KeyValue(key_value_annotation_info)) =
+            &event.info
+        {
+            //     let host1 = &key_value_annotation_info.host;
+            //    let host = Str(host1.to_string());
+            let val = Int(key_value_annotation_info.value);
+            //  println!("host is {:?}", host);
+            //  println!("val is {:?}", val);
+            map.insert("value".to_string(), val);
+            //     map.insert("host".to_string(),host);
+        }
+        match &event.info {
+            OSProfilerEnum::FunctionEntry(function_entry_info) => {
+                let host = Str((&function_entry_info.host).to_string());
+                map.insert("host".to_string(), host);
+            }
+            OSProfilerEnum::RequestEntry(request_entry_info) => {
+                let host = Str((&request_entry_info.host).to_string());
+                map.insert("host".to_string(), host);
+            }
+            OSProfilerEnum::Exit(ExitEnum::Normal(normal_entry_info)) => {
+                let host = Str((&normal_entry_info.host).to_string());
+                map.insert("host".to_string(), host);
+            }
+            OSProfilerEnum::Exit(ExitEnum::Error(error_entry_info)) => {
+                let host = Str((&error_entry_info.host).to_string());
+                map.insert("host".to_string(), host);
+            }
+            OSProfilerEnum::Annotation(AnnotationEnum::KeyValue(key_value_annotation_info)) => {
+                let host = Str((&key_value_annotation_info.host).to_string());
+                map.insert("host".to_string(), host);
+            }
+            OSProfilerEnum::Annotation(AnnotationEnum::WaitFor(wait_for_annotation_info)) => {
+                let host = Str((&wait_for_annotation_info.host).to_string());
+                map.insert("host".to_string(), host);
+            }
+            OSProfilerEnum::Annotation(AnnotationEnum::Child(child_annotation_info)) => {
+                let host = Str((&child_annotation_info.host).to_string());
+                map.insert("host".to_string(), host);
+            }
+            OSProfilerEnum::Annotation(AnnotationEnum::Plain(plain_annotation_info)) => {
+                let host = Str((&plain_annotation_info.host).to_string());
+                map.insert("host".to_string(), host);
+            }
+            OSProfilerEnum::Annotation(AnnotationEnum::Log(log_annotation_info)) => {
+                let host = Str((&log_annotation_info.host).to_string());
+                map.insert("host".to_string(), host);
+            }
+        }
         Event {
             trace_id: event.trace_id,
             tracepoint_id: TracepointID::from_str(&event.tracepoint_id),
@@ -668,8 +706,6 @@ impl Event {
             },
             is_synthetic: false,
             key_value_pair: map,
-            }
         }
+    }
 }
-
-
