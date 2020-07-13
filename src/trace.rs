@@ -178,7 +178,6 @@ impl Event {
 }
 impl fmt::Display for Trace {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // println!("Value is: {}", Value::Int(val));
         write!(f, "{}", Dot::new(&self.g))
     }
 }
@@ -245,17 +244,32 @@ impl Display for DAGEdge {
 
 /// A trace node is an abstract node, so it doesn't have a timestamp or trace id, it just has a
 /// tracepoint id and variant.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct TraceNode {
     pub tracepoint_id: TracepointID,
     pub variant: EventType,
+    pub key_value_pair: HashMap<String, Vec<Value>>,
 }
 
 impl TraceNode {
     pub fn from_event(event: &Event) -> Self {
+        let mut map = HashMap::new();
+        let mut vec_value: Vec<Value> = Vec::new();
+        let mut vec_host: Vec<Value> = Vec::new();
+        for (key, value) in event.key_value_pair.clone() {
+            // let mut copy_val= value.borrow().clone();
+            if key == "value" {
+                vec_value.push(value);
+            } else if key == "host" {
+                vec_host.push(value);
+            }
+        }
+        map.insert("value".to_string(), vec_value);
+        map.insert("host".to_string(), vec_host);
         TraceNode {
             tracepoint_id: event.tracepoint_id,
             variant: event.variant,
+            key_value_pair: map,
         }
     }
 }
