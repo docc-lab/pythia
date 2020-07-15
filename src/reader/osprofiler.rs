@@ -647,13 +647,8 @@ impl Event {
         if let OSProfilerEnum::Annotation(AnnotationEnum::KeyValue(key_value_annotation_info)) =
             &event.info
         {
-            //     let host1 = &key_value_annotation_info.host;
-            //    let host = Str(host1.to_string());
             let val = Int(key_value_annotation_info.value);
-            //  println!("host is {:?}", host);
-            //  println!("val is {:?}", val);
             map.insert("value".to_string(), val);
-            //     map.insert("host".to_string(),host);
         }
         match &event.info {
             OSProfilerEnum::FunctionEntry(function_entry_info) => {

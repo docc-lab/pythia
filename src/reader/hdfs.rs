@@ -28,6 +28,8 @@ use crate::trace::Trace;
 use crate::trace::TracepointID;
 use crate::trace::{DAGEdge, EdgeType};
 use crate::PythiaError;
+use crate::trace::Value::Str;
+use crate::trace::Value::Int;
 
 pub struct HDFSReader {
     xtrace_url: String,
@@ -314,6 +316,9 @@ fn sort_event_list(event_list: &mut Vec<HDFSEvent>) {
 
 impl Event {
     fn from_hdfs_node(event: &HDFSEvent) -> Event {
+       let mut map = HashMap::new();
+       map.insert("Agent".to_string(), Str(event.agent.to_string()));
+
         Event {
             trace_id: eventid_to_uuid(&event.event_id),
             tracepoint_id: TracepointID::from_str(match &event.variant {
@@ -323,7 +328,7 @@ impl Event {
             timestamp: convert_hdfs_timestamp(event.timestamp, event.hrt),
             variant: EventType::Annotation,
             is_synthetic: false,
-            key_value_pair: HashMap::new(),
+            key_value_pair: map,
         }
     }
 }
