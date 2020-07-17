@@ -25,8 +25,10 @@ use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub enum Value {
-    Int(u64),
+    UnsignedInt(u64),
     Str(String),
+    SignedInt(i64),
+    //float(f64),
 }
 
 /// A general-purpose trace which does not contain application-specific things
@@ -244,12 +246,20 @@ impl Display for DAGEdge {
 
 /// A trace node is an abstract node, so it doesn't have a timestamp or trace id, it just has a
 /// tracepoint id and variant.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TraceNode {
     pub tracepoint_id: TracepointID,
     pub variant: EventType,
     pub key_value_pair: HashMap<String, Vec<Value>>,
 }
+
+impl PartialEq for TraceNode {
+    fn eq(&self, other: &Self) -> bool {
+        self.tracepoint_id == other.tracepoint_id && self.variant == other.variant
+    }
+}
+
+impl Eq for TraceNode {}
 
 impl TraceNode {
     pub fn from_event(event: &Event) -> Self {

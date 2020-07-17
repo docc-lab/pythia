@@ -26,10 +26,12 @@ use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::Trace;
 use crate::trace::TracepointID;
+use crate::trace::Value::SignedInt;
+use crate::trace::Value::Str;
+use crate::trace::Value::UnsignedInt;
 use crate::trace::{DAGEdge, EdgeType};
 use crate::PythiaError;
-use crate::trace::Value::Str;
-use crate::trace::Value::Int;
+//use crate::trace::Value::float;
 
 pub struct HDFSReader {
     xtrace_url: String,
@@ -316,14 +318,17 @@ fn sort_event_list(event_list: &mut Vec<HDFSEvent>) {
 
 impl Event {
     fn from_hdfs_node(event: &HDFSEvent) -> Event {
-       let mut map = HashMap::new();
-       map.insert("Agent".to_string(), Str(event.agent.to_string()));
-       map.insert("Process Name".to_string(), Str(event.process_name.to_string()));
-       map.insert("Host".to_string(), Str(event.host.to_string()));
-       map.insert("hrt".to_string(), Int(event.hrt));
-       map.insert("Thread id".to_string(), Int(event.thread_id));
-       map.insert("Thread Name".to_string(), Str(event.process_id.to_string()));
-       map.insert("Process ID:".to_string(), Int(event.process_id));
+        let mut map = HashMap::new();
+        map.insert("Agent".to_string(), Str(event.agent.to_string()));
+        map.insert(
+            "Process Name".to_string(),
+            Str(event.process_name.to_string()),
+        );
+        map.insert("Host".to_string(), Str(event.host.to_string()));
+        map.insert("hrt".to_string(), UnsignedInt(event.hrt));
+        map.insert("Thread id".to_string(), UnsignedInt(event.thread_id));
+        map.insert("Thread Name".to_string(), Str(event.process_id.to_string()));
+        map.insert("Process ID:".to_string(), UnsignedInt(event.process_id));
         Event {
             trace_id: eventid_to_uuid(&event.event_id),
             tracepoint_id: TracepointID::from_str(match &event.variant {
