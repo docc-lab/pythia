@@ -267,7 +267,6 @@ impl TraceNode {
         let mut vec_value: Vec<Value> = Vec::new();
         let mut vec_host: Vec<Value> = Vec::new();
         for (key, value) in event.key_value_pair.clone() {
-            // let mut copy_val= value.borrow().clone();
             if key == "value" {
                 vec_value.push(value);
             } else if key == "host" {
@@ -282,6 +281,10 @@ impl TraceNode {
             key_value_pair: map,
         }
     }
+
+    /*  pub fn get_map(&self) -> HashMap<String, Vec<Value>> {
+        return self.key_value_pair;
+    }*/
 }
 
 impl Display for TraceNode {

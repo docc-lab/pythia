@@ -16,6 +16,7 @@ use pythia_common::RequestType;
 
 use crate::critical::CriticalPath;
 use crate::critical::Path;
+use crate::trace;
 use crate::trace::TraceNode;
 use crate::trace::TracepointID;
 use crate::trace::Value;
@@ -35,13 +36,18 @@ pub struct Group {
     pub variance: f64,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Clone)]
 pub struct GroupEdge {
     /// These are the durations of the individual paths.
     pub duration: Vec<Duration>,
     pub key_value: HashMap<String, Vec<Value>>,
 }
 
+impl PartialEq for GroupEdge {
+    fn eq(&self, other: &Self) -> bool {
+        self.duration == other.duration
+    }
+}
 impl Display for GroupEdge {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -88,17 +94,14 @@ impl Group {
         let mut prev_dag_nidx = None;
         let mut start_node = None;
         let mut end_node;
-        /*   let mut map = HashMap::new();
+        /*  let mut map = HashMap::new();
         let mut vec_value: Vec<Value> = Vec::new();
         let mut vec_host: Vec<Value> = Vec::new();
-        for (key, value) in Event::key_value_pair
+        for node in dag.node_indices()
         {
-            if key=="value"
-            {
-                vec_value.push(value);
-            }
+            vec_value.push_back(node.get_maps());
         }
-        map.insert("value".to_string(), vec_value); */
+        map.insert("value".to_string(), vec_value);*/
         loop {
             let dag_nidx = dag.add_node(TraceNode::from_event(&path.g.g[cur_node]));
             end_node = dag_nidx;
@@ -210,6 +213,12 @@ impl Group {
         }
     }
 }
+
+/*impl TraceNode {
+    pub fn get_maps(&self) -> HashMap<String, Vec<Value>> {
+    return self.key_value_pair;
+    }
+}*/
 
 impl Path for Group {
     fn get_hash(&self) -> &str {
