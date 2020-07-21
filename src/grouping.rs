@@ -37,14 +37,8 @@ pub struct Group {
 pub struct GroupEdge {
     /// These are the durations of the individual paths.
     pub duration: Vec<Duration>,
-    //pub key_value: HashMap<String, Vec<Value>>,
 }
-/*
-impl PartialEq for GroupEdge {
-    fn eq(&self, other: &Self) -> bool {
-        self.duration == other.duration
-    }
-}*/
+
 impl Display for GroupEdge {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -91,14 +85,6 @@ impl Group {
         let mut prev_dag_nidx = None;
         let mut start_node = None;
         let mut end_node;
-        /*  let mut map = HashMap::new();
-        let mut vec_value: Vec<Value> = Vec::new();
-        let mut vec_host: Vec<Value> = Vec::new();
-        for node in dag.node_indices()
-        {
-            vec_value.push_back(node.get_maps());
-        }
-        map.insert("value".to_string(), vec_value);*/
         loop {
             let dag_nidx = dag.add_node(TraceNode::from_event(&path.g.g[cur_node]));
             end_node = dag_nidx;
@@ -112,7 +98,6 @@ impl Group {
                             dag_nidx,
                             GroupEdge {
                                 duration: vec![path.g.g[edge].duration],
-                                //  key_value: HashMap::new(),
                             },
                         );
                     }
@@ -211,11 +196,6 @@ impl Group {
     }
 }
 
-/*impl TraceNode {
-    pub fn get_maps(&self) -> HashMap<String, Vec<Value>> {
-    return self.key_value_pair;
-    }
-}*/
 
 impl Path for Group {
     fn get_hash(&self) -> &str {

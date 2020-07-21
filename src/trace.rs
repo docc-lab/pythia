@@ -300,9 +300,6 @@ impl TraceNode {
         }
     }
 
-    /*  pub fn get_map(&self) -> HashMap<String, Vec<Value>> {
-        return self.key_value_pair;
-    }*/
 }
 
 impl Display for TraceNode {
