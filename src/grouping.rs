@@ -16,11 +16,8 @@ use pythia_common::RequestType;
 
 use crate::critical::CriticalPath;
 use crate::critical::Path;
-use crate::trace;
 use crate::trace::TraceNode;
 use crate::trace::TracepointID;
-use crate::trace::Value;
-//use crate::trace::Event;
 
 /// A group of critical paths
 #[derive(Clone, Debug)]
@@ -36,18 +33,18 @@ pub struct Group {
     pub variance: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GroupEdge {
     /// These are the durations of the individual paths.
     pub duration: Vec<Duration>,
-    pub key_value: HashMap<String, Vec<Value>>,
+    //pub key_value: HashMap<String, Vec<Value>>,
 }
-
+/*
 impl PartialEq for GroupEdge {
     fn eq(&self, other: &Self) -> bool {
         self.duration == other.duration
     }
-}
+}*/
 impl Display for GroupEdge {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -115,7 +112,7 @@ impl Group {
                             dag_nidx,
                             GroupEdge {
                                 duration: vec![path.g.g[edge].duration],
-                                key_value: HashMap::new(),
+                                //  key_value: HashMap::new(),
                             },
                         );
                     }

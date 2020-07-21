@@ -266,11 +266,29 @@ impl TraceNode {
         let mut map = HashMap::new();
         let mut vec_value: Vec<Value> = Vec::new();
         let mut vec_host: Vec<Value> = Vec::new();
+        let mut vec_agent: Vec<Value> = Vec::new();
+        let mut vec_hrt: Vec<Value> = Vec::new();
+        let mut vec_proc_id: Vec<Value> = Vec::new();
+        let mut vec_proc_name: Vec<Value> = Vec::new();
+        let mut vec_thread_id: Vec<Value> = Vec::new();
+        let mut vec_thread_name: Vec<Value> = Vec::new();
         for (key, value) in event.key_value_pair.clone() {
-            if key == "value" {
+            if key == "Value" {
                 vec_value.push(value);
-            } else if key == "host" {
+            } else if key == "Host" {
                 vec_host.push(value);
+            } else if key == "Agent" {
+                vec_agent.push(value);
+            } else if key == "hrt" {
+                vec_hrt.push(value);
+            } else if key == "Process ID" {
+                vec_proc_id.push(value);
+            } else if key == "Process Name" {
+                vec_proc_name.push(value);
+            } else if key == "Thread ID" {
+                vec_thread_id.push(value);
+            } else if key == "Thread Name" {
+                vec_thread_name.push(value);
             }
         }
         map.insert("value".to_string(), vec_value);
