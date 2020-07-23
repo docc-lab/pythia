@@ -262,6 +262,8 @@ impl PartialEq for TraceNode {
 impl Eq for TraceNode {}
 
 impl TraceNode {
+    //building hashmap that contains key value pairs where key is a string, and value is a vector
+    //of Value
     pub fn from_event(event: &Event) -> Self {
         let mut map = HashMap::new();
         let mut vec_value: Vec<Value> = Vec::new();
@@ -273,25 +275,25 @@ impl TraceNode {
         let mut vec_thread_id: Vec<Value> = Vec::new();
         let mut vec_thread_name: Vec<Value> = Vec::new();
         for (key, value) in event.key_value_pair.clone() {
-            if key == "Value" {
+            if key == "lock_queue".to_string() {
                 vec_value.push(value);
-            } else if key == "Host" {
+            } else if key == "host".to_string() {
                 vec_host.push(value);
-            } else if key == "Agent" {
+            } else if key == "agent".to_string() {
                 vec_agent.push(value);
-            } else if key == "hrt" {
+            } else if key == "hrt".to_string() {
                 vec_hrt.push(value);
-            } else if key == "Process ID" {
+            } else if key == "process ID".to_string() {
                 vec_proc_id.push(value);
-            } else if key == "Process Name" {
+            } else if key == "process name" {
                 vec_proc_name.push(value);
-            } else if key == "Thread ID" {
+            } else if key == "thread ID" {
                 vec_thread_id.push(value);
-            } else if key == "Thread Name" {
+            } else if key == "thread name" {
                 vec_thread_name.push(value);
             }
         }
-        map.insert("value".to_string(), vec_value);
+        map.insert("lock_queue".to_string(), vec_value);
         map.insert("host".to_string(), vec_host);
         TraceNode {
             tracepoint_id: event.tracepoint_id,
@@ -299,7 +301,6 @@ impl TraceNode {
             key_value_pair: map,
         }
     }
-
 }
 
 impl Display for TraceNode {

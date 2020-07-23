@@ -196,7 +196,6 @@ impl Group {
     }
 }
 
-
 impl Path for Group {
     fn get_hash(&self) -> &str {
         &self.hash

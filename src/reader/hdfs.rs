@@ -319,16 +319,16 @@ fn sort_event_list(event_list: &mut Vec<HDFSEvent>) {
 impl Event {
     fn from_hdfs_node(event: &HDFSEvent) -> Event {
         let mut map = HashMap::new();
-        map.insert("Agent".to_string(), Str(event.agent.to_string()));
+        map.insert("agent".to_string(), Str(event.agent.to_string()));
         map.insert(
-            "Process Name".to_string(),
+            "process name".to_string(),
             Str(event.process_name.to_string()),
         );
-        map.insert("Host".to_string(), Str(event.host.to_string()));
+        map.insert("host".to_string(), Str(event.host.to_string()));
         map.insert("hrt".to_string(), UnsignedInt(event.hrt));
-        map.insert("Thread id".to_string(), UnsignedInt(event.thread_id));
-        map.insert("Thread Name".to_string(), Str(event.process_id.to_string()));
-        map.insert("Process ID:".to_string(), UnsignedInt(event.process_id));
+        map.insert("thread ID".to_string(), UnsignedInt(event.thread_id));
+        map.insert("thread name".to_string(), Str(event.process_id.to_string()));
+        map.insert("process ID:".to_string(), UnsignedInt(event.process_id));
         Event {
             trace_id: eventid_to_uuid(&event.event_id),
             tracepoint_id: TracepointID::from_str(match &event.variant {

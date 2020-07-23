@@ -646,12 +646,12 @@ fn sort_event_list(event_list: &mut Vec<OSProfilerSpan>) {
 impl Event {
     fn from_osp_span(event: &OSProfilerSpan) -> Event {
         let mut map = HashMap::new();
-        if let OSProfilerEnum::Annotation(AnnotationEnum::KeyValue(key_value_annotation_info)) =
-            &event.info
-        {
-            let val = UnsignedInt(key_value_annotation_info.value);
-            map.insert("value".to_string(), val);
-        }
+        //  if let OSProfilerEnum::Annotation(AnnotationEnum::KeyValue(key_value_annotation_info)) =
+        //    &event.info
+        //{
+        //  let val = UnsignedInt(key_value_annotation_info.value);
+        //map.insert("value".to_string(), val);
+        // }
         match &event.info {
             OSProfilerEnum::FunctionEntry(function_entry_info) => {
                 let host = Str((&function_entry_info.host).to_string());
@@ -671,6 +671,8 @@ impl Event {
             }
             OSProfilerEnum::Annotation(AnnotationEnum::KeyValue(key_value_annotation_info)) => {
                 let host = Str((&key_value_annotation_info.host).to_string());
+                let val = UnsignedInt(key_value_annotation_info.value);
+                map.insert("lock_queue".to_string(), val);
                 map.insert("host".to_string(), host);
             }
             OSProfilerEnum::Annotation(AnnotationEnum::WaitFor(wait_for_annotation_info)) => {
