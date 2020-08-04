@@ -691,6 +691,9 @@ impl Event {
                 let host = Str((&log_annotation_info.host).to_string());
                 map.insert("host".to_string(), host);
             }
+            OSProfilerEnum::Annotation(AnnotationEnum::Results(_result_info)) => {}
+            OSProfilerEnum::Annotation(AnnotationEnum::Args(_args_info)) =>  {}
+            OSProfilerEnum::Annotation(AnnotationEnum::WaitForKeyValue(_wait_for_kv_info)) => {}
         }
         Event {
             trace_id: event.trace_id,

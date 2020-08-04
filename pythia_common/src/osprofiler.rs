@@ -140,6 +140,56 @@ pub enum AnnotationEnum {
     Plain(PlainAnnotationInfo),
     Log(LogAnnotationInfo),
     KeyValue(KeyValueAnnotationInfo),
+    //the last 3 are for parsing OSProfiler String... needs work
+    Args(ArgsKeyValueInfo),
+    Results(ResultKeyValueInfo),
+    WaitForKeyValue(WaitForKeyValueAnnotation),
+}
+
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct WaitForKeyValueAnnotation {
+    wait_for: Uuid,
+    function: ArgsKeyValueFunction,
+    tracepoint_id: String,
+    host: String,
+    thread_id: u64,
+    pid: u64,
+}
+
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ArgsKeyValueInfo {
+    function: ArgsKeyValueFunction,
+    tracepoint_id: String,
+    host: String,
+    thread_id: u64,
+    pid: u64,
+}
+
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ArgsKeyValueFunction {
+    pub name: String,
+    pub args: String,
+    pub kwargs: String,
+}
+
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ResultKeyValueInfo {
+    function: ResultFunction,
+    host: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ResultFunction {
+    result: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
