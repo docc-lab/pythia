@@ -23,6 +23,7 @@ use pythia_common::RequestType;
 
 use std::collections::HashMap;
 
+//The enum Value contains variants which are added depending on the type of key-value pairs needed
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub enum Value {
     UnsignedInt(u64),

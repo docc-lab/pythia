@@ -644,14 +644,9 @@ fn sort_event_list(event_list: &mut Vec<OSProfilerSpan>) {
 }
 
 impl Event {
+    //adding key-value pairs to Event as a HashMap depending on the EventType and which pairs are available
     fn from_osp_span(event: &OSProfilerSpan) -> Event {
         let mut map = HashMap::new();
-        //  if let OSProfilerEnum::Annotation(AnnotationEnum::KeyValue(key_value_annotation_info)) =
-        //    &event.info
-        //{
-        //  let val = UnsignedInt(key_value_annotation_info.value);
-        //map.insert("value".to_string(), val);
-        // }
         match &event.info {
             OSProfilerEnum::FunctionEntry(function_entry_info) => {
                 let host = Str((&function_entry_info.host).to_string());
@@ -692,7 +687,7 @@ impl Event {
                 map.insert("host".to_string(), host);
             }
             OSProfilerEnum::Annotation(AnnotationEnum::Results(_result_info)) => {}
-            OSProfilerEnum::Annotation(AnnotationEnum::Args(_args_info)) =>  {}
+            OSProfilerEnum::Annotation(AnnotationEnum::Args(_args_info)) => {}
             OSProfilerEnum::Annotation(AnnotationEnum::WaitForKeyValue(_wait_for_kv_info)) => {}
         }
         Event {
