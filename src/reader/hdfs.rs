@@ -324,6 +324,27 @@ impl Event {
        map.insert("Thread id".to_string(), Int(event.thread_id));
        map.insert("Thread Name".to_string(), Str(event.process_id.to_string()));
        map.insert("Process ID:".to_string(), Int(event.process_id));
+       if let HDFSEnum::WithSource(s) = &event.variant{
+           if let WithSourceEnum::Type13(foo) = &s.variant{
+               map.insert("Name".to_string(), Str(foo.name.to_string()));
+            } else if let WithSourceEnum::Type14(foo) = &s.variant{
+            map.insert("Read Size".to_string(), Str(foo.readsize.to_string()));
+            } else if let WithSourceEnum::Type14(foo) = &s.variant{
+            map.insert("Read Size".to_string(), Str(foo.readsize.to_string()));
+            } else if let WithSourceEnum::Type15(foo) = &s.variant{
+                map.insert("Write Size".to_string(), Str(foo.writesize.to_string()));
+            } else if let WithSourceEnum::Type1(foo) = &s.variant{
+                map.insert("Tag".to_string(), Str(foo.tag[0].to_string()));
+            }
+        }
+        else if let HDFSEnum::WithoutSource(s) = &event.variant{
+            if let EventWithoutSource::Type4(foo) = &s{
+                let white_space = foo.tag[0].find(" ");
+                if let Some(number) = white_space{
+                    map.insert("Command".to_string(), Str(foo.tag[0][1..number].to_string()));
+                }
+            }
+        }
         Event {
             trace_id: eventid_to_uuid(&event.event_id),
             tracepoint_id: TracepointID::from_str(match &event.variant {
@@ -353,7 +374,7 @@ pub struct HDFSEvent {
     task_id: HexID,
     #[serde(rename = "ParentEventID")]
     parent_event_id: Vec<String>,
-    label: String,
+    label: String, 
     title: String,
     host: String,
     #[serde(rename = "HRT")]
@@ -399,6 +420,9 @@ pub enum WithSourceEnum {
     Type10(Type10Event),
     Type11(Type11Event),
     Type12(Type12Event),
+    Type13(Type13Event),
+    Type14(Type14Event),
+    Type15(Type15Event),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -516,4 +540,28 @@ pub struct Type12Event {
     bytes: String,
     duration: String,
     operation: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+#[serde(deny_unknown_fields)]
+pub struct Type13Event {
+    cycles: u64,
+    name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+#[serde(deny_unknown_fields)]
+pub struct Type14Event {
+    cycles: u64,
+    readsize: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+#[serde(deny_unknown_fields)]
+pub struct Type15Event {
+    cycles: u64,
+    writesize: String,
 }
