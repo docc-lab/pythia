@@ -18,7 +18,7 @@ use serde::ser;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use uuid::Uuid;
-
+use stats::variance;
 use pythia_common::RequestType;
 
 use std::collections::HashMap;
@@ -197,6 +197,7 @@ pub struct Event {
     pub is_synthetic: bool,
     pub variant: EventType,
     pub key_value_pair: HashMap<String, Value>,
+   // pub variance: f64,
 }
 
 #[derive(Serialize, Deserialize, Hash, Debug, Clone, Copy, Eq, PartialEq)]
@@ -252,6 +253,7 @@ pub struct TraceNode {
     pub tracepoint_id: TracepointID,
     pub variant: EventType,
     pub key_value_pair: HashMap<String, Vec<Value>>,
+   // pub variance: f64,
 }
 
 impl PartialEq for TraceNode {
@@ -294,14 +296,27 @@ impl TraceNode {
                 vec_thread_name.push(value);
             }
         }
+
         map.insert("lock_queue".to_string(), vec_value);
         map.insert("host".to_string(), vec_host);
+
+       // let mut var = variance()
         TraceNode {
             tracepoint_id: event.tracepoint_id,
             variant: event.variant,
             key_value_pair: map,
+           // variance: event.pairs_variance(),
         }
     }
+/*
+    pub fn pairs_variance(event: &Event) -> f64 {
+        let mut varian;
+        for (key, value) in event.key_value_pair.clone() {
+            varian = variance(event.value.iter().map(|x| x.duration.as_nanos()));
+        }
+          varian = variance(event.key_value_pair.iter().map(|x| x.duration.as_nanos()));
+        return varian;
+    }*/
 }
 
 impl Display for TraceNode {
