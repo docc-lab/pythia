@@ -26,10 +26,12 @@ use crate::trace::Event;
 use crate::trace::EventType;
 use crate::trace::Trace;
 use crate::trace::TracepointID;
+use crate::trace::Value::SignedInt;
+use crate::trace::Value::Str;
+use crate::trace::Value::UnsignedInt;
 use crate::trace::{DAGEdge, EdgeType};
 use crate::PythiaError;
-use crate::trace::Value::Str;
-use crate::trace::Value::Int;
+//use crate::trace::Value::float;
 
 pub struct HDFSReader {
     xtrace_url: String,
@@ -345,6 +347,7 @@ impl Event {
                 }
             }
         }
+
         Event {
             trace_id: eventid_to_uuid(&event.event_id),
             tracepoint_id: TracepointID::from_str(match &event.variant {

@@ -18,15 +18,18 @@ use serde::ser;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use uuid::Uuid;
-
+use stats::variance;
 use pythia_common::RequestType;
 
 use std::collections::HashMap;
 
+//The enum Value contains variants which are added depending on the type of key-value pairs needed
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub enum Value {
-    Int(u64),
+    UnsignedInt(u64),
     Str(String),
+    SignedInt(i64),
+    //float(f64),
 }
 
 /// A general-purpose trace which does not contain application-specific things
@@ -194,6 +197,7 @@ pub struct Event {
     pub is_synthetic: bool,
     pub variant: EventType,
     pub key_value_pair: HashMap<String, Value>,
+   // pub variance: f64,
 }
 
 #[derive(Serialize, Deserialize, Hash, Debug, Clone, Copy, Eq, PartialEq)]
@@ -244,34 +248,75 @@ impl Display for DAGEdge {
 
 /// A trace node is an abstract node, so it doesn't have a timestamp or trace id, it just has a
 /// tracepoint id and variant.
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TraceNode {
     pub tracepoint_id: TracepointID,
     pub variant: EventType,
     pub key_value_pair: HashMap<String, Vec<Value>>,
+   // pub variance: f64,
 }
 
+impl PartialEq for TraceNode {
+    fn eq(&self, other: &Self) -> bool {
+        self.tracepoint_id == other.tracepoint_id && self.variant == other.variant
+    }
+}
+
+impl Eq for TraceNode {}
+
 impl TraceNode {
+    //building hashmap that contains key value pairs where key is a string, and value is a vector
+    //of Value
     pub fn from_event(event: &Event) -> Self {
         let mut map = HashMap::new();
         let mut vec_value: Vec<Value> = Vec::new();
         let mut vec_host: Vec<Value> = Vec::new();
+        let mut vec_agent: Vec<Value> = Vec::new();
+        let mut vec_hrt: Vec<Value> = Vec::new();
+        let mut vec_proc_id: Vec<Value> = Vec::new();
+        let mut vec_proc_name: Vec<Value> = Vec::new();
+        let mut vec_thread_id: Vec<Value> = Vec::new();
+        let mut vec_thread_name: Vec<Value> = Vec::new();
         for (key, value) in event.key_value_pair.clone() {
-            // let mut copy_val= value.borrow().clone();
-            if key == "value" {
+            if key == "lock_queue".to_string() {
                 vec_value.push(value);
-            } else if key == "host" {
+            } else if key == "host".to_string() {
                 vec_host.push(value);
+            } else if key == "agent".to_string() {
+                vec_agent.push(value);
+            } else if key == "hrt".to_string() {
+                vec_hrt.push(value);
+            } else if key == "process ID".to_string() {
+                vec_proc_id.push(value);
+            } else if key == "process name" {
+                vec_proc_name.push(value);
+            } else if key == "thread ID" {
+                vec_thread_id.push(value);
+            } else if key == "thread name" {
+                vec_thread_name.push(value);
             }
         }
-        map.insert("value".to_string(), vec_value);
+
+        map.insert("lock_queue".to_string(), vec_value);
         map.insert("host".to_string(), vec_host);
+
+       // let mut var = variance()
         TraceNode {
             tracepoint_id: event.tracepoint_id,
             variant: event.variant,
             key_value_pair: map,
+           // variance: event.pairs_variance(),
         }
     }
+/*
+    pub fn pairs_variance(event: &Event) -> f64 {
+        let mut varian;
+        for (key, value) in event.key_value_pair.clone() {
+            varian = variance(event.value.iter().map(|x| x.duration.as_nanos()));
+        }
+          varian = variance(event.key_value_pair.iter().map(|x| x.duration.as_nanos()));
+        return varian;
+    }*/
 }
 
 impl Display for TraceNode {

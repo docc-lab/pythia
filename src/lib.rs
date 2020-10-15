@@ -530,8 +530,16 @@ fn group_traces(traces: Vec<Trace>) {
         groups
             .iter()
             .map(|x| format!(
-                "{},{},{},\"{:?}\"",
+                "{}, {},{},\"{:?}\"",
                 x.g.node_count(),
+                //  {for node in x.g.node_indices() {
+                //                                    for (key,value) in &x.g[node].key_value_pair.clone()
+                //                                 {
+                //                                   println!("{}: {:?}", key, value);
+                //                                 break;
+                //                           }
+                //     break;
+                //                                    }},
                 x.traces.len(),
                 x.variance,
                 x.traces.iter().map(|x| x.g.base_id).collect::<Vec<_>>()
