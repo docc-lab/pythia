@@ -317,6 +317,10 @@ impl TraceNode {
           varian = variance(event.key_value_pair.iter().map(|x| x.duration.as_nanos()));
         return varian;
     }*/
+/*
+    pub fn get_key_values() -> HashMap<String, Vec<Value>> {
+        return Self{key_value_pair};
+    } */
 }
 
 impl Display for TraceNode {
