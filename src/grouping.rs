@@ -17,7 +17,9 @@ use pythia_common::RequestType;
 use crate::critical::CriticalPath;
 use crate::critical::Path;
 use crate::trace::TraceNode;
+//use crate::trace::TraceNode::key_value_pair;
 use crate::trace::TracepointID;
+use crate::trace::Value;
 
 /// A group of critical paths
 #[derive(Clone, Debug)]
@@ -31,6 +33,7 @@ pub struct Group {
     /// The raw critical paths that this group was constructed from
     pub traces: Vec<CriticalPath>,
     pub variance: f64,
+   // pub key_value_pairs: HashMap<String, Vec<Value>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -119,6 +122,7 @@ impl Group {
             request_type: path.request_type,
             traces: vec![path],
             variance: 0.0,
+          //  key_value_pairs: TraceNode::get_key_values(),
         }
     }
 
