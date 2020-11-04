@@ -322,10 +322,10 @@ impl Event {
        map.insert("Agent".to_string(), Str(event.agent.to_string()));
        map.insert("Process Name".to_string(), Str(event.process_name.to_string()));
        map.insert("Host".to_string(), Str(event.host.to_string()));
-       map.insert("hrt".to_string(), Int(event.hrt));
-       map.insert("Thread id".to_string(), Int(event.thread_id));
+       //map.insert("hrt".to_string(), Int(event.hrt));
+     //  map.insert("Thread id".to_string(), Int(event.thread_id));
        map.insert("Thread Name".to_string(), Str(event.process_id.to_string()));
-       map.insert("Process ID:".to_string(), Int(event.process_id));
+       //map.insert("Process ID:".to_string(), Int(event.process_id));
        if let HDFSEnum::WithSource(s) = &event.variant{
            if let WithSourceEnum::Type13(foo) = &s.variant{
                map.insert("Name".to_string(), Str(foo.name.to_string()));
@@ -337,6 +337,8 @@ impl Event {
                 map.insert("Write Size".to_string(), Str(foo.writesize.to_string()));
             } else if let WithSourceEnum::Type1(foo) = &s.variant{
                 map.insert("Tag".to_string(), Str(foo.tag[0].to_string()));
+            } else if let WithSourceEnum::Type16(foo) = &s.variant{
+                map.insert("Replication".to_string(), Str(foo.replication.to_string()));
             }
         }
         else if let HDFSEnum::WithoutSource(s) = &event.variant{
@@ -426,6 +428,7 @@ pub enum WithSourceEnum {
     Type13(Type13Event),
     Type14(Type14Event),
     Type15(Type15Event),
+    Type16(Type16Event),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -567,4 +570,12 @@ pub struct Type14Event {
 pub struct Type15Event {
     cycles: u64,
     writesize: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+#[serde(deny_unknown_fields)]
+pub struct Type16Event {
+    cycles: u64,
+    replication: String,
 }
