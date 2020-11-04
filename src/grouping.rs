@@ -11,6 +11,7 @@ use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph;
 use petgraph::Direction;
 use stats::variance;
+use stats::mean;
 
 use pythia_common::RequestType;
 
@@ -34,6 +35,10 @@ pub struct Group {
     pub traces: Vec<CriticalPath>,
     pub variance: f64,
    // pub key_value_pairs: HashMap<String, Vec<Value>>,
+   // tsl: Group means to calculate CVs
+   pub mean: f64,
+   // tsl: Group coefficient of variance
+   pub cv: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -122,6 +127,8 @@ impl Group {
             request_type: path.request_type,
             traces: vec![path],
             variance: 0.0,
+            mean: 0.0,
+            cv: 0.0,
           //  key_value_pairs: TraceNode::get_key_values(),
         }
     }
@@ -191,7 +198,14 @@ impl Group {
             cur_dag_nidx = self.next_node(cur_dag_nidx).unwrap();
         }
     }
-
+    // tsl: calculate mean of the group
+    fn calculate_mean(&mut self) {
+        // change below variance to mean
+        self.mean = mean(self.traces.iter().map(|x| x.duration.as_nanos()));
+        if self.mean != 0.0 {
+            println!("Set mean of {} to {}", self.hash, self.mean);
+        }
+    }
     fn calculate_variance(&mut self) {
         self.variance = variance(self.traces.iter().map(|x| x.duration.as_nanos()));
         if self.variance != 0.0 {
@@ -278,6 +292,19 @@ impl GroupManager {
         sorted_groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap());
         sorted_groups
     }
+    /// tsl: Return groups filtered based on coefficient of variance
+    pub fn problem_groups_cv(&self, cv_threshold: f64) -> Vec<&Group> {
+        let mut sorted_groups: Vec<&Group> = self
+            .groups
+            .values()
+            .filter(|&g| g.variance != 0.0)
+            .filter(|&g| g.cv > cv_threshold) // tsl: g.CV > Threshold
+            .filter(|&g| g.traces.len() > 3)
+            .collect();
+        sorted_groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap());
+        sorted_groups
+    }
+
 
     /// Mark a group as "used": reset its performance data
     pub fn used(&mut self, group: &str) {

@@ -190,6 +190,8 @@ fn main() {
             // Make decision
             let mut budget = SETTINGS.tracepoints_per_epoch;
             let problem_groups = groups.problem_groups();
+            // let problem_groups = groups.problem_groups();
+            let problem_groups = groups.problem_groups_cv(1.0); // tsl: problem groups takes now 
             let mut used_groups = Vec::new();
             println!("Making decision. Top 10 problem groups:");
             for g in problem_groups.iter().take(10) {
