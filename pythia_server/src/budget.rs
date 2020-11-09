@@ -48,6 +48,7 @@ impl NodeStatReader {
             last_measurement: None,
         };
         result.read_node_stats(reader).ok();
+        eprintln!("Measuring node stats -- Mert 11");
         result
     }
 
@@ -67,6 +68,7 @@ impl NodeStatReader {
             || self.last_stats.is_none()
             || self.last_cputime.is_none()
         {
+            eprintln!("Measuring node stats - if 1");
             // First run
             self.last_measurement = Some(measure_time);
             self.last_stats = Some(current_stats);
@@ -85,7 +87,7 @@ impl NodeStatReader {
             });
         }
         let elapsed = self.last_measurement.unwrap().elapsed().as_secs();
-
+        eprintln!("Measuring node stats -- MERT 2");
         let result = NodeStats {
             // Network stats
             receive_bytes_per_sec: (current_stats.receive_bytes
@@ -111,9 +113,11 @@ impl NodeStatReader {
             agent_cpu_time: ((cputime - self.last_cputime.unwrap()) / tps) as f64 / elapsed as f64,
             trace_size: trace_size,
         };
+        eprintln!("MERT hata oldumu bakalim");
         self.last_stats = Some(current_stats);
         self.last_measurement = Some(measure_time);
         self.last_cputime = Some(cputime);
+        eprintln!("MERTiko {:?}", result);
         Ok(result)
     }
 }

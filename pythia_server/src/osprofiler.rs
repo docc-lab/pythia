@@ -38,6 +38,7 @@ impl OSProfilerReader {
     }
 
     pub fn get_stats(&mut self) -> (f32, u32) {
+        eprintln!("MERT get stats");
         let info = redis::cmd("INFO")
             .query::<redis::InfoDict>(&mut self.connection)
             .unwrap();

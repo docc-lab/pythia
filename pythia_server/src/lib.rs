@@ -85,7 +85,7 @@ impl PythiaAPI for PythiaAPIImpl {
     }
 
     fn read_node_stats(&self) -> Result<Value> {
-        eprintln!("Measuring node stats");
+        eprintln!("Measuring node stats -- MERT");
         Ok(serde_json::to_value(
             self.stats
                 .lock()
