@@ -22,6 +22,8 @@ use crate::trace::TraceNode;
 use crate::trace::TracepointID;
 use crate::trace::Value;
 
+use histogram::Histogram;
+
 /// A group of critical paths
 #[derive(Clone, Debug)]
 pub struct Group {
@@ -37,6 +39,7 @@ pub struct Group {
    // pub key_value_pairs: HashMap<String, Vec<Value>>,
    // tsl: Group means to calculate CVs
    pub mean: f64,
+   
    // tsl: Group coefficient of variance
    pub cv: f64,
 }
@@ -303,6 +306,35 @@ impl GroupManager {
             .collect();
         sorted_groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap());
         sorted_groups
+    }
+
+    /// tsl: Return groups filtered based on mean distribution -- consistently slow groups
+    pub fn problem_groups_slow(&self, percentile: f64) -> Vec<&Group> {
+        let mut histogram = Histogram::new();
+        let mut groups_vec: Vec<&Group> = self
+            .groups
+            .values()
+            .collect();
+            let group_iter = groups_vec.iter();
+        
+        println!("Populate histogram");
+        for val in group_iter {
+            histogram.increment(val);
+        }
+         
+        // get P percentile mean
+        let mean_threshold  = histogram.percentile(percentile).unwrap();
+        println!("**Set percentile {}", mean_threshold);
+         
+        let mut sorted_groups: Vec<&Group> = self
+            .groups
+            .values()
+            .filter(|&g| g.mean > mean_threshold) 
+            .filter(|&g| g.traces.len() > 3)
+            .collect();
+        sorted_groups.sort_by(|a, b| b.mean.partial_cmp(&a.mean).unwrap());
+        sorted_groups
+    
     }
 
 
