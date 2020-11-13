@@ -39,7 +39,7 @@ pub struct Group {
    // pub key_value_pairs: HashMap<String, Vec<Value>>,
    // tsl: Group means to calculate CVs
    pub mean: f64,
-   
+
    // tsl: Group coefficient of variance
    pub cv: f64,
 }
@@ -315,26 +315,25 @@ impl GroupManager {
             .groups
             .values()
             .collect();
-            let group_iter = groups_vec.iter();
-        
+
         println!("Populate histogram");
-        for val in group_iter {
-            histogram.increment(val);
+        for val in groups_vec.iter() {
+            histogram.increment(val.mean.round() as u64);
         }
-         
+
         // get P percentile mean
         let mean_threshold  = histogram.percentile(percentile).unwrap();
         println!("**Set percentile {}", mean_threshold);
-         
+
         let mut sorted_groups: Vec<&Group> = self
             .groups
             .values()
-            .filter(|&g| g.mean > mean_threshold) 
+            .filter(|&g| g.mean > mean_threshold as f64)
             .filter(|&g| g.traces.len() > 3)
             .collect();
         sorted_groups.sort_by(|a, b| b.mean.partial_cmp(&a.mean).unwrap());
         sorted_groups
-    
+
     }
 
 

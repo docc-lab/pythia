@@ -8,6 +8,6 @@ uber_trace_dir = "/home/ates/tracing/traces" # Change to where the Uber traces a
 hdfs_control_file = "/local/hdfs/tracing-framework/pythia.txt"
 
 # Split by commas, of the form http://localhost:3030
-pythia_clients = "http://ctl:3030,http://cp-1:3030,http://cp-2:3030,http://cp-3:3030"
+pythia_clients = "http://ctl:3030,http://cp-1:3030"
 
 # remaining settings are defined in src/settings.rs
