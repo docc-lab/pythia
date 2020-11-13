@@ -81,6 +81,7 @@ impl Group {
         let mut zeros = 0;
         for (_, group) in hash_map.iter_mut() {
             group.calculate_variance();
+            group.calculate_mean();
             if group.variance == 0.0 {
                 zeros += 1;
             }
@@ -204,13 +205,13 @@ impl Group {
     // tsl: calculate mean of the group
     fn calculate_mean(&mut self) {
         // change below variance to mean
-        self.mean = mean(self.traces.iter().map(|x| x.duration.as_nanos()));
+        self.mean = mean(self.traces.iter().map(|x| x.duration.as_secs()));
         if self.mean != 0.0 {
             println!("Set mean of {} to {}", self.hash, self.mean);
         }
     }
     fn calculate_variance(&mut self) {
-        self.variance = variance(self.traces.iter().map(|x| x.duration.as_nanos()));
+        self.variance = variance(self.traces.iter().map(|x| x.duration.as_secs()));
         if self.variance != 0.0 {
             println!("Set variance of {} to {}", self.hash, self.variance);
         }
@@ -281,6 +282,7 @@ impl GroupManager {
         }
         for h in updated_groups {
             self.groups.get_mut(h).unwrap().calculate_variance();
+            self.groups.get_mut(h).unwrap().calculate_mean();
         }
     }
 
@@ -301,7 +303,7 @@ impl GroupManager {
             .groups
             .values()
             .filter(|&g| g.variance != 0.0)
-            .filter(|&g| g.cv > cv_threshold) // tsl: g.CV > Threshold
+            .filter(|&g| g.variance.sqrt()/g.mean > cv_threshold) // tsl: g.CV > Threshold
             .filter(|&g| g.traces.len() > 3)
             .collect();
         sorted_groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap());
@@ -318,9 +320,11 @@ impl GroupManager {
 
         println!("Populate histogram");
         for val in groups_vec.iter() {
+           // print!("{:?},  ",(val.mean.round() as f64) / (1000000000 as f64) );
+            //histogram.increment((( val.mean.round() as f64) / (1000000000 as f64)) as u64);
             histogram.increment(val.mean.round() as u64);
         }
-
+        println!("get peercentile");
         // get P percentile mean
         let mean_threshold  = histogram.percentile(percentile).unwrap();
         println!("**Set percentile {}", mean_threshold);
