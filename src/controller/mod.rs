@@ -16,9 +16,6 @@ use crate::trace::TracepointID;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
-use pythia_common::RequestType;
-
-
 pub trait Controller: Send + Sync {
     fn enable(&self, points: &Vec<(TracepointID, Option<RequestType>)>);
     fn disable(&self, points: &Vec<(TracepointID, Option<RequestType>)>);
