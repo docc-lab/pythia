@@ -18,7 +18,7 @@ pub trait Controller: Send + Sync {
     fn is_enabled(&self, point: &(TracepointID, Option<RequestType>)) -> bool;
     fn disable_all(&self);
     fn enable_all(&self);
-    fn enabled_tracepoints(&self) -> Vec<(TracepointID, Option<RequestType>)>;
+    // fn enabled_tracepoints(&self) -> Vec<(TracepointID, Option<RequestType>)>;
 
     fn disable_by_name(&self, point: &str) {
         self.disable(&vec![(TracepointID::from_str(point), None)]);
