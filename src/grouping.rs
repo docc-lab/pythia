@@ -41,7 +41,7 @@ pub struct Group {
    pub mean: f64,
 
    // tsl: Group coefficient of variance
-   pub cv: f64,
+  // pub cv: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -132,7 +132,7 @@ impl Group {
             traces: vec![path],
             variance: 0.0,
             mean: 0.0,
-            cv: 0.0,
+            //cv: 0.0,
           //  key_value_pairs: TraceNode::get_key_values(),
         }
     }
