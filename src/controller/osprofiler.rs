@@ -59,7 +59,14 @@ impl Controller for OSProfilerController {
     fn enable_all(&self) {
         self.set_all_tracepoints(b"1");
     }
-
+    fn enabled_tracepoints(&self) -> Vec<(TracepointID, Option<RequestType>)> {
+        self.enabled_tracepoints
+            .lock()
+            .unwrap()
+            .iter()
+            .cloned()
+            .collect()
+    }
 
 }
 
@@ -93,12 +100,5 @@ impl OSProfilerController {
         }
     }
 
-    fn enabled_tracepoints(&self) -> Vec<(TracepointID, Option<RequestType>)> {
-        self.enabled_tracepoints
-            .lock()
-            .unwrap()
-            .iter()
-            .cloned()
-            .collect()
-    }
+
 }
