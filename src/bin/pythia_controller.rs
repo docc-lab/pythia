@@ -187,6 +187,11 @@ fn main() {
         }
 
         if !over_budget && last_decision.elapsed() > SETTINGS.decision_epoch {
+
+            let enabled_tracepoints: HashSet<_> =
+                    CONTROLLER.enabled_tracepoints().drain(..).collect();
+
+            
             // Make decision
             let mut budget = SETTINGS.tracepoints_per_epoch;
             // let problem_groups = groups.problem_groups();
@@ -196,6 +201,10 @@ fn main() {
             let problem_groups_slow = groups.problem_groups_slow(95.0); // tsl: problem groups takes now 
             // println!("*SLOW Groups: {:?}", problem_groups_slow);
             let mut used_groups = Vec::new();
+
+            //tsl ; get problematic group types to disable tps for non-problematic ones
+            let mut problematic_req_types = Vec::new();
+            
             println!("Making decision. Top 10 problem groups:");
             for g in problem_groups.iter().take(10) {
                 println!("{}", g);
@@ -211,6 +220,8 @@ fn main() {
                 // }
             }
             for g in problem_groups {
+                problematic_req_types.push(g.request_type);
+
                 let problem_edges = g.problem_edges();
 
                 println!("Top 10 edges of group {}:", g);
@@ -261,9 +272,28 @@ fn main() {
                     break;
                 }
             }
+            print!("Problematic req types: ");
+            for item in problematic_req_types{
+                print!("{:?}, ", item)
+            }
             for g in used_groups {
                 groups.used(&g);
             }
+
+            //tsl : for groups that stopped being problematic; just disable tracepoints, which are enabled so far
+            
+            // let mut to_disable = Vec::new();
+            for tp in enabled_tracepoints {
+                print!("{:?}, ", tp.1);
+
+                // if g.request_type == tp. && to_keep.get(&tp).is_none() {
+                //     to_disable.push(tp);
+                // }
+    
+            }
+            // CONTROLLER.disable(&to_disable);
+
+             
 
             last_decision = Instant::now();
         }
