@@ -12,6 +12,13 @@ use crate::settings::ApplicationType;
 use crate::settings::Settings;
 use crate::trace::TracepointID;
 
+
+use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
+
+use pythia_common::RequestType;
+
+
 pub trait Controller: Send + Sync {
     fn enable(&self, points: &Vec<(TracepointID, Option<RequestType>)>);
     fn disable(&self, points: &Vec<(TracepointID, Option<RequestType>)>);
@@ -41,7 +48,8 @@ enabled_tracepoints: Arc<Mutex<HashSet<(TracepointID, Option<RequestType>)>>>,
 
 impl TestController {
     pub fn new() -> Self {
-        enabled_tracepoints: Arc::new(Mutex::new(HashSet::new())),
+        Self{enabled_tracepoints: Arc::new(Mutex::new(HashSet::new())),}
+        
     }
 }
 
