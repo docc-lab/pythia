@@ -189,7 +189,7 @@ fn main() {
         if !over_budget && last_decision.elapsed() > SETTINGS.decision_epoch {
 
             let enabled_tracepoints: HashSet<_> =
-                    CONTROLLER.enabled_tracepoints().drain(..).collect();
+                    CONTROLLER.enabled_tracepoints.drain(..).collect();
 
             
             // Make decision
