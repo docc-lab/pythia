@@ -199,16 +199,16 @@ fn main() {
             println!("Making decision. Top 10 problem groups:");
             for g in problem_groups.iter().take(10) {
                 println!("{}", g);
-                for enabled in &g.enabled_tps{
-                    println!("Enabled: {:?} ", enabled);
-                }
+                // for enabled in &g.enabled_tps{
+                //     println!("Enabled: {:?} ", enabled);
+                // }
             }
             println!("Making decision. Top 10 slow problem groups:");
             for g in problem_groups_slow.iter().take(10) {
                 println!("{}", g);
-                for enabled in &g.enabled_tps{
-                    println!("Enabled: {:?} ", enabled);
-                }
+                // for enabled in &g.enabled_tps{
+                //     println!("Enabled: {:?} ", enabled);
+                // }
             }
             for g in problem_groups {
                 let problem_edges = g.problem_edges();
@@ -254,8 +254,8 @@ fn main() {
                     if decisions.len() > 0 {
                         used_groups.push(g.hash().to_string());
                     }
-                    // tsl: record enabled tracepoints per group
-                    g.update_enabled_tracepoints(&decisions);
+                    // // tsl: record enabled tracepoints per group
+                    // g.update_enabled_tracepoints(&decisions);
                 }
                 if budget <= 0 {
                     break;

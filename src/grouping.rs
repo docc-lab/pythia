@@ -41,8 +41,8 @@ pub struct Group {
    pub mean: f64,
 
 
-      //tsl: Disable strategy - if a groups stops being problematic, disable all the tracepoints for that
-    pub enabled_tps = Vec<(TracepointID, Option<RequestType>)>,
+    //   //tsl: Disable strategy - if a groups stops being problematic, disable all the tracepoints for that
+    // pub enabled_tps : Vec<(TracepointID, Option<RequestType>)>,
 
    // tsl: Group coefficient of variance
   // pub cv: f64,
@@ -73,12 +73,12 @@ impl Group {
     }
 
         /// tsl: add enabled tracepoints for the groups
-    pub fn update_enabled_tracepoints(&mut self, decisions: &Vec<(TracepointID, Option<RequestType>)>) {
+    // pub fn update_enabled_tracepoints(&mut self, decisions: &Vec<(TracepointID, Option<RequestType>)>) {
         
-        for decision in decisions {
-            self.enabled_tps.push(&decision);
-        }
-    }
+    //     for decision in decisions {
+    //         self.enabled_tps.push(&decision);
+    //     }
+    // }
 
     pub fn from_critical_paths(paths: Vec<CriticalPath>) -> Vec<Group> {
         let mut hash_map = HashMap::<String, Group>::new();
@@ -144,7 +144,7 @@ impl Group {
             traces: vec![path],
             variance: 0.0,
             mean: 0.0,
-            enabled_tps: Vec<(TracepointID, Option<RequestType>)> = Vec::new();
+            // enabled_tps: Vec<(TracepointID, Option<RequestType>)> = Vec::new(),
             //cv: 0.0,
           //  key_value_pairs: TraceNode::get_key_values(),
         }
