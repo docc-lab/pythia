@@ -303,7 +303,7 @@ impl GroupManager {
             .groups
             .values()
             .filter(|&g| g.variance != 0.0)
-            .filter(|&g| g.variance.sqrt()/g.mean > cv_threshold) // tsl: g.CV > Threshold
+            .filter(|&g| (g.variance.sqrt()/g.mean) > cv_threshold) // tsl: g.CV > Threshold
             .filter(|&g| g.traces.len() > 3)
             .collect();
         sorted_groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap());
@@ -324,10 +324,9 @@ impl GroupManager {
             //histogram.increment((( val.mean.round() as f64) / (1000000000 as f64)) as u64);
             histogram.increment(val.mean.round() as u64);
         }
-        println!("get peercentile");
         // get P percentile mean
         let mean_threshold  = histogram.percentile(percentile).unwrap();
-        println!("**Set percentile {}", mean_threshold);
+        println!("**Get value {} for given P: {:?}", mean_threshold, percentile);
 
         let mut sorted_groups: Vec<&Group> = self
             .groups
