@@ -19,6 +19,7 @@ pub struct HDFSController {
     all_tracepoints: HashSet<TracepointID>,
     disabled_tracepoints: Arc<Mutex<HashSet<TracepointID>>>,
     // This should only be valid after disable_all is called
+    enabled_tracepoints: Arc<Mutex<HashSet<(TracepointID, Option<RequestType>)>>>,
 }
 
 impl Controller for HDFSController {
@@ -63,6 +64,14 @@ impl Controller for HDFSController {
         drop(disabled_tracepoints);
         self.flush();
     }
+    fn enabled_tracepoints(&self) -> Vec<(TracepointID, Option<RequestType>)> {
+        self.enabled_tracepoints
+            .lock()
+            .unwrap()
+            .iter()
+            .cloned()
+            .collect()
+    }
 }
 
 impl HDFSController {
@@ -72,6 +81,7 @@ impl HDFSController {
             controller_file: settings.hdfs_control_file.clone(),
             all_tracepoints: manifest.all_tracepoints(),
             disabled_tracepoints: Arc::new(Mutex::new(HashSet::new())),
+            enabled_tracepoints: Arc::new(Mutex::new(HashSet::new())),
         }
     }
 
