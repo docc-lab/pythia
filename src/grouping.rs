@@ -207,13 +207,13 @@ impl Group {
         // change below variance to mean
         self.mean = mean(self.traces.iter().map(|x| x.duration.as_secs()));
         if self.mean != 0.0 {
-            println!("Set mean of {} to {}", self.hash, self.mean);
+            println!("Set mean of {:?} - {} to {}", self.request_type, self.hash, self.mean);
         }
     }
     fn calculate_variance(&mut self) {
         self.variance = variance(self.traces.iter().map(|x| x.duration.as_secs()));
         if self.variance != 0.0 {
-            println!("Set variance of {} to {}", self.hash, self.variance);
+            println!("Set variance of {:?} - {} to {}", self.request_type, self.hash, self.variance);
         }
     }
 }
