@@ -75,7 +75,7 @@ impl Group {
         /// tsl: add enabled tracepoints for the groups
     pub fn update_enabled_tracepoints(&mut self, decisions: &Vec<(TracepointID, Option<RequestType>)>) {
         
-        for decision in &decisions {
+        for decision in decisions {
             self.enabled_tps.push(&decision);
         }
     }
