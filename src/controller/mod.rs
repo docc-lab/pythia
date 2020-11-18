@@ -49,5 +49,7 @@ impl Controller for TestController {
     }
     fn disable_all(&self) {}
     fn enable_all(&self) {}
-    fn enabled_tracepoints(&self) -> Vec<(TracepointID, Option<RequestType>)> {}
+    fn enabled_tracepoints(&self) -> Vec<(TracepointID, Option<RequestType>)> {
+        Arc::new(Mutex::new(HashSet::new()))
+    }
 }
