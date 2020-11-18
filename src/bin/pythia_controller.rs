@@ -192,9 +192,9 @@ fn main() {
             // let problem_groups = groups.problem_groups();
             // let problem_groups = groups.problem_groups();
             let problem_groups = groups.problem_groups_cv(0.05); // tsl: problem groups takes now 
-            println!("*CV Groups: {:?}", problem_groups);
+            // println!("*CV Groups: {:?}", problem_groups);
             let problem_groups_slow = groups.problem_groups_slow(95.0); // tsl: problem groups takes now 
-            println!("*SLOW Groups: {:?}", problem_groups_slow);
+            // println!("*SLOW Groups: {:?}", problem_groups_slow);
             let mut used_groups = Vec::new();
             println!("Making decision. Top 10 problem groups:");
             for g in problem_groups.iter().take(10) {
