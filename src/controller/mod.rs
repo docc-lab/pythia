@@ -33,11 +33,15 @@ pub fn controller_from_settings(settings: &Settings) -> Box<dyn Controller> {
     }
 }
 
-pub struct TestController {}
+pub struct TestController {
+
+enabled_tracepoints: Arc<Mutex<HashSet<(TracepointID, Option<RequestType>)>>>,
+
+}
 
 impl TestController {
     pub fn new() -> Self {
-        Self {}
+        enabled_tracepoints: Arc::new(Mutex::new(HashSet::new())),
     }
 }
 
@@ -50,6 +54,11 @@ impl Controller for TestController {
     fn disable_all(&self) {}
     fn enable_all(&self) {}
     fn enabled_tracepoints(&self) -> Vec<(TracepointID, Option<RequestType>)> {
-        None
+        self.enabled_tracepoints
+            .lock()
+            .unwrap()
+            .iter()
+            .cloned()
+            .collect()
     }
 }
