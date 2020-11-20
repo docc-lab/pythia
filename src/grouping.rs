@@ -186,7 +186,8 @@ impl Group {
             .collect::<Vec<(EdgeIndex, f64)>>();
         result.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
          //tsl: let's see
-        println!("*New Metric: hash, reqtype, total var, edge_total: {:?}", self.hash, self.request_type, self.variance, result.iter().map(|a| a.1).sum());
+        let sum: f64 = result.iter().map(|a| a.1).sum();
+        println!("*New Metric: hash {:?}, reqtype {:?}, total var {:?}, edge_total: {:?}", self.hash, self.request_type, self.variance, sum);
         result.iter().map(|a| a.0).collect()
 
        
