@@ -296,7 +296,12 @@ impl TraceNode {
                 vec_thread_name.push(value);
             }
         }
-
+        map.insert("agent".to_string(), vec_agent);
+        map.insert("hrt".to_string(), vec_hrt);
+        map.insert("process ID".to_string(), vec_proc_id);
+        map.insert("process name".to_string(), vec_proc_name);
+        map.insert("thread ID".to_string(), vec_thread_id);
+        map.insert("threa name".to_string(), vec_thread_name);
         map.insert("lock_queue".to_string(), vec_value);
         map.insert("host".to_string(), vec_host);
 
@@ -346,7 +351,7 @@ lazy_static! {
 /// We do some tricks to keep tracepoint ids as `usize`s so it uses less memory than strings.
 #[derive(Hash, Clone, Copy, Eq, PartialEq)]
 pub struct TracepointID {
-    id: usize,
+    pub id: usize,
 }
 
 impl TracepointID {
