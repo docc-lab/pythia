@@ -532,7 +532,7 @@ fn group_traces(traces: Vec<Trace>) {
             .map(|x| format!(
                 "{}, {},{},\"{:?}\"",
                 x.g.node_count(),
-                //  {for node in x.g.node_indices() {
+                //  check{for node in x.g.node_indices() {
                 //                                    for (key,value) in &x.g[node].key_value_pair.clone()
                 //                                 {
                 //                                   println!("{}: {:?}", key, value);

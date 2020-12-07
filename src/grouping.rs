@@ -1,6 +1,7 @@
 //! Code related to grouping critical paths
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
 use std::time::Duration;
@@ -36,7 +37,7 @@ pub struct Group {
     /// The raw critical paths that this group was constructed from
     pub traces: Vec<CriticalPath>,
     pub variance: f64,
-   // pub key_value_pairs: HashMap<String, Vec<Value>>,
+    pub key_value_pairs: HashMap<String, Vec<Value>>,
    // tsl: Group means to calculate CVs
    pub mean: f64,
 
@@ -74,7 +75,7 @@ impl Group {
 
         /// tsl: add enabled tracepoints for the groups
     // pub fn update_enabled_tracepoints(&mut self, decisions: &Vec<(TracepointID, Option<RequestType>)>) {
-        
+
     //     for decision in decisions {
     //         self.enabled_tps.push(&decision);
     //     }
@@ -146,7 +147,7 @@ impl Group {
             mean: 0.0,
             // enabled_tps: Vec<(TracepointID, Option<RequestType>)> = Vec::new(),
             //cv: 0.0,
-          //  key_value_pairs: TraceNode::get_key_values(),
+            key_value_pairs: HashMap::<String, Vec<Value>>::new(),
         }
     }
 
@@ -180,17 +181,11 @@ impl Group {
                 None => break,
             };
         }
-        // tsl : edge variances are here; so maybe; sum them up and divide them by the total variance
         let mut result = edge_variances
             .into_iter()
             .collect::<Vec<(EdgeIndex, f64)>>();
         result.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-         //tsl: let's see
-        let sum: f64 = result.iter().map(|a| a.1).sum();
-        println!("*New Metric: hash {:?}, reqtype {:?}, total var {:?}, edge_total: {:?}", self.hash, self.request_type, self.variance, sum);
         result.iter().map(|a| a.0).collect()
-
-       
     }
 
     fn add_trace(&mut self, path: &CriticalPath) {
@@ -234,6 +229,34 @@ impl Group {
         if self.variance != 0.0 {
             println!("Set variance of {:?} - {} to {}", self.request_type, self.hash, self.variance);
         }
+    }
+   pub fn find_unique_pairs(&mut self) {
+        //append tracepoint names to key-value pairs
+        let mut pair_map = HashMap::new();
+        let mut vec_trace = HashSet::new();
+        for nodes in self.g.node_indices(){
+            for (key, value) in self.g[nodes].key_value_pair.clone()
+            {
+                if value.len()!=0 {
+                let mut new_key : String = key.to_owned();
+                let mut trace_key1 = &self.g[nodes].tracepoint_id.id.to_string().clone();
+                let mut trace_key: &str =&self.g[nodes].tracepoint_id.id.to_string().as_str().to_owned();
+                if !vec_trace.contains(&trace_key1.clone())
+                {
+                    let mut trace_string = trace_key1.clone();
+                vec_trace.insert(trace_string);
+                new_key.push_str(trace_key);
+                   // println!("Inside function: {:?}, {:?}", new_key, value);
+                pair_map.insert(new_key, value);
+                }
+                }
+               // println!("Inside function: {:?},{:?}",key.clone(),value.clone());
+            }
+        //println!("{:?}",self.g[nodes].key_value_pair);
+
+       }
+        self.key_value_pairs = pair_map;
+        println!("{:?}", self.key_value_pairs);
     }
 }
 
