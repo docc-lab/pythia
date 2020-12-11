@@ -369,11 +369,12 @@ impl Display for Group {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Group<{} {:?} traces, mean: {:?}, var: {:?}>",
+            "Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}>",
             self.traces.len(),
             self.request_type,
             self.mean,
             self.variance,
+            self.variance.sqrt()/self.mean
         )
     }
 }
