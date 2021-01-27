@@ -33,6 +33,7 @@ pub fn controller_from_settings(settings: &Settings) -> Box<dyn Controller> {
     match &settings.application {
         ApplicationType::OpenStack => Box::new(OSProfilerController::from_settings(settings)),
         ApplicationType::HDFS => Box::new(HDFSController::from_settings(settings)),
+        ApplicationType::DEATHSTAR => Box::new(HDFSController::from_settings(settings)),
         ApplicationType::Uber => panic!("Can't control uber"),
     }
 }

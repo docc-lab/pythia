@@ -464,6 +464,7 @@ pub fn measure_search_space_feasibility(trace_file: &str) {
 pub fn group_folder(trace_folder: &str) {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
+    // println!(trace_folder);
     let traces = reader.read_dir(trace_folder);
     println!("Read {} traces", traces.len());
     group_traces(traces);
@@ -472,7 +473,9 @@ pub fn group_folder(trace_folder: &str) {
 pub fn group_from_ids(id_file: &str) {
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
+    println!("{}",id_file);
     let file = File::open(id_file).unwrap();
+    // println!("mertiko");
     let traces = io::BufReader::new(file)
         .lines()
         .map(|x| reader.get_trace_from_base_id(&x.unwrap()).unwrap())
@@ -559,6 +562,7 @@ fn group_traces(traces: Vec<Trace>) {
 }
 
 pub fn read_trace_file(trace_file: &str) {
+    
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
     let mut trace = reader.read_file(trace_file);
@@ -569,9 +573,12 @@ pub fn read_trace_file(trace_file: &str) {
 }
 
 pub fn get_trace(trace_id: &str, to_file: bool, prune: bool) {
+    
     let settings = Settings::read();
     let mut reader = reader_from_settings(&settings);
+    
     let mut trace = reader.get_trace_from_base_id(trace_id).unwrap();
+    
     if prune {
         trace.prune();
     }

@@ -27,7 +27,9 @@ pub struct Settings {
     pub redis_url: String,
     pub xtrace_url: String,
     pub uber_trace_dir: PathBuf,
+    pub DEATHSTAR_trace_dir: PathBuf,
     pub hdfs_control_file: PathBuf,
+    pub deathstar_control_file: PathBuf,
 
     pub search_strategy: SearchStrategyType,
     pub jiffy: Duration,
@@ -46,6 +48,7 @@ pub enum ApplicationType {
     HDFS,
     OpenStack,
     Uber,
+    DEATHSTAR
 }
 
 impl Settings {
@@ -57,6 +60,7 @@ impl Settings {
         let results = settings.try_into::<HashMap<String, String>>().unwrap();
         let manifest_file = PathBuf::from(results.get("manifest_file").unwrap());
         let hdfs_control_file = PathBuf::from(results.get("hdfs_control_file").unwrap());
+        let deathstar_control_file = PathBuf::from(results.get("hdfs_control_file").unwrap());
         let pythia_clients = results.get("pythia_clients").unwrap();
         let pythia_clients = if pythia_clients.len() == 0 {
             Vec::new()
@@ -66,13 +70,16 @@ impl Settings {
         Settings {
             manifest_file,
             hdfs_control_file,
+            deathstar_control_file,
             pythia_clients,
             redis_url: results.get("redis_url").unwrap().to_string(),
             uber_trace_dir: PathBuf::from(results.get("uber_trace_dir").unwrap()),
+            DEATHSTAR_trace_dir: PathBuf::from(results.get("DEATHSTAR_trace_dir").unwrap()),
             application: match results.get("application").unwrap().as_str() {
                 "OpenStack" => ApplicationType::OpenStack,
                 "HDFS" => ApplicationType::HDFS,
                 "Uber" => ApplicationType::Uber,
+                "DEATHSTAR" => ApplicationType::DEATHSTAR,
                 _ => panic!("Unknown application type"),
             },
             xtrace_url: results.get("xtrace_url").unwrap().to_string(),

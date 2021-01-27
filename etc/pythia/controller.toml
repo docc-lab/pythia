@@ -1,10 +1,11 @@
-application = "OpenStack" # can be HDFS, OpenStack, Uber
+application = "OpenStack" # can be HDFS, OpenStack, Uber, DEATHSTAR
 search_strategy = "Hierarchical" # can be Flat, Hierarchical, Historic
 
 manifest_file = "/opt/stack/manifest.json"
 redis_url = "redis://localhost:6379"
 xtrace_url = "http://localhost:4080"
-uber_trace_dir = "/home/ates/tracing/traces" # Change to where the Uber traces are
+uber_trace_dir = "/Users/merttoslali/Desktop/ec900/denemeHDFS/recons/deathstar-traces/compose/individual" # Change to where the Uber traces are
+DEATHSTAR_trace_dir = "/Users/merttoslali/Desktop/ec900/denemeHDFS/recons/deathstar-traces/compose/individual" # Change to where the Uber traces are
 hdfs_control_file = "/local/hdfs/tracing-framework/pythia.txt"
 
 # Split by commas, of the form http://localhost:3030

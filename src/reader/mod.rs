@@ -1,6 +1,7 @@
 //! This module contains a Reader trait, which reads traces.
 
 mod hdfs;
+mod deathstar;
 mod osprofiler;
 mod uber;
 
@@ -14,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::reader::hdfs::HDFSReader;
+use crate::reader::deathstar::DEATHSTARReader;
 use crate::reader::osprofiler::OSProfilerReader;
 use crate::reader::uber::UberReader;
 use crate::settings::ApplicationType;
@@ -69,6 +71,7 @@ pub fn reader_from_settings(settings: &Settings) -> Box<dyn Reader> {
     match &settings.application {
         ApplicationType::OpenStack => Box::new(OSProfilerReader::from_settings(settings)),
         ApplicationType::HDFS => Box::new(HDFSReader::from_settings(settings)),
+        ApplicationType::DEATHSTAR => Box::new(DEATHSTARReader::from_settings(settings)),
         ApplicationType::Uber => Box::new(UberReader::from_settings(settings)),
     }
 }
