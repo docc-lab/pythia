@@ -242,19 +242,16 @@ impl DEATHSTARReader {
     }
 
     fn from_json(&self, data: &mut DEATHSTARTrace) -> Trace {
-        println!("ukucu1");
         let mut mydag = Trace::new(&data.id.to_uuid());
         eprintln!("Working on {}", mydag.base_id);
         let mut event_id_map = HashMap::new();
         let mut nidx = NodeIndex::end();
         let mut start_node = None;
         let mut wait_parents: HashMap<String, Vec<String>> = HashMap::new();
-        println!("ukucu12");
         sort_event_list(&mut data.reports);
         for (_idx, event) in data.reports.iter().enumerate() {
             let mynode = Event::from_DEATHSTAR_node(event);
             if self.should_skip_node(&event, &mynode) {
-                println!("ukucu1222");
                 let mut parents = Vec::new();
                 let mut potential_parents = event.parent_event_id.clone();
                 while !potential_parents.is_empty() {
@@ -273,14 +270,14 @@ impl DEATHSTARReader {
                 wait_parents.insert(event.event_id.clone(), parents);
                 continue;
             }
-            println!("ukucu22212121");
+
             nidx = mydag.g.add_node(mynode.clone());
             event_id_map.insert(event.event_id.clone(), nidx);
             if start_node.is_none() {
                 mydag.start_node = nidx;
                 start_node = Some(nidx);
             } else {
-                println!("ukucu3");
+                
                 for parent in event.parent_event_id.iter() {
                     match event_id_map.get(parent) {
                         Some(&parent_nidx) => {
@@ -323,7 +320,7 @@ impl DEATHSTARReader {
                 }
             }
         }
-        println!("ukucu4");
+        
         mydag.end_node = nidx;
         mydag.duration = (mydag.g[mydag.end_node].timestamp - mydag.g[mydag.start_node].timestamp)
             .to_std()
@@ -370,7 +367,7 @@ fn sort_event_list(event_list: &mut Vec<DEATHSTAREvent>) {
 
 impl Event {
     fn from_DEATHSTAR_node(event: &DEATHSTAREvent) -> Event {
-       println!("ukumert");
+       
        let mut map = HashMap::new();
        map.insert("Agent".to_string(), Str(event.agent.to_string()));
        map.insert("Process Name".to_string(), Str(event.process_name.to_string()));
@@ -379,7 +376,7 @@ impl Event {
      //  map.insert("Thread id".to_string(), Int(event.thread_id));
        map.insert("Thread Name".to_string(), Str(event.process_id.to_string()));
        //map.insert("Process ID:".to_string(), Int(event.process_id));
-       println!("ukumert1");
+       
     //    if let DEATHSTAREnum::WithSource(s) = &event.variant{
     //        println!("ukumert0");
     //        if let WithSourceEnum::Type13(foo) = &s.variant{
@@ -405,7 +402,7 @@ impl Event {
     //             }
     //         }
     //     }
-        println!("ukumert2");
+        
         Event {
             trace_id: eventid_to_uuid(&event.event_id),
             // trace_id: event.event_id,
