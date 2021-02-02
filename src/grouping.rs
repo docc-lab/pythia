@@ -224,18 +224,29 @@ impl Group {
     // tsl: calculate mean of the group
     fn calculate_mean(&mut self) {
         // change below variance to mean
-        self.mean = mean(self.traces.iter().map(|x| x.duration.as_secs()));
+        self.mean = mean(self.traces.iter().map(|x| x.duration.as_nanos()));
         if self.mean != 0.0 {
             println!("Set mean of {:?} - {} to {}", self.request_type, self.hash, self.mean);
         }
     }
     fn calculate_variance(&mut self) {
-        self.variance = variance(self.traces.iter().map(|x| x.duration.as_secs()));
+        println!(
+            "Duration of each trace: {:?}",
+                self.traces.iter().
+                map(|x| x.duration.as_nanos())
+                .collect::<Vec<_>>()
+        );
+        self.variance = variance(self.traces.iter().map(|x| x.duration.as_nanos()));
         if self.variance != 0.0 {
             println!("Set variance of {:?} - {} to {}", self.request_type, self.hash, self.variance);
         }
     }
 }
+
+// # key value = hostname = client | server  ---> Append trace_id 0000> 
+// 1231-123_hostname = "client" , 1233331-123_hostname = "client"
+
+// 2222-123_hostname = "client"
 
 impl Path for Group {
     fn get_hash(&self) -> &str {
@@ -369,12 +380,13 @@ impl Display for Group {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}>",
+            "Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}>",
             self.traces.len(),
             self.request_type,
             self.mean,
             self.variance,
-            self.variance.sqrt()/self.mean
+            self.variance.sqrt()/self.mean,
+            self.hash
         )
     }
 }

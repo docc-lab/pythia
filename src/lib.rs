@@ -254,8 +254,10 @@ pub fn enable_skeleton() {
 }
 
 pub fn manifest_stats(manfile: &str) {
-    #[cfg(target_os = "linux")]
-    {
+    println!("mertiko");
+    // #[cfg(target_os = "linux")]
+    // {
+        println!("mertiko2");
         let settings = Settings::read();
         let mut reader = reader_from_settings(&settings);
         reader.for_searchspace();
@@ -266,10 +268,10 @@ pub fn manifest_stats(manfile: &str) {
         println!("Overwriting manifest file");
         let manifest_file = settings.manifest_file;
         manifest.to_file(manifest_file.as_path());
-        let prev_stats = statm_self().unwrap();
+        // let prev_stats = statm_self().unwrap();
         let manifest = Manifest::from_file(manifest_file.as_path())
             .expect("Couldn't read manifest from cache");
-        let after_stats = statm_self().unwrap();
+        // let after_stats = statm_self().unwrap();
         let critical_paths = traces
             .iter()
             .filter_map(|t| CriticalPath::from_trace(t).ok())
@@ -300,14 +302,14 @@ pub fn manifest_stats(manfile: &str) {
                 .map(|(_, p)| p.path_lengths().iter().sum::<usize>())
                 .sum::<usize>()
         );
-        eprintln!(
-            "Memory footprint (in pages):\nsize: {}, resident: {}, share: {}, text: {}, data: {}",
-            after_stats.size - prev_stats.size,
-            after_stats.resident - prev_stats.resident,
-            after_stats.share - prev_stats.share,
-            after_stats.text - prev_stats.text,
-            after_stats.data - prev_stats.data
-        );
+        // eprintln!(
+        //     "Memory footprint (in pages):\nsize: {}, resident: {}, share: {}, text: {}, data: {}",
+        //     after_stats.size - prev_stats.size,
+        //     after_stats.resident - prev_stats.resident,
+        //     after_stats.share - prev_stats.share,
+        //     after_stats.text - prev_stats.text,
+        //     after_stats.data - prev_stats.data
+        // );
         let output = Command::new("getconf").arg("PAGESIZE").output().unwrap();
         eprint!(
             "Page size in bytes: {}",
@@ -372,7 +374,7 @@ pub fn manifest_stats(manfile: &str) {
             performances.iter().max().unwrap(),
             performances.iter().sum::<Duration>() / (performances.len() as u32)
         );
-    }
+    // }
 }
 
 pub fn show_manifest(request_type: &str) {

@@ -132,13 +132,15 @@ impl Reader for DEATHSTARReader {
             Err(_) => {
                 let reader = std::fs::File::open(file).unwrap();
                 // println!({})
-                println!("Reading  mert{:?}", reader);
+                println!("Reading  mert_ {:?}", reader);
                 let mut t: Vec<DEATHSTARTrace> = serde_json::from_reader(reader).unwrap();
                 assert!(t.len() == 1);
                 let mut trace = self.from_json(&mut t[0]);
                 // if self.for_searchspace {
                 //     trace.prune();
                 // }
+                // println!("Print  mert2_ {:?}", trace.base_id);
+                // println!("Printing the trace : {:?}",trace);
                 trace
             }
         }
@@ -157,7 +159,7 @@ impl DEATHSTARReader {
             jiffy: settings.jiffy,
             processed_traces: HashSet::new(),
             for_searchspace: false,
-            simplify_trace: false,
+            simplify_trace: true,
         }
     }
 
@@ -210,22 +212,23 @@ impl DEATHSTARReader {
 
     fn should_skip_edge(&self, mynode: &Event, parent: &Event) -> bool {
         if self.simplify_trace {
-            (mynode.tracepoint_id == TracepointID::from_str("Client.java:1076")
-                && parent.tracepoint_id == TracepointID::from_str("Client.java:1044"))
-                || (mynode.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:441")
-                    && parent.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:1669"))
-                || (mynode.tracepoint_id == TracepointID::from_str("BlockReceiver.java:1322")
-                    && parent.tracepoint_id == TracepointID::from_str("BlockReceiver.java:903"))
-                || (mynode.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:441")
-                    && parent.tracepoint_id == TracepointID::from_str("SocketOutputStream.java:63"))
-                || (mynode.tracepoint_id == TracepointID::from_str("PacketHeader.java:164")
-                    && parent.tracepoint_id == TracepointID::from_str("SocketInputStream.java:57"))
-                || (mynode.tracepoint_id == TracepointID::from_str("BlockReceiver.java:1322")
-                    && parent.tracepoint_id == TracepointID::from_str("SocketOutputStream.java:63"))
-                || (mynode.tracepoint_id == TracepointID::from_str("PipelineAck.java:257")
-                    && parent.tracepoint_id == TracepointID::from_str("SocketInputStream.java:57"))
-                || (mynode.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:2271")
-                    && parent.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:1805"))
+            (mynode.tracepoint_id == TracepointID::from_str("/tmp/xtrace-cpp/src/lua_baggage.cpp:33")
+                && parent.tracepoint_id == TracepointID::from_str("/tmp/xtrace-cpp/src/lua_baggage.cpp:33"))
+                ||  
+                (mynode.tracepoint_id == TracepointID::from_str("/tmp/xtrace-cpp/src/lua_baggage.cpp:33")
+                && parent.tracepoint_id == TracepointID::from_str("/tmp/xtrace-cpp/src/lua_baggage.cpp:43"))
+                // || (mynode.tracepoint_id == TracepointID::from_str("BlockReceiver.java:1322")
+                //     && parent.tracepoint_id == TracepointID::from_str("BlockReceiver.java:903"))
+                // || (mynode.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:441")
+                //     && parent.tracepoint_id == TracepointID::from_str("SocketOutputStream.java:63"))
+                // || (mynode.tracepoint_id == TracepointID::from_str("PacketHeader.java:164")
+                //     && parent.tracepoint_id == TracepointID::from_str("SocketInputStream.java:57"))
+                // || (mynode.tracepoint_id == TracepointID::from_str("BlockReceiver.java:1322")
+                //     && parent.tracepoint_id == TracepointID::from_str("SocketOutputStream.java:63"))
+                // || (mynode.tracepoint_id == TracepointID::from_str("PipelineAck.java:257")
+                //     && parent.tracepoint_id == TracepointID::from_str("SocketInputStream.java:57"))
+                // || (mynode.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:2271")
+                //     && parent.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:1805"))
         } else {
             false
         }
@@ -233,9 +236,11 @@ impl DEATHSTARReader {
 
     fn should_skip_node(&self, node: &DEATHSTAREvent, event: &Event) -> bool {
         if self.simplify_trace {
-            node.label == "waited"
-                || event.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:387")
-                || event.tracepoint_id == TracepointID::from_str("BlockReceiver.java:1280")
+            event.tracepoint_id == TracepointID::from_str("/tmp/xtrace-cpp/src/lua_baggage.cpp:33")
+            || event.tracepoint_id == TracepointID::from_str("/tmp/xtrace-cpp/src/luaxtrace.cpp:49")
+            // node.label == "waited"
+                // || event.tracepoint_id == TracepointID::from_str("DFSOutputStream.java:387")
+                // || event.tracepoint_id == TracepointID::from_str("BlockReceiver.java:1280")
         } else {
             false
         }
@@ -283,6 +288,8 @@ impl DEATHSTARReader {
                         Some(&parent_nidx) => {
                             // Skip this edge, since it's not used.
                             if self.should_skip_edge(&mynode, &mydag.g[parent_nidx]) {
+                                println!("mert skip");
+                                println!("Skipped edge: {:?}",mynode.tracepoint_id);
                                 continue;
                             }
                             mydag.g.add_edge(
