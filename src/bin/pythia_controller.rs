@@ -195,11 +195,14 @@ fn main() {
             // Make decision
             let mut budget = SETTINGS.tracepoints_per_epoch;
             // let problem_groups = groups.problem_groups();
-            // let problem_groups = groups.problem_groups();
+            
             let problem_groups = groups.problem_groups_cv(0.05); // tsl: problem groups takes now 
             // println!("*CV Groups: {:?}", problem_groups);
-            let problem_groups_slow = groups.problem_groups_slow(95.0); // tsl: problem groups takes now 
+
+            //comment-in below line for consistently slow analysis
+            // let problem_groups_slow = groups.problem_groups_slow(95.0); // tsl: problem groups takes now 
             // println!("*SLOW Groups: {:?}", problem_groups_slow);
+
             let mut used_groups = Vec::new();
 
             //tsl ; get problematic group types to disable tps for non-problematic ones
@@ -212,13 +215,15 @@ fn main() {
                 //     println!("Enabled: {:?} ", enabled);
                 // }
             }
-            println!("Making decision. Top 10 slow problem groups:");
-            for g in problem_groups_slow.iter().take(10) {
-                println!("{}", g);
-                // for enabled in &g.enabled_tps{
-                //     println!("Enabled: {:?} ", enabled);
-                // }
-            }
+
+            //comment-in below line for consistently slow analysis
+            // println!("Making decision. Top 10 slow problem groups:");
+            // for g in problem_groups_slow.iter().take(10) {
+            //     println!("{}", g);
+            //     // for enabled in &g.enabled_tps{
+            //     //     println!("Enabled: {:?} ", enabled);
+            //     // }
+            // }
             for g in problem_groups {
                 problematic_req_types.push(g.request_type);
 
@@ -272,9 +277,9 @@ fn main() {
                     break;
                 }
             }
-            print!("Problematic req types: ");
+            println!("Problematic req types: ");
             for item in problematic_req_types{
-                print!("{:?}, ", item)
+                println!("{:?}, ", item)
             }
             for g in used_groups {
                 groups.used(&g);
@@ -284,7 +289,7 @@ fn main() {
             
             // let mut to_disable = Vec::new();
             for tp in enabled_tracepoints {
-                print!("{:?}, ", tp.1);
+                println!("{:?}, ", tp.1);
 
                 // if g.request_type == tp. && to_keep.get(&tp).is_none() {
                 //     to_disable.push(tp);

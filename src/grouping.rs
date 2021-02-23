@@ -194,6 +194,7 @@ impl Group {
     }
 
     fn add_trace(&mut self, path: &CriticalPath) {
+        println!("**** A trace {:?} added to group{:?}",path.g.base_id, self.hash);
         self.traces.push(path.clone());
         let mut cur_node = path.start_node;
         let mut prev_node = None;
@@ -304,6 +305,7 @@ impl GroupManager {
             match self.groups.get_mut(path.hash()) {
                 Some(v) => v.add_trace(&path),
                 None => {
+                    println!("**** A trace {:?} created a group{:?}",path.g.base_id, path.hash().to_string());
                     self.groups
                         .insert(path.hash().to_string(), Group::new(path.clone()));
                 }
@@ -329,6 +331,7 @@ impl GroupManager {
     }
     /// tsl: Return groups filtered based on coefficient of variance
     pub fn problem_groups_cv(&self, cv_threshold: f64) -> Vec<&Group> {
+        println!("Groups in CV Analaysis: {}", groups);
         let mut sorted_groups: Vec<&Group> = self
             .groups
             .values()
@@ -337,7 +340,9 @@ impl GroupManager {
             .filter(|&g| g.traces.len() > 3)
             .collect();
         sorted_groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap());
+        println!("\n**Groups sorted in CV Analaysis: {}", sorted_groups);
         sorted_groups
+
     }
 
     /// tsl: Return groups filtered based on mean distribution -- consistently slow groups

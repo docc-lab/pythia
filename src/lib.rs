@@ -585,6 +585,7 @@ pub fn get_trace(trace_id: &str, to_file: bool, prune: bool) {
         trace.prune();
     }
     println!("{}", trace);
+    
     if to_file {
         let mut tracefile = dirs::home_dir().unwrap();
         tracefile.push(trace_id);
