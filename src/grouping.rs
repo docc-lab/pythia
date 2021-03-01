@@ -39,6 +39,7 @@ pub struct Group {
    // pub key_value_pairs: HashMap<String, Vec<Value>>,
    // tsl: Group means to calculate CVs
    pub mean: f64,
+   pub is_used: bool,
 
 
     //   //tsl: Disable strategy - if a groups stops being problematic, disable all the tracepoints for that
@@ -144,6 +145,7 @@ impl Group {
             traces: vec![path],
             variance: 0.0,
             mean: 0.0,
+            is_used: false,
             // enabled_tps: Vec<(TracepointID, Option<RequestType>)> = Vec::new(),
             //cv: 0.0,
           //  key_value_pairs: TraceNode::get_key_values(),
@@ -155,6 +157,7 @@ impl Group {
     pub fn used(&mut self) {
         self.traces = Vec::new();
         self.variance = 0.0;
+        self.is_used = true;
     }
 
     /// Returns all edges sorted by variance.
@@ -335,12 +338,13 @@ impl GroupManager {
         let mut sorted_groups: Vec<&Group> = self
             .groups
             .values()
+            .filter(|&g| g.is_used != true) // TODO: what happens to used groups?
             .filter(|&g| g.variance != 0.0)
             .filter(|&g| (g.variance.sqrt()/g.mean) > cv_threshold) // tsl: g.CV > Threshold
             .filter(|&g| g.traces.len() > 3)
             .collect();
         sorted_groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap());
-        println!("\n**Groups sorted in CV Analaysis: {}", sorted_groups);
+        // println!("\n**Groups sorted in CV Analaysis: {}", sorted_groups);
         sorted_groups
 
     }
@@ -388,7 +392,7 @@ impl Display for Group {
             "Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}>",
             self.traces.len(),
             self.request_type,
-            self.mean,
+            self.mean/1000000.0,
             self.variance,
             self.variance.sqrt()/self.mean,
             self.hash
