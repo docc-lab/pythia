@@ -334,7 +334,7 @@ impl GroupManager {
     }
     /// tsl: Return groups filtered based on coefficient of variance
     pub fn problem_groups_cv(&self, cv_threshold: f64) -> Vec<&Group> {
-        println!("Groups in CV Analaysis: {}", groups);
+        // println!("Groups in CV Analaysis: {}", groups);
         let mut sorted_groups: Vec<&Group> = self
             .groups
             .values()
