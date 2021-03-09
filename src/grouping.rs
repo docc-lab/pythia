@@ -326,7 +326,7 @@ impl GroupManager {
                     
                     let mut req_type_now = group_now.request_type;
                     println!("+req_type_now now: {:?}", req_type_now);
-                    if req_type_now == RequestType.Unknown{
+                    if req_type_now == RequestType::Unknown{
                         println!("skipping null req type");
                         // continue;
                     }
