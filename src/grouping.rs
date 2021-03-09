@@ -71,6 +71,10 @@ impl Display for GroupEdge {
 }
 
 impl Group {
+
+    fn get_hash(&self) -> &str {
+        &self.hash
+    }
     pub fn dot(&self) -> String {
         format!("{}", Dot::new(&self.g))
     }
@@ -294,12 +298,14 @@ impl Path for Group {
 #[derive(Debug)]
 pub struct GroupManager {
     groups: HashMap<String, Group>,
+    trees: HashMap<String,  Node>
 }
 
 impl GroupManager {
     pub fn new() -> Self {
         GroupManager {
             groups: HashMap::new(),
+            trees: HashMap::new()
         }
     }
 
@@ -307,12 +313,40 @@ impl GroupManager {
     pub fn update(&mut self, paths: &Vec<CriticalPath>) {
         let mut updated_groups = Vec::new();
         for path in paths {
+            // check if path matches to a group
             match self.groups.get_mut(path.hash()) {
-                Some(v) => v.add_trace(&path),
-                None => {
+                Some(v) => v.add_trace(&path), // yes matches, so assign path to a group
+                None => { // no, here we create a new group
                     println!("**** A trace {:?} created a group{:?}",path.g.base_id, path.hash().to_string());
                     self.groups
                         .insert(path.hash().to_string(), Group::new(path.clone()));
+                    // trees add new group
+                    let mut group_now = self.groups.get_mut(path.hash()).unwrap();
+                    println!("group_now now: {:?}", group_now);
+                    
+                    let mut req_type_now = group_now.request_type;
+                    println!("req_type_now now: {:?}", req_type_now);
+                    // match req_type_now{
+                    //     Some(v) => {
+                    //         // Do nothing and go on
+                    //     },
+                    //     None(v) => {
+                    //         println!("**** No Req type contunue:////");
+                    //         continue;
+                    //         }
+                    // }
+
+                    // let mut tree_now = self.trees.get_mut(&group_now.request_type.to_string()); // get the correct tree by context (i.e., req type)
+                    // println!("Tree now: {:?}", tree_now);
+                    match self.trees.get_mut(&group_now.request_type.to_string()) {
+                        // if there exists a tree by that req type -> add group to that
+                        Some(v) => v.add_group(group_now),
+                        None => { // if not, create new tree
+                            let mut new_tree = Node { val: group_now.request_type.to_string(), group_ids:[group_now.get_hash().to_string()].to_vec(),trace_ids:vec![], l: None, r: None };
+                            self.trees.insert(group_now.request_type.to_string(), new_tree);
+                        } 
+
+                    }
                 }
             }
             updated_groups.push(path.hash().clone());
@@ -419,16 +453,16 @@ impl Display for GroupManager {
 
 #[derive(PartialEq)]
 #[derive(Debug)]
-struct Node<'a> {
-    val: &'a str,
+struct Node {
+    val: String,
     // treenode: &'a TreeNode,
     trace_ids: Vec<String>,
     group_ids: Vec<String>,
-    l: Option<Box<Node<'a>>>,
-    r: Option<Box<Node<'a>>>,
+    l: Option<Box<Node>>,
+    r: Option<Box<Node>>,
 }
-impl<'a> Node<'a> {
-    pub fn enable_tps_for_group(&mut self, new_val: &'a str, group_id: &'a str, trace_ids: &'a Vec<String>) {
+impl Node {
+    pub fn enable_tps_for_group(&mut self, new_val: &String, group_id: &str, trace_ids: &Vec<String>) {
 
         // if we are at correct node --> add the child node (left with tracepoints contain rel., right with no tracepoints -- only parents tps for right)
         if self.group_ids.iter().any(|i| i==group_id) {
@@ -441,7 +475,7 @@ impl<'a> Node<'a> {
                     tps = trace_ids.clone(); // add newly enabled tracepoints
                     // tps.extend(self.trace_ids.clone()); // add parent's tracepoints
 
-                    let new_node = Node { val: new_val, trace_ids:tps,group_ids:Vec::new() , l: None, r: None }; //group_ids:vec![group_id.to_string()]
+                    let new_node = Node { val: new_val.to_string(), trace_ids:tps,group_ids:Vec::new() , l: None, r: None }; //group_ids:vec![group_id.to_string()]
                     let boxed_node = Some(Box::new(new_node));
                     *target_node_left = boxed_node;
                 }
@@ -456,7 +490,7 @@ impl<'a> Node<'a> {
                     tps = self.trace_ids.clone(); // only parent's traceids
                     let t2:&'static str = "123";
                     let together = format!("{}{}", new_val, "-NO");
-                    let new_node = Node { val: "NO", trace_ids:tps, group_ids:Vec::new(), l: None, r: None };
+                    let new_node = Node { val: "NO".to_string(), trace_ids:tps, group_ids:Vec::new(), l: None, r: None };
                     let boxed_node = Some(Box::new(new_node));
                     *target_node_right = boxed_node;
                 }
@@ -491,7 +525,7 @@ impl<'a> Node<'a> {
 
     }
 
-    pub fn add_group(&mut self, new_val: &'a str, group_id: &'a str) {
+    pub fn add_group(&mut self,   group: &Group) {// group_id: &'a str) {
         println!("Iterating : {:?}", self.val);
         println!("\n");
 
@@ -500,23 +534,23 @@ impl<'a> Node<'a> {
         match target_node_left {
             &mut Some(ref mut subnode) => {
                 println!("node: {:?} has left child",self.val);
-                subnode.add_group(new_val, group_id);
+                subnode.add_group( &group);
             },
             &mut None => {
                 println!("node: {:?} is at leaf",self.val);
                  for tp in &self.trace_ids {
 
                      // TODO: if contain any ! then append group_ids
-                     if group_id == "mertiko"{
+                     if group.get_hash() == "mertiko"{
                          // PRIVILEGES.push();
                          println!("{:?}",ARRAY.lock().unwrap());
 
-                         if ARRAY.lock().unwrap().iter().any(|i| i==group_id){
+                         if ARRAY.lock().unwrap().iter().any(|i| i==group.get_hash()){
                              println!("***Found");
                          }
                          else{
-                             ARRAY.lock().unwrap().push(group_id.to_string());
-                             self.group_ids.push(group_id.to_string());
+                             ARRAY.lock().unwrap().push(group.get_hash().to_string());
+                             self.group_ids.push(group.get_hash().to_string());
                          }
 
                          println!("evet left");
@@ -532,20 +566,20 @@ impl<'a> Node<'a> {
         match target_node_right {
             &mut Some(ref mut subnode) => {
                 println!("node: {:?} has right child",self.val);
-                subnode.add_group(new_val, group_id);},
+                subnode.add_group( &group);},
             &mut None => {
                 println!("We are at the RIGHT*** leaves, so let's check tps included.. if so append group");
                  for tp in &self.trace_ids {
                      // println!("PLACE: {}", tp);
                      // TODO: if contain any ! then append group_ids
-                     if group_id == "mertiko"{
+                     if group.get_hash() == "mertiko"{
                          println!("checking now");
                          println!("{:?}",ARRAY.lock().unwrap());
 
-                         if ARRAY.lock().unwrap().iter().any(|i| i==group_id){
+                         if ARRAY.lock().unwrap().iter().any(|i| i==group.get_hash()){
                              println!("***Found");
                          }
-                         self.group_ids.push(group_id.to_string());
+                         self.group_ids.push(group.get_hash().to_string());
                          println!("evet right");
                          return;
                      }
