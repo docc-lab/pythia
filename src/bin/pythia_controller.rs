@@ -46,7 +46,9 @@ fn main() {
     let mut last_decision = Instant::now();
     let mut last_gc = Instant::now();
     
+    // MERT:
     let mut tp_decisions = Vec::new();
+    let mut group_id = "mert".to_string();
 
     let mut quit_in = -1;
     let mut targets = HashSet::new();
@@ -110,7 +112,7 @@ fn main() {
         budget_manager.write_stats(&mut output_file);
         let over_budget = budget_manager.overrun();
 
-        groups.enable_tps(&decisions, &g.get_hash().to_string());
+        groups.enable_tps(&tp_decisions, &group_id);
 
         // Collect traces, increment groups
         let critical_paths = rx.try_iter().collect::<Vec<_>>();
@@ -200,7 +202,7 @@ fn main() {
             let mut budget = SETTINGS.tracepoints_per_epoch;
             // let problem_groups = groups.problem_groups();
             
-            let problem_groups = groups.problem_groups_cv(0.05).cloned(); // tsl: problem groups takes now 
+            let problem_groups = groups.problem_groups_cv(0.05); // tsl: problem groups takes now 
             // println!("*CV Groups: {:?}", problem_groups);
 
             //comment-in below line for consistently slow analysis
@@ -258,7 +260,8 @@ fn main() {
                         .collect::<Vec<_>>();
                     budget -= decisions.len();
 
-                    tp_decisions = decisions;
+                    tp_decisions = decisions.clone();
+                    group_id = g.get_hash().to_string();
                     for d in &decisions {
                         if !targets.get(&d.0).is_none() {
                             targets.remove(&d.0);
