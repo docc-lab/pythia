@@ -322,21 +322,27 @@ impl GroupManager {
                         .insert(path.hash().to_string(), Group::new(path.clone()));
                     // trees add new group
                     let mut group_now = self.groups.get_mut(path.hash()).unwrap();
-                    println!("+group_now now: {:?}", group_now);
+                    println!("+group_now now: {:?}, {:?}", group_now.get_hash(), group_now.request_type);
                     
                     let mut req_type_now = group_now.request_type;
                     println!("+req_type_now now: {:?}", req_type_now);
-
-                    match self.trees.get_mut(&group_now.request_type.to_string()) {
-                        // if there exists a tree by that req type -> add group to that
-                        Some(v) => v.add_group(group_now),
-                        None => { // if not, create new tree
-                            let mut new_tree = Node { val: group_now.request_type.to_string(), group_ids:[group_now.get_hash().to_string()].to_vec(),trace_ids:vec![], l: None, r: None };
-                            println!("+Tree created now now: {:?}", new_tree);
-                            self.trees.insert(group_now.request_type.to_string(), new_tree);
-                            
-                        } 
+                    if req_type_now == RequestType.Unknown{
+                        println!("skipping null req type");
+                        // continue;
                     }
+                    else{
+                        match self.trees.get_mut(&group_now.request_type.to_string()) {
+                            // if there exists a tree by that req type -> add group to that
+                            Some(v) => v.add_group(group_now),
+                            None => { // if not, create new tree
+                                let mut new_tree = Node { val: group_now.request_type.to_string(), group_ids:[group_now.get_hash().to_string()].to_vec(),trace_ids:vec![], l: None, r: None };
+                                println!("+Tree created now now: {:?}", new_tree);
+                                self.trees.insert(group_now.request_type.to_string(), new_tree);
+                                
+                            } 
+                        }
+                    }
+
                 }
             }
             updated_groups.push(path.hash().clone());
