@@ -49,6 +49,7 @@ fn main() {
     // MERT:
     let mut tp_decisions = Vec::new();
     let mut group_id = "mert".to_string();
+    let mut apply_to_tree = false;
 
     let mut quit_in = -1;
     let mut targets = HashSet::new();
@@ -112,7 +113,11 @@ fn main() {
         budget_manager.write_stats(&mut output_file);
         let over_budget = budget_manager.overrun();
 
-        groups.enable_tps(&tp_decisions, &group_id);
+        if apply_to_tree{
+            groups.enable_tps(&tp_decisions, &group_id);
+            apply_to_tree = false;
+        }
+
 
         // Collect traces, increment groups
         let critical_paths = rx.try_iter().collect::<Vec<_>>();
@@ -262,6 +267,9 @@ fn main() {
 
                     tp_decisions = decisions.clone();
                     group_id = g.get_hash().to_string();
+                    if tp_decisions.iter().count() > 0{
+                        apply_to_tree = true;
+                    }
                     for d in &decisions {
                         if !targets.get(&d.0).is_none() {
                             targets.remove(&d.0);
