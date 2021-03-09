@@ -45,6 +45,8 @@ fn main() {
     let mut groups = GroupManager::new();
     let mut last_decision = Instant::now();
     let mut last_gc = Instant::now();
+    
+    let mut tp_decisions = Vec::new();
 
     let mut quit_in = -1;
     let mut targets = HashSet::new();
@@ -107,6 +109,8 @@ fn main() {
         budget_manager.print_stats();
         budget_manager.write_stats(&mut output_file);
         let over_budget = budget_manager.overrun();
+
+        groups.enable_tps(&decisions, &g.get_hash().to_string());
 
         // Collect traces, increment groups
         let critical_paths = rx.try_iter().collect::<Vec<_>>();
@@ -196,7 +200,7 @@ fn main() {
             let mut budget = SETTINGS.tracepoints_per_epoch;
             // let problem_groups = groups.problem_groups();
             
-            let problem_groups = groups.problem_groups_cv(0.05); // tsl: problem groups takes now 
+            let problem_groups = groups.problem_groups_cv(0.05).cloned(); // tsl: problem groups takes now 
             // println!("*CV Groups: {:?}", problem_groups);
 
             //comment-in below line for consistently slow analysis
@@ -253,6 +257,8 @@ fn main() {
                         .map(|&t| (t, Some(g.request_type)))
                         .collect::<Vec<_>>();
                     budget -= decisions.len();
+
+                    tp_decisions = decisions;
                     for d in &decisions {
                         if !targets.get(&d.0).is_none() {
                             targets.remove(&d.0);
@@ -265,7 +271,7 @@ fn main() {
                         }
                     }
                     CONTROLLER.enable(&decisions);
-                    groups.enable_tps(&decisions, g.get_hash().to_string());
+                    
                     writeln!(output_file, "Enabled {}", decisions.len()).ok();
                     writeln!(output_file, "Enabled {:?}", decisions).ok();
                     if decisions.len() > 0 {
