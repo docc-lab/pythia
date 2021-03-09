@@ -583,6 +583,27 @@ pub trait Path {
         }
         return result;
     }
+
+    /// MERT: This is where we check wheter a path includes Tracepoint ID
+    fn contains_tp(&self, other: &TracepointID) -> bool {
+        let mut cur_self_idx = self.start_node();
+        
+        let mut result = false;
+        loop {
+            if self.at(cur_self_idx) == *other {
+                println!("Found it");
+                result = true;
+                break;
+            }
+            cur_self_idx = match self.next_node(cur_self_idx) {
+                Some(nidx) => nidx,
+                None => {
+                    break;
+                }
+            }
+        }
+        return result;
+    }
 }
 
 impl Path for CriticalPath {

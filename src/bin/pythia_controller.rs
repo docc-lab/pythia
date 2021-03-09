@@ -265,6 +265,7 @@ fn main() {
                         }
                     }
                     CONTROLLER.enable(&decisions);
+                    groups.enable_tps(&decisions, g.get_hash().to_string());
                     writeln!(output_file, "Enabled {}", decisions.len()).ok();
                     writeln!(output_file, "Enabled {:?}", decisions).ok();
                     if decisions.len() > 0 {
