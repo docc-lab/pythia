@@ -23,6 +23,8 @@ use crate::trace::TracepointID;
 use crate::trace::Value;
 
 use histogram::Histogram;
+use lazy_static::lazy_static;
+use std::sync::Mutex;
 
 /// A group of critical paths
 #[derive(Clone, Debug)]
@@ -413,4 +415,151 @@ impl Display for GroupManager {
         }
         Ok(())
     }
+}
+
+#[derive(PartialEq)]
+#[derive(Debug)]
+struct Node<'a> {
+    val: &'a str,
+    // treenode: &'a TreeNode,
+    trace_ids: Vec<String>,
+    group_ids: Vec<String>,
+    l: Option<Box<Node<'a>>>,
+    r: Option<Box<Node<'a>>>,
+}
+impl<'a> Node<'a> {
+    pub fn enable_tps_for_group(&mut self, new_val: &'a str, group_id: &'a str, trace_ids: &'a Vec<String>) {
+
+        // if we are at correct node --> add the child node (left with tracepoints contain rel., right with no tracepoints -- only parents tps for right)
+        if self.group_ids.iter().any(|i| i==group_id) {
+            let target_node_left =  &mut self.l;
+            match target_node_left {
+                &mut Some(ref mut subnode) => panic!("Has a child LEFT :/"),
+                &mut None => {
+                    println!("Adding to the left of {:?}",self.val);
+                    let mut tps = Vec::new();
+                    tps = trace_ids.clone(); // add newly enabled tracepoints
+                    // tps.extend(self.trace_ids.clone()); // add parent's tracepoints
+
+                    let new_node = Node { val: new_val, trace_ids:tps,group_ids:Vec::new() , l: None, r: None }; //group_ids:vec![group_id.to_string()]
+                    let boxed_node = Some(Box::new(new_node));
+                    *target_node_left = boxed_node;
+                }
+            }
+
+            let target_node_right =  &mut self.r;
+            match target_node_right {
+                &mut Some(ref mut subnode) => panic!("Has a child Right :/"),
+                &mut None => {
+                    println!("Adding to the right of {:?}",self.val);
+                    let mut tps = Vec::new();
+                    tps = self.trace_ids.clone(); // only parent's traceids
+                    let t2:&'static str = "123";
+                    let together = format!("{}{}", new_val, "-NO");
+                    let new_node = Node { val: "NO", trace_ids:tps, group_ids:Vec::new(), l: None, r: None };
+                    let boxed_node = Some(Box::new(new_node));
+                    *target_node_right = boxed_node;
+                }
+            }
+
+            return
+        }
+        let target_node_right =  &mut self.r;
+        let target_node_left  = &mut self.l;
+        // println!("{:?} target node", target_node);
+        match target_node_left {
+            &mut Some(ref mut subnode) => {
+                println!("traversing left");
+                subnode.enable_tps_for_group(new_val, group_id,trace_ids)
+            },
+            &mut None => {
+                println!("none Left ended");
+            }
+        }
+
+        // println!("akiko");
+        match target_node_right {
+            &mut Some(ref mut subnode) => {
+                println!("traversing right");
+                subnode.enable_tps_for_group(new_val, group_id,trace_ids)
+            },
+            &mut None => {
+                println!("none right ended");
+            }
+        }
+
+
+    }
+
+    pub fn add_group(&mut self, new_val: &'a str, group_id: &'a str) {
+        println!("Iterating : {:?}", self.val);
+        println!("\n");
+
+        let target_node_left = &mut self.l;
+        let target_node_right = &mut self.r;
+        match target_node_left {
+            &mut Some(ref mut subnode) => {
+                println!("node: {:?} has left child",self.val);
+                subnode.add_group(new_val, group_id);
+            },
+            &mut None => {
+                println!("node: {:?} is at leaf",self.val);
+                 for tp in &self.trace_ids {
+
+                     // TODO: if contain any ! then append group_ids
+                     if group_id == "mertiko"{
+                         // PRIVILEGES.push();
+                         println!("{:?}",ARRAY.lock().unwrap());
+
+                         if ARRAY.lock().unwrap().iter().any(|i| i==group_id){
+                             println!("***Found");
+                         }
+                         else{
+                             ARRAY.lock().unwrap().push(group_id.to_string());
+                             self.group_ids.push(group_id.to_string());
+                         }
+
+                         println!("evet left");
+                         return
+                     }
+
+
+                }
+
+            }
+        }
+        println!("u1");
+        match target_node_right {
+            &mut Some(ref mut subnode) => {
+                println!("node: {:?} has right child",self.val);
+                subnode.add_group(new_val, group_id);},
+            &mut None => {
+                println!("We are at the RIGHT*** leaves, so let's check tps included.. if so append group");
+                 for tp in &self.trace_ids {
+                     // println!("PLACE: {}", tp);
+                     // TODO: if contain any ! then append group_ids
+                     if group_id == "mertiko"{
+                         println!("checking now");
+                         println!("{:?}",ARRAY.lock().unwrap());
+
+                         if ARRAY.lock().unwrap().iter().any(|i| i==group_id){
+                             println!("***Found");
+                         }
+                         self.group_ids.push(group_id.to_string());
+                         println!("evet right");
+                         return;
+                     }
+                }
+
+            }
+        }
+
+
+    }
+}
+
+
+// Prevent double adding the group id
+lazy_static! {
+    static ref ARRAY: Mutex<Vec<String>> = Mutex::new(vec![]);
 }
