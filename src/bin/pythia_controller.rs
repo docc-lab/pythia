@@ -114,6 +114,7 @@ fn main() {
         let over_budget = budget_manager.overrun();
 
         if apply_to_tree{
+            println!("+Applying to tree now!");
             groups.enable_tps(&tp_decisions, &group_id);
             apply_to_tree = false;
         }
