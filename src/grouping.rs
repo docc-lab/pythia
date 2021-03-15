@@ -335,7 +335,7 @@ impl GroupManager {
                             // if there exists a tree by that req type -> add group to that
                             Some(v) => v.add_group(group_now),
                             None => { // if not, create new tree
-                                let mut new_tree = Node { val: group_now.request_type.to_string(), group_ids:[group_now.get_hash().to_string()].to_vec(),trace_ids:vec![], l: None, r: None };
+                                let mut new_tree = Node { val: group_now.request_type.to_string(), group_ids:[group_now.get_hash().to_string()].to_vec(),trace_ids:vec![], l: None, r: None};
                                 println!("+Tree created now now: {:?}", new_tree);
                                 self.trees.insert(group_now.request_type.to_string(), new_tree);
                                 
@@ -355,7 +355,7 @@ impl GroupManager {
 
     // enable tps on behalf of group id
     pub fn enable_tps(&mut self, points: &Vec<(TracepointID, Option<RequestType>)>, group_id: &String) {
-        eprintln!("Enabling {:?}", points);
+        println!("Mert Enabling {:?} for group: {:?}", points, group_id);
         // let mut enabled_tracepoints = self.enabled_tracepoints.lock().unwrap();
         let mut vec = Vec::new();
         let mut req_type_now = RequestType::Unknown;
@@ -366,6 +366,21 @@ impl GroupManager {
         }
         println!("+ type: {:?} points:{:?}",req_type_now, vec);
         self.trees.get_mut(&req_type_now.to_string()).unwrap().enable_tps_for_group(group_id, &vec);
+
+
+        // // TODO: let's do SSQ analysis ~ Etasquare
+        // let mut non_used_groups: Vec<&Group> = self
+        //     .groups
+        //     .values()
+        //     .filter(|&g| g.is_used != true) // TODO: what happens to used groups?
+        //     .filter(|&g| g.traces.len() > 3)
+        //     .collect();
+        // for val in non_used_groups.iter() {
+        //         // print!("{:?},  ",(val.mean.round() as f64) / (1000000000 as f64) );
+        //             //histogram.increment((( val.mean.round() as f64) / (1000000000 as f64)) as u64);
+        //         val.mean
+        // }
+        
 
     }
 
@@ -437,13 +452,14 @@ impl Display for Group {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, durations: {:?}>",
+            "Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?} durations: {:?}>",
             self.traces.len(),
             self.request_type,
             self.mean/1000000.0,
             self.variance,
             self.variance.sqrt()/self.mean,
             self.hash,
+            self.is_used,
             self.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>()
         )
     }
@@ -482,6 +498,7 @@ struct Node {
     group_ids: Vec<String>,
     l: Option<Box<Node>>,
     r: Option<Box<Node>>,
+    // sib: Option<Box<Node>>
 }
 impl Node {
     pub fn enable_tps_for_group(&mut self, group_id: &str, trace_ids: &Vec<TracepointID>) {
@@ -501,13 +518,15 @@ impl Node {
                     let mut owned_string: String = "TPS - ".to_owned();
                     owned_string.push_str(group_id);
 
-                    let new_node = Node { val: owned_string, trace_ids:tps, group_ids:Vec::new() , l: None, r: None }; //group_ids:vec![group_id.to_string()]
+                    let new_node = Node { val: owned_string, trace_ids:tps, group_ids:Vec::new() , l: None, r: None}; //group_ids:vec![group_id.to_string()]
                     let boxed_node = Some(Box::new(new_node));
                     *target_node_left = boxed_node;
                 }
             }
 
             let target_node_right =  &mut self.r;
+
+            
             match target_node_right {
                 &mut Some(ref mut subnode) => {
                     println!("Inner traversing right");
@@ -531,6 +550,8 @@ impl Node {
                     let new_node = Node { val: owned_string, trace_ids:tps, group_ids:gids, l: None, r: None };
                     let boxed_node = Some(Box::new(new_node));
                     *target_node_right = boxed_node;
+                    // // sibling relationship
+                    // *target_node_left.unwrap().sib = boxed_node;
                 }
             }
 
