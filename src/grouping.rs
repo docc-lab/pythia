@@ -355,7 +355,7 @@ impl GroupManager {
 
     // enable tps on behalf of group id
     pub fn enable_tps(&mut self, points: &Vec<(TracepointID, Option<RequestType>)>, group_id: &String) {
-        println!("Mert Enabling {:?} for group: {:?}", points, group_id);
+        println!("Mertiko Enabling {:?} for group: {:?}", points, group_id);
         // let mut enabled_tracepoints = self.enabled_tracepoints.lock().unwrap();
         let mut vec = Vec::new();
         let mut req_type_now = RequestType::Unknown;
@@ -452,10 +452,11 @@ impl Display for Group {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?}, durations: {:?}>",
+            "Mertiko Group<{} {:?} traces, mean: {:?}, sum_duration: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?}, durations: {:?}>",
             self.traces.len(),
             self.request_type,
             self.mean/1000000.0,
+            self.traces.len() * self.mean,
             self.variance,
             self.variance.sqrt()/self.mean,
             self.hash,
