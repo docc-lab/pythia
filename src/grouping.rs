@@ -437,13 +437,14 @@ impl Display for Group {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}>",
+            "Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, durations: {:?}>",
             self.traces.len(),
             self.request_type,
             self.mean/1000000.0,
             self.variance,
             self.variance.sqrt()/self.mean,
-            self.hash
+            self.hash,
+            self.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>()
         )
     }
 }
@@ -489,7 +490,7 @@ impl Node {
         if self.group_ids.iter().any(|i| i==group_id) {
             let target_node_left =  &mut self.l;
             match target_node_left {
-                &mut Some(ref mut subnode) => panic!("Has a child LEFT :/"),
+                &mut Some(ref mut subnode) => println!("Do nothing and check right child for group id"),//panic!("Has a child LEFT :/"),
                 &mut None => {
                     println!("Adding to the left of {:?}",self.val);
                     let mut tps = Vec::new();
@@ -506,14 +507,23 @@ impl Node {
 
             let target_node_right =  &mut self.r;
             match target_node_right {
-                &mut Some(ref mut subnode) => panic!("Has a child Right :/"),
+                &mut Some(ref mut subnode) => {
+                    println!("Inner traversing right");
+                    subnode.enable_tps_for_group(group_id,trace_ids);
+                },
+                
+                //panic!("Has a child Right :/"),
                 &mut None => {
                     println!("Adding to the right of {:?}",self.val);
                     let mut tps = Vec::new();
                     tps = self.trace_ids.clone(); // only parent's traceids
                     // let t2:&'static str = "123";
                     // let together = format!("{}{}", new_val, "-NO");
-                    let new_node = Node { val: "NO".to_string(), trace_ids:tps, group_ids:Vec::new(), l: None, r: None };
+
+                    let mut gids = Vec::new();
+                    gids = self.group_ids.clone();
+
+                    let new_node = Node { val: "NO".to_string(), trace_ids:tps, group_ids:gids, l: None, r: None };
                     let boxed_node = Some(Box::new(new_node));
                     *target_node_right = boxed_node;
                 }
