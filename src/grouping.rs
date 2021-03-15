@@ -452,7 +452,7 @@ impl Display for Group {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?} durations: {:?}>",
+            "Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?}, durations: {:?}>",
             self.traces.len(),
             self.request_type,
             self.mean/1000000.0,
