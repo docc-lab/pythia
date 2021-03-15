@@ -498,8 +498,10 @@ impl Node {
                     // println!();
                     tps = trace_ids.clone(); // add newly enabled tracepoints
                     // tps.extend(self.trace_ids.clone()); // add parent's tracepoints
+                    let mut owned_string: String = "TPS - ".to_owned();
+                    owned_string.push_str(group_id);
 
-                    let new_node = Node { val: "TPS".to_string(), trace_ids:tps, group_ids:Vec::new() , l: None, r: None }; //group_ids:vec![group_id.to_string()]
+                    let new_node = Node { val: owned_string, trace_ids:tps, group_ids:Vec::new() , l: None, r: None }; //group_ids:vec![group_id.to_string()]
                     let boxed_node = Some(Box::new(new_node));
                     *target_node_left = boxed_node;
                 }
@@ -523,7 +525,10 @@ impl Node {
                     let mut gids = Vec::new();
                     gids = self.group_ids.clone();
 
-                    let new_node = Node { val: "NO".to_string(), trace_ids:tps, group_ids:gids, l: None, r: None };
+                    let mut owned_string: String = "NO - ".to_owned();
+                    owned_string.push_str(group_id);
+
+                    let new_node = Node { val: owned_string, trace_ids:tps, group_ids:gids, l: None, r: None };
                     let boxed_node = Some(Box::new(new_node));
                     *target_node_right = boxed_node;
                 }
