@@ -452,11 +452,11 @@ impl Display for Group {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Mertiko Group<{} {:?} traces, mean: {:?}, sum_duration: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?}, durations: {:?}>",
+            "Mertiko Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?}, durations: {:?}>",
             self.traces.len(),
             self.request_type,
             self.mean/1000000.0,
-            self.traces.len() * self.mean,
+            // self.traces.len() * self.mean,
             self.variance,
             self.variance.sqrt()/self.mean,
             self.hash,
