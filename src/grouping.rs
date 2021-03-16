@@ -607,7 +607,10 @@ impl Node {
 
                     println!("silmelik4 duration condition: {:?}", durations_condition);
 
-                    let SSQcondition = (mean(durations_condition.iter().map(|&x| x)) - GM).powi(2) * (durations_condition.len() as f64);
+                    let mut durations_condition_mean = mean(durations_condition.iter().map(|&x| x));
+                    println!("silmelik4 Duration condition mean: {:?}, len: {:?}", durations_condition_mean,(durations_condition.len() as f64));
+
+                    let SSQcondition = ( durations_condition_mean - GM)  * ( durations_condition_mean - GM)  * (durations_condition.len() as f64);
 
                     self.ssq_condition = SSQcondition;
 
