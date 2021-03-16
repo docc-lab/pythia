@@ -546,8 +546,10 @@ impl Node {
                     let mut GM = 3.7_f64;
                     GM = mean(durations_all.iter().map(|&x| x));
 
+                    let mut SSQ_total = variance(durations_all.iter().map(|&x| x));
+
                     println!("Mertiko SSQ Total: {:?}, GM: {:?}",
-                            variance(durations_all.iter().map(|&x| x)),
+                            SSQ_total,
                             GM);
 
                     let mut gids = Vec::new();
@@ -580,12 +582,14 @@ impl Node {
                         durations_condition.extend(group.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>());
                     }
 
-                    println!("silmelik4: {:?}", condition_groups);
+                    println!("silmelik4: {:?}", durations_condition);
 
                     let SSQcondition = (mean(durations_condition.iter().map(|&x| x)) - GM).powi(2) * (durations_condition.len() as f64);
 
                      // let's print SSQ analysis ~ Etasquare
                     println!("Mertiko SSQ Condition: {:?}", SSQcondition);
+                    println!("Mertiko SSQ ration: {:?}", SSQcondition/SSQ_total);
+                    
                     println!("Mertiko parent traceids: {:?}", self.trace_ids);
                     println!("Mertiko group ids: {:?}", self.group_ids);
 
