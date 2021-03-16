@@ -335,7 +335,7 @@ impl GroupManager {
                             // if there exists a tree by that req type -> add group to that
                             Some(v) => v.add_group(group_now),
                             None => { // if not, create new tree
-                                let mut new_tree = Node { val: group_now.request_type.to_string(), group_ids:[group_now.get_hash().to_string()].to_vec(),trace_ids:vec![], l: None, r: None};
+                                let mut new_tree = Node { val: group_now.request_type.to_string(), group_ids:[group_now.get_hash().to_string()].to_vec(),trace_ids:vec![], l: None, r: None, ssq_condition:0_f64};
                                 println!("+Tree created now now: {:?}", new_tree);
                                 self.trees.insert(group_now.request_type.to_string(), new_tree);
                                 
@@ -488,11 +488,18 @@ struct Node {
     trace_ids: Vec<TracepointID>,
     group_ids: Vec<String>,
     // sibling_group_ids: Vec<String>,
+    ssq_condition: f64,
     l: Option<Box<Node>>,
     r: Option<Box<Node>>,
     // sib: Option<Box<Node>>
 }
 impl Node {
+
+    pub fn calculate_ssq(){
+
+
+    }
+
     pub fn enable_tps_for_group(&mut self, group_id: &str, trace_ids: &Vec<TracepointID>, groups: &HashMap<String, Group>, req_type_now: RequestType) {
 
         // if we are at correct node --> add the child node (left with tracepoints contain rel., right with no tracepoints -- only parents tps for right)
@@ -602,6 +609,8 @@ impl Node {
 
                     let SSQcondition = (mean(durations_condition.iter().map(|&x| x)) - GM).powi(2) * (durations_condition.len() as f64);
 
+                    self.ssq_condition = SSQcondition;
+
                      // let's print SSQ analysis ~ Etasquare
                     println!("Mertiko SSQ Condition: {:?}", SSQcondition);
                     println!("Mertiko SSQ ration: {:?}", SSQcondition/SSQ_total);
@@ -615,7 +624,7 @@ impl Node {
                     let mut owned_string: String = "TPS - ".to_owned();
                     owned_string.push_str(group_id);
 
-                    let new_node = Node { val: owned_string, trace_ids:tps, group_ids:Vec::new() , l: None, r: None}; //group_ids:vec![group_id.to_string()]
+                    let new_node = Node { val: owned_string, trace_ids:tps, group_ids:Vec::new() , l: None, r: None, ssq_condition:0_f64}; //group_ids:vec![group_id.to_string()]
                     let boxed_node = Some(Box::new(new_node));
                     *target_node_left = boxed_node;
                 }
@@ -644,7 +653,7 @@ impl Node {
                     let mut owned_string: String = "NO - ".to_owned();
                     owned_string.push_str(group_id);
 
-                    let new_node = Node { val: owned_string, trace_ids:tps, group_ids:gids, l: None, r: None };
+                    let new_node = Node { val: owned_string, trace_ids:tps, group_ids:gids, l: None, r: None,ssq_condition:0_f64 };
                     let boxed_node = Some(Box::new(new_node));
                     *target_node_right = boxed_node;
                     // // sibling relationship
@@ -681,6 +690,7 @@ impl Node {
 
     }
 
+    // Add new group to correct node.
     pub fn add_group(&mut self,   group: &Group) {// group_id: &'a str) {
         println!("Iterating : {:?}", self.val);
         println!("\n");
@@ -695,7 +705,7 @@ impl Node {
             &mut None => {
                 println!("+node: {:?} is at leaf",self.val);
 
-                 // special condition -- if trace ids empty, add anyway
+                 // special condition -- if trace ids empty, add anyway (no hypothesis yet)
                 if self.trace_ids.is_empty(){
                     println!("+special condition");
                         if ARRAY.lock().unwrap().iter().any(|i| i==group.get_hash()){
@@ -710,6 +720,7 @@ impl Node {
                          println!("+evet left 3");
                          return
                 }
+                // if hypothesis found, add to it
                  for tp in &self.trace_ids {
                      println!("+ Check TP2 {:?}", tp);
                      // IF contain any of the tps then append group_ids
