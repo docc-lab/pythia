@@ -365,21 +365,9 @@ impl GroupManager {
             req_type_now = p.1.unwrap();
         }
         println!("+ type: {:?} points:{:?}",req_type_now, vec);
-        self.trees.get_mut(&req_type_now.to_string()).unwrap().enable_tps_for_group(group_id, &vec);
+        self.trees.get_mut(&req_type_now.to_string()).unwrap().enable_tps_for_group(group_id, &vec, &self.groups, req_type_now);
 
 
-        // // TODO: let's do SSQ analysis ~ Etasquare
-        // let mut non_used_groups: Vec<&Group> = self
-        //     .groups
-        //     .values()
-        //     .filter(|&g| g.is_used != true) // TODO: what happens to used groups?
-        //     .filter(|&g| g.traces.len() > 3)
-        //     .collect();
-        // for val in non_used_groups.iter() {
-        //         // print!("{:?},  ",(val.mean.round() as f64) / (1000000000 as f64) );
-        //             //histogram.increment((( val.mean.round() as f64) / (1000000000 as f64)) as u64);
-        //         val.mean
-        // }
         
 
     }
@@ -502,7 +490,7 @@ struct Node {
     // sib: Option<Box<Node>>
 }
 impl Node {
-    pub fn enable_tps_for_group(&mut self, group_id: &str, trace_ids: &Vec<TracepointID>) {
+    pub fn enable_tps_for_group(&mut self, group_id: &str, trace_ids: &Vec<TracepointID>, groups: &HashMap<String, Group>, req_type_now: RequestType) {
 
         // if we are at correct node --> add the child node (left with tracepoints contain rel., right with no tracepoints -- only parents tps for right)
         if self.group_ids.iter().any(|i| i==group_id) {
@@ -516,6 +504,56 @@ impl Node {
                     // println!();
                     tps = trace_ids.clone(); // add newly enabled tracepoints
                     // tps.extend(self.trace_ids.clone()); // add parent's tracepoints
+
+                   
+                    // TODO: let's do SSQ analysis ~ Etasquare
+                    // We calculate SSQtotal = sum(x-GM)^2
+                    let mut non_used_groups: Vec<&Group> = groups
+                        .values()
+                        .filter(|&g| g.request_type == req_type_now)
+                        .filter(|&g| g.is_used != true) // 
+                        .filter(|&g| g.traces.len() > 3)
+                        .collect();
+                    
+                    let mut durations_all = Vec::new();
+                    
+                    for group in non_used_groups.iter() {
+                        durations_all.extend(group.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>());
+                    }
+
+                    let mut GM = 3.7_f64;
+                    GM = mean(durations_all.iter().map(|&x| x));
+
+                    println!("Mertiko SSQ Total: {:?}, GM: {:?}",
+                            variance(durations_all.iter().map(|&x| x)),
+                            GM);
+
+                    let mut gids = Vec::new();
+                    gids = self.group_ids.clone();
+
+                    // DONE SSQ TOTAL
+                    // We calculate SSQcondition = n(M-GM)^2
+                    let mut condition_groups: Vec<&Group> = groups
+                        .values()
+                        .filter(|g| gids.contains(&g.get_hash().to_string()))
+                        .collect();
+                    
+                    let mut durations_condition = Vec::new();
+                    
+                    for group in condition_groups.iter() {
+                        durations_condition.extend(group.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>());
+                    }
+
+                    let SSQcondition = (mean(durations_condition.iter().map(|&x| x)) - GM).powi(2) * (durations_condition.len() as f64);
+
+                     // let's print SSQ analysis ~ Etasquare
+                    println!("Mertiko SSQ Condition: {:?}", SSQcondition);
+                    println!("Mertiko parent traceids: {:?}", self.trace_ids);
+                    println!("Mertiko group ids: {:?}", self.group_ids);
+
+                    // done SSQ
+
+
                     let mut owned_string: String = "TPS - ".to_owned();
                     owned_string.push_str(group_id);
 
@@ -531,7 +569,7 @@ impl Node {
             match target_node_right {
                 &mut Some(ref mut subnode) => {
                     println!("Inner traversing right");
-                    subnode.enable_tps_for_group(group_id,trace_ids);
+                    subnode.enable_tps_for_group(group_id,trace_ids, groups, req_type_now);
                 },
                 
                 //panic!("Has a child Right :/"),
@@ -564,7 +602,7 @@ impl Node {
         match target_node_left {
             &mut Some(ref mut subnode) => {
                 println!("traversing left");
-                subnode.enable_tps_for_group(group_id,trace_ids)
+                subnode.enable_tps_for_group(group_id,trace_ids, groups, req_type_now)
             },
             &mut None => {
                 println!("none Left ended");
@@ -575,7 +613,7 @@ impl Node {
         match target_node_right {
             &mut Some(ref mut subnode) => {
                 println!("traversing right");
-                subnode.enable_tps_for_group( group_id,trace_ids)
+                subnode.enable_tps_for_group( group_id,trace_ids, groups, req_type_now)
             },
             &mut None => {
                 println!("none right ended");
