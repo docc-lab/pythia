@@ -636,6 +636,22 @@ impl Node {
             },
             &mut None => {
                 println!("+node: {:?} is at leaf",self.val);
+
+                 // special condition -- if trace ids empty, add anyway
+                if self.trace_ids.is_empty(){
+                    println!("+special condition");
+                        if ARRAY.lock().unwrap().iter().any(|i| i==group.get_hash()){
+                             println!("+***Found 3");
+                         }
+                         else{
+                             println!("+Not found so adding 3");
+                             ARRAY.lock().unwrap().push(group.get_hash().to_string());
+                             self.group_ids.push(group.get_hash().to_string());
+                         }
+
+                         println!("+evet left 3");
+                         return
+                }
                  for tp in &self.trace_ids {
                      println!("+ Check TP2 {:?}", tp);
                      // IF contain any of the tps then append group_ids
@@ -668,6 +684,7 @@ impl Node {
                 subnode.add_group( &group);},
             &mut None => {
                 println!("+We are at the RIGHT*** leaves, so let's check tps included.. if so append group");
+               
                  for tp in &self.trace_ids {
                      println!("+ Check TP {:?}", tp);
                      // TODO: if contain any ! then append group_ids
