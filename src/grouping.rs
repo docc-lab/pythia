@@ -366,7 +366,8 @@ impl GroupManager {
         }
         println!("+ type: {:?} points:{:?}",req_type_now, vec);
         self.trees.get_mut(&req_type_now.to_string()).unwrap().enable_tps_for_group(group_id, &vec, &self.groups, req_type_now);
-
+        
+        // mark group as used now
         self.groups.get_mut(group_id).unwrap().used();
 
         
@@ -486,6 +487,7 @@ struct Node {
     // treenode: &'a TreeNode,
     trace_ids: Vec<TracepointID>,
     group_ids: Vec<String>,
+    // sibling_group_ids: Vec<String>,
     l: Option<Box<Node>>,
     r: Option<Box<Node>>,
     // sib: Option<Box<Node>>
@@ -515,7 +517,7 @@ impl Node {
                         .collect();
                     
                     for g in &groups_sil {
-                        println!("Sil Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?}, durations: {:?}>",
+                        println!("Sil all Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?}, durations: {:?}>",
                         g.traces.len(),
                         g.request_type,
                         g.mean/1000000.0,
@@ -535,14 +537,28 @@ impl Node {
                         .filter(|&g| g.traces.len() > 3)
                         .collect();
 
-                    println!("silmelik2: {:?}", non_used_groups);
+                    // println!("silmelik2: {:?}", non_used_groups);
+
+                    for g in &non_used_groups {
+                        println!("Sil non_used_groups Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?}, durations: {:?}>",
+                        g.traces.len(),
+                        g.request_type,
+                        g.mean/1000000.0,
+                        // self.traces.len() * self.mean,
+                        g.variance,
+                        g.variance.sqrt()/g.mean,
+                        g.hash,
+                        g.is_used,
+                        g.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>()
+                        );
+                    }
                     
                     let mut durations_all = Vec::new();
                     
                     for group in non_used_groups.iter() {
                         durations_all.extend(group.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>());
                     }
-                    println!("silmelik3: {:?}", durations_all);
+                    println!("silmelik3 durationsall: {:?}", durations_all);
                     let mut GM = 3.7_f64;
                     GM = mean(durations_all.iter().map(|&x| x));
 
@@ -582,7 +598,7 @@ impl Node {
                         durations_condition.extend(group.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>());
                     }
 
-                    println!("silmelik4: {:?}", durations_condition);
+                    println!("silmelik4 duration condition: {:?}", durations_condition);
 
                     let SSQcondition = (mean(durations_condition.iter().map(|&x| x)) - GM).powi(2) * (durations_condition.len() as f64);
 
