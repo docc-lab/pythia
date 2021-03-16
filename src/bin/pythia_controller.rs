@@ -296,10 +296,10 @@ fn main() {
                     break;
                 }
             }
-            println!("Problematic req types: ");
-            for item in problematic_req_types{
-                println!("{:?}, ", item)
-            }
+            // println!("Problematic req types: ");
+            // for item in problematic_req_types{
+            //     println!("{:?}, ", item)
+            // }
             for g in used_groups {
                 groups.used(&g);
             }

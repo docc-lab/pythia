@@ -508,12 +508,15 @@ impl Node {
                    
                     // TODO: let's do SSQ analysis ~ Etasquare
                     // We calculate SSQtotal = sum(x-GM)^2
+                    println!("silmelik1: {:?}", groups);
                     let mut non_used_groups: Vec<&Group> = groups
                         .values()
                         .filter(|&g| g.request_type == req_type_now)
                         .filter(|&g| g.is_used != true) // 
                         .filter(|&g| g.traces.len() > 3)
                         .collect();
+
+                    println!("silmelik2: {:?}", non_used_groups);
                     
                     let mut durations_all = Vec::new();
                     
