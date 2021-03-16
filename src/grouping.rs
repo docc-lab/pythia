@@ -355,7 +355,7 @@ impl GroupManager {
 
     // enable tps on behalf of group id
     pub fn enable_tps(&mut self, points: &Vec<(TracepointID, Option<RequestType>)>, group_id: &String) {
-        println!("Mertiko Enabling {:?} for group: {:?}", points, group_id);
+        println!("Mertiko Enabling SSQ {:?} for group: {:?}", points, group_id);
         // let mut enabled_tracepoints = self.enabled_tracepoints.lock().unwrap();
         let mut vec = Vec::new();
         let mut req_type_now = RequestType::Unknown;
@@ -515,7 +515,17 @@ impl Node {
                         .collect();
                     
                     for g in &groups_sil {
-                        println!("{}", g);
+                        println!("Sil Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?}, durations: {:?}>",
+                        g.traces.len(),
+                        g.request_type,
+                        g.mean/1000000.0,
+                        // self.traces.len() * self.mean,
+                        g.variance,
+                        g.variance.sqrt()/g.mean,
+                        g.hash,
+                        g.is_used,
+                        g.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>()
+                        );
                     }
 
                     let mut non_used_groups: Vec<&Group> = groups
@@ -532,7 +542,7 @@ impl Node {
                     for group in non_used_groups.iter() {
                         durations_all.extend(group.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>());
                     }
-
+                    println!("silmelik3: {:?}", durations_all);
                     let mut GM = 3.7_f64;
                     GM = mean(durations_all.iter().map(|&x| x));
 
@@ -549,12 +559,28 @@ impl Node {
                         .values()
                         .filter(|g| gids.contains(&g.get_hash().to_string()))
                         .collect();
+
+                    for g in &condition_groups {
+                        println!("Sil condition Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?}, durations: {:?}>",
+                        g.traces.len(),
+                        g.request_type,
+                        g.mean/1000000.0,
+                        // self.traces.len() * self.mean,
+                        g.variance,
+                        g.variance.sqrt()/g.mean,
+                        g.hash,
+                        g.is_used,
+                        g.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>()
+                        );
+                    }
                     
                     let mut durations_condition = Vec::new();
                     
                     for group in condition_groups.iter() {
                         durations_condition.extend(group.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>());
                     }
+
+                    println!("silmelik4: {:?}", condition_groups);
 
                     let SSQcondition = (mean(durations_condition.iter().map(|&x| x)) - GM).powi(2) * (durations_condition.len() as f64);
 
