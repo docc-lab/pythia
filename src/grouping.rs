@@ -367,6 +367,7 @@ impl GroupManager {
         println!("+ type: {:?} points:{:?}",req_type_now, vec);
         self.trees.get_mut(&req_type_now.to_string()).unwrap().enable_tps_for_group(group_id, &vec, &self.groups, req_type_now);
 
+        self.groups.get_mut(group_id).unwrap().used();
 
         
 
@@ -508,7 +509,15 @@ impl Node {
                    
                     // TODO: let's do SSQ analysis ~ Etasquare
                     // We calculate SSQtotal = sum(x-GM)^2
-                    println!("silmelik1: {:?}", groups);
+                    let mut groups_sil: Vec<&Group> = groups
+                        .values()
+                        .filter(|&g| g.traces.len() != 0)
+                        .collect();
+                    
+                    for g in &groups_sil {
+                        println!("{}", g);
+                    }
+
                     let mut non_used_groups: Vec<&Group> = groups
                         .values()
                         .filter(|&g| g.request_type == req_type_now)

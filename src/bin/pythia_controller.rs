@@ -300,9 +300,9 @@ fn main() {
             // for item in problematic_req_types{
             //     println!("{:?}, ", item)
             // }
-            for g in used_groups {
-                groups.used(&g);
-            }
+            // for g in used_groups {
+            //     groups.used(&g);
+            // }
 
             //tsl : for groups that stopped being problematic; just disable tracepoints, which are enabled so far
             
