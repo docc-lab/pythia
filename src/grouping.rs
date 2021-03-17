@@ -360,7 +360,7 @@ impl GroupManager {
         let mut vec = Vec::new();
         let mut req_type_now = RequestType::Unknown;
         for p in points {
-            println!("+ Point: {:?}",p);
+            // println!("+ Point: {:?}",p);
             vec.push(p.0);
             req_type_now = p.1.unwrap();
         }
@@ -398,8 +398,8 @@ impl GroupManager {
         GM = mean(durations_all.iter().map(|&x| x));
         println!("GM eta GM val: {:?}", GM);
 
-        let SSQ_total = variance(durations_all.iter().map(|&x| x));
-         println!("GM eta SSQ Total: {:?}", GM);
+        let SSQ_total = variance(durations_all.iter().map(|&x| x)) * (durations_all.len() as f64);
+         println!("GM eta SSQ Total: {:?}", SSQ_total);
 
         // calculate ssq condition
         let ssq_condition= self.trees.get_mut(&req_type_now.to_string()).unwrap().calculate_ssq(&self.groups, 0.0, GM);

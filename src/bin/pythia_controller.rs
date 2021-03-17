@@ -241,8 +241,8 @@ fn main() {
 
                 let problem_edges = g.problem_edges();
 
-                println!("Top 10 edges of group {}:", g);
-                for edge in problem_edges.iter().take(10) {
+                println!("Top 3 edges of group {}:", g);
+                for edge in problem_edges.iter().take(3) {
                     let endpoints = g.g.edge_endpoints(*edge).unwrap();
                     println!(
                         "({} -> {}): {}",
