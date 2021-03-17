@@ -365,7 +365,10 @@ impl GroupManager {
             req_type_now = p.1.unwrap();
         }
         println!("+ type: {:?} points:{:?}",req_type_now, vec);
-        self.trees.get_mut(&req_type_now.to_string()).unwrap().enable_tps_for_group(group_id, &vec, &self.groups);
+
+
+
+        
     
         // calculate GM
         let mut groups_sil: Vec<&Group> = self.groups
@@ -401,7 +404,17 @@ impl GroupManager {
         let SSQ_total = variance(durations_all.iter().map(|&x| x)) * (durations_all.len() as f64);
          println!("GM eta SSQ Total: {:?}", SSQ_total);
 
-        // calculate ssq condition
+
+        // calculate ssq condition before branching out
+        let ssq_condition= self.trees.get_mut(&req_type_now.to_string()).unwrap().calculate_ssq(&self.groups, 0.0, GM);
+        println!("********+++++++++ Cevap: eta Before condition {}", ssq_condition);
+
+        println!("********+++++++++ ETALARIN Before ETASI {}", ssq_condition/SSQ_total);
+
+        self.trees.get_mut(&req_type_now.to_string()).unwrap().enable_tps_for_group(group_id, &vec, &self.groups);
+
+        
+        // calculate ssq condition after branching
         let ssq_condition= self.trees.get_mut(&req_type_now.to_string()).unwrap().calculate_ssq(&self.groups, 0.0, GM);
         println!("********+++++++++ Cevap: eta condition {}", ssq_condition);
 
