@@ -309,7 +309,7 @@ impl GroupManager {
         }
     }
 
-    pub fn ssq(&mut self){
+    pub fn ssq(& self){
         let mut req_type_now = RequestType::ServerCreate;
          // calculate GM
         let mut groups_sil: Vec<&Group> = self.groups
@@ -347,7 +347,7 @@ impl GroupManager {
 
 
         // calculate ssq condition before branching out
-        let ssq_condition= self.trees.get_mut(&req_type_now.to_string()).unwrap().calculate_ssq(&self.groups, 0.0, GM);
+        let ssq_condition= self.trees.get(&req_type_now.to_string()).unwrap().calculate_ssq(&self.groups, 0.0, GM);
         println!("++++++**+++++++++ Cevap: eta yeni condition {}", ssq_condition);
 
         println!("++++++***+++++++++ ETALARIN Before yeni {}", ssq_condition/SSQ_total);
