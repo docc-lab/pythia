@@ -309,6 +309,50 @@ impl GroupManager {
         }
     }
 
+    pub fn ssq(&mut self){
+        let mut req_type_now = RequestType::ServerCreate;
+         // calculate GM
+        let mut groups_sil: Vec<&Group> = self.groups
+            .values()
+            .filter(|&g| g.traces.len() != 0)
+            .collect();
+        
+        for g in &groups_sil {
+            println!("Eta icin Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?}, durations: {:?}>",
+            g.traces.len(),
+            g.request_type,
+            g.mean/1000000.0,
+            // self.traces.len() * self.mean,
+            g.variance,
+            g.variance.sqrt()/g.mean,
+            g.hash,
+            g.is_used,
+            g.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>()
+            );
+        }
+
+        
+        let mut durations_all = Vec::new();
+        
+        for group in groups_sil.iter() {
+            durations_all.extend(group.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>());
+        }
+        println!("++++++yeni GM eta durationsall yeni: {:?}, len: {:?}", durations_all, durations_all.len() );
+        let mut GM = 3.7_f64;
+        GM = mean(durations_all.iter().map(|&x| x));
+        println!("++++++GM eta GM  yenival: {:?}", GM);
+
+        let SSQ_total = variance(durations_all.iter().map(|&x| x)) * (durations_all.len() as f64);
+         println!("++++++GM eta SSQ yeni Total: {:?}", SSQ_total);
+
+
+        // calculate ssq condition before branching out
+        let ssq_condition= self.trees.get_mut(&req_type_now.to_string()).unwrap().calculate_ssq(&self.groups, 0.0, GM);
+        println!("++++++**+++++++++ Cevap: eta yeni condition {}", ssq_condition);
+
+        println!("++++++***+++++++++ ETALARIN Before yeni {}", ssq_condition/SSQ_total);
+    }
+
     /// Add new paths to the appropriate groups
     pub fn update(&mut self, paths: &Vec<CriticalPath>) {
         let mut updated_groups = Vec::new();
@@ -396,7 +440,7 @@ impl GroupManager {
         for group in groups_sil.iter() {
             durations_all.extend(group.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>());
         }
-        println!("GM eta durationsall: {:?}", durations_all);
+        println!("GM eta durationsall: {:?}, len: {:?}", durations_all, durations_all.len() );
         let mut GM = 3.7_f64;
         GM = mean(durations_all.iter().map(|&x| x));
         println!("GM eta GM val: {:?}", GM);

@@ -220,13 +220,14 @@ fn main() {
             //tsl ; get problematic group types to disable tps for non-problematic ones
             let mut problematic_req_types = Vec::new();
             
-            println!("Making decision. Top 10 problem groups:");
-            for g in problem_groups.iter().take(10) {
+            println!("Making decision. Top 3 problem groups:");
+            for g in problem_groups.iter().take(3) {
                 println!("{}", g);
                 // for enabled in &g.enabled_tps{
                 //     println!("Enabled: {:?} ", enabled);
                 // }
             }
+            groups.ssq();
 
             //comment-in below line for consistently slow analysis
             // println!("Making decision. Top 10 slow problem groups:");
@@ -249,7 +250,7 @@ fn main() {
                         g.g[endpoints.0], g.g[endpoints.1], g.g[*edge]
                     );
                 }
-                for &edge in problem_edges.iter() {
+                for &edge in problem_edges.iter().take(1) {
                     if budget <= 0 {
                         break;
                     }
