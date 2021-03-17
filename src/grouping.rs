@@ -311,6 +311,10 @@ impl GroupManager {
 
     pub fn ssq(& self){
         let mut req_type_now = RequestType::ServerCreate;
+        if self.trees.contains_key(&req_type_now.to_string()){
+
+        
+        
          // calculate GM
         let mut groups_sil: Vec<&Group> = self.groups
             .values()
@@ -351,6 +355,10 @@ impl GroupManager {
         println!("++++++**+++++++++ Cevap: eta yeni condition {}", ssq_condition);
 
         println!("++++++***+++++++++ ETALARIN Before yeni {}", ssq_condition/SSQ_total);
+        }
+        else{
+            println!("** NOT YET");
+        }
     }
 
     /// Add new paths to the appropriate groups
