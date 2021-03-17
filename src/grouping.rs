@@ -161,8 +161,8 @@ impl Group {
     /// After we use a group for diagnosis, we reset the group. This function is incomplete, and we
     /// should ideally modify the edges as well.
     pub fn used(&mut self) {
-        self.traces = Vec::new();
-        self.variance = 0.0;
+        // self.traces = Vec::new();
+        // self.variance = 0.0;
         self.is_used = true;
     }
 
@@ -365,7 +365,48 @@ impl GroupManager {
             req_type_now = p.1.unwrap();
         }
         println!("+ type: {:?} points:{:?}",req_type_now, vec);
-        self.trees.get_mut(&req_type_now.to_string()).unwrap().enable_tps_for_group(group_id, &vec, &self.groups, req_type_now);
+        self.trees.get_mut(&req_type_now.to_string()).unwrap().enable_tps_for_group(group_id, &vec, &self.groups);
+    
+        // calculate GM
+        let mut groups_sil: Vec<&Group> = self.groups
+            .values()
+            .filter(|&g| g.traces.len() != 0)
+            .collect();
+        
+        for g in &groups_sil {
+            println!("Sil all Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?}, durations: {:?}>",
+            g.traces.len(),
+            g.request_type,
+            g.mean/1000000.0,
+            // self.traces.len() * self.mean,
+            g.variance,
+            g.variance.sqrt()/g.mean,
+            g.hash,
+            g.is_used,
+            g.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>()
+            );
+        }
+
+        
+        let mut durations_all = Vec::new();
+        
+        for group in groups_sil.iter() {
+            durations_all.extend(group.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>());
+        }
+        println!("GM eta durationsall: {:?}", durations_all);
+        let mut GM = 3.7_f64;
+        GM = mean(durations_all.iter().map(|&x| x));
+        println!("GM eta GM val: {:?}", GM);
+
+        let SSQ_total = variance(durations_all.iter().map(|&x| x));
+         println!("GM eta SSQ Total: {:?}", GM);
+
+        // calculate ssq condition
+        let ssq_condition= self.trees.get_mut(&req_type_now.to_string()).unwrap().calculate_ssq(&self.groups, 0.0, GM);
+        println!("********+++++++++ Cevap: eta condition {}", ssq_condition);
+
+        println!("********+++++++++ ETALARIN ETASI {}", ssq_condition/SSQ_total);
+        
         
         // mark group as used now
         self.groups.get_mut(group_id).unwrap().used();
@@ -495,12 +536,73 @@ struct Node {
 }
 impl Node {
 
-    pub fn calculate_ssq(){
+    pub fn calculate_ssq(& self,  groups: &HashMap<String, Group>,  ssq_now: f64, GM: f64) -> f64{
 
+        let target_node_right =  & self.r;
+        let target_node_left  = & self.l;
+        // println!("{:?} target node", target_node);
+        match target_node_left {
+            & Some(ref  subnode) => {
+                println!("+traversing left eta");
+                return ssq_now + subnode.calculate_ssq(groups, ssq_now, GM) + target_node_right.as_ref().unwrap().calculate_ssq(groups, ssq_now, GM);
+            },
+            & None => {
+                // calculate ssq now
+                println!("none Left ended AND CALculate eta now");
+                // get group ids at leaf
+                let mut gids = Vec::new();
+                gids = self.group_ids.clone(); 
+
+                //get groups by gids
+                let mut condition_groups: Vec<&Group> = groups
+                    .values()
+                    .filter(|g| gids.contains(&g.get_hash().to_string()))
+                    .collect();
+
+                // print them
+                for g in &condition_groups {
+                    println!("Sil condition Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?}, durations: {:?}>",
+                    g.traces.len(),
+                    g.request_type,
+                    g.mean/1000000.0,
+                    // self.traces.len() * self.mean,
+                    g.variance,
+                    g.variance.sqrt()/g.mean,
+                    g.hash,
+                    g.is_used,
+                    g.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>()
+                    );
+                }
+                
+                // construct durations list from all groups on that leaf
+                let mut durations_condition = Vec::new();
+                
+                for group in condition_groups.iter() {
+                    durations_condition.extend(group.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>());
+                }
+
+                println!("+eta4 duration condition: {:?}", durations_condition);
+
+                let mut durations_condition_mean = mean(durations_condition.iter().map(|&x| x));
+                println!("+eta4 Duration condition mean: {:?}, len: {:?}", durations_condition_mean,(durations_condition.len() as f64));
+
+                let SSQcondition = ( durations_condition_mean - GM)  * ( durations_condition_mean - GM)  * (durations_condition.len() as f64);
+
+                // self.ssq_condition = SSQcondition;
+
+                    // let's print SSQ analysis ~ Etasquare
+                println!("Mertiko SSQ Condition for node :{:?}  , {:?}", self.val, SSQcondition);
+                // println!("Mertiko SSQ ration: {:?}", SSQcondition/SSQ_total);
+
+                
+                    
+                return SSQcondition;
+            }
+        }
 
     }
 
-    pub fn enable_tps_for_group(&mut self, group_id: &str, trace_ids: &Vec<TracepointID>, groups: &HashMap<String, Group>, req_type_now: RequestType) {
+    pub fn enable_tps_for_group(&mut self, group_id: &str, trace_ids: &Vec<TracepointID>, groups: &HashMap<String, Group>) {
 
         // if we are at correct node --> add the child node (left with tracepoints contain rel., right with no tracepoints -- only parents tps for right)
         if self.group_ids.iter().any(|i| i==group_id) {
@@ -515,119 +617,10 @@ impl Node {
                     tps = trace_ids.clone(); // add newly enabled tracepoints
                     // tps.extend(self.trace_ids.clone()); // add parent's tracepoints
 
-                   
-                    // TODO: let's do SSQ analysis ~ Etasquare
-                    // We calculate SSQtotal = sum(x-GM)^2
-                    let mut groups_sil: Vec<&Group> = groups
-                        .values()
-                        .filter(|&g| g.traces.len() != 0)
-                        .collect();
-                    
-                    for g in &groups_sil {
-                        println!("Sil all Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?}, durations: {:?}>",
-                        g.traces.len(),
-                        g.request_type,
-                        g.mean/1000000.0,
-                        // self.traces.len() * self.mean,
-                        g.variance,
-                        g.variance.sqrt()/g.mean,
-                        g.hash,
-                        g.is_used,
-                        g.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>()
-                        );
-                    }
-
-                    let mut non_used_groups: Vec<&Group> = groups
-                        .values()
-                        .filter(|&g| g.request_type == req_type_now)
-                        .filter(|&g| g.is_used != true) // 
-                        .filter(|&g| g.traces.len() > 3)
-                        .collect();
-
-                    // println!("silmelik2: {:?}", non_used_groups);
-
-                    for g in &non_used_groups {
-                        println!("Sil non_used_groups Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?}, durations: {:?}>",
-                        g.traces.len(),
-                        g.request_type,
-                        g.mean/1000000.0,
-                        // self.traces.len() * self.mean,
-                        g.variance,
-                        g.variance.sqrt()/g.mean,
-                        g.hash,
-                        g.is_used,
-                        g.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>()
-                        );
-                    }
-                    
-                    let mut durations_all = Vec::new();
-                    
-                    for group in non_used_groups.iter() {
-                        durations_all.extend(group.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>());
-                    }
-                    println!("silmelik3 durationsall: {:?}", durations_all);
-                    let mut GM = 3.7_f64;
-                    GM = mean(durations_all.iter().map(|&x| x));
-
-                    let mut SSQ_total = variance(durations_all.iter().map(|&x| x));
-
-                    println!("Mertiko SSQ Total: {:?}, GM: {:?}",
-                            SSQ_total,
-                            GM);
-
-                    let mut gids = Vec::new();
-                    gids = self.group_ids.clone();
-
-                    // DONE SSQ TOTAL
-                    // We calculate SSQcondition = n(M-GM)^2
-                    let mut condition_groups: Vec<&Group> = groups
-                        .values()
-                        .filter(|g| gids.contains(&g.get_hash().to_string()))
-                        .collect();
-
-                    for g in &condition_groups {
-                        println!("Sil condition Group<{} {:?} traces, mean: {:?}, var: {:?}, cv:{:?}, hash: {:?}, is_used: {:?}, durations: {:?}>",
-                        g.traces.len(),
-                        g.request_type,
-                        g.mean/1000000.0,
-                        // self.traces.len() * self.mean,
-                        g.variance,
-                        g.variance.sqrt()/g.mean,
-                        g.hash,
-                        g.is_used,
-                        g.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>()
-                        );
-                    }
-                    
-                    let mut durations_condition = Vec::new();
-                    
-                    for group in condition_groups.iter() {
-                        durations_condition.extend(group.traces.iter().map(|x| x.duration.as_nanos()).collect::<Vec<_>>());
-                    }
-
-                    println!("silmelik4 duration condition: {:?}", durations_condition);
-
-                    let mut durations_condition_mean = mean(durations_condition.iter().map(|&x| x));
-                    println!("silmelik4 Duration condition mean: {:?}, len: {:?}", durations_condition_mean,(durations_condition.len() as f64));
-
-                    let SSQcondition = ( durations_condition_mean - GM)  * ( durations_condition_mean - GM)  * (durations_condition.len() as f64);
-
-                    self.ssq_condition = SSQcondition;
-
-                     // let's print SSQ analysis ~ Etasquare
-                    println!("Mertiko SSQ Condition: {:?}", SSQcondition);
-                    println!("Mertiko SSQ ration: {:?}", SSQcondition/SSQ_total);
-                    
-                    println!("Mertiko parent traceids: {:?}", self.trace_ids);
-                    println!("Mertiko group ids: {:?}", self.group_ids);
-
-                    // done SSQ
-
-
                     let mut owned_string: String = "TPS - ".to_owned();
                     owned_string.push_str(group_id);
 
-                    let new_node = Node { val: owned_string, trace_ids:tps, group_ids:Vec::new() , l: None, r: None, ssq_condition:0_f64}; //group_ids:vec![group_id.to_string()]
+                    let new_node = Node { val: owned_string, trace_ids:tps, group_ids:Vec::new() , l: None, r: None, ssq_condition:0.0}; //group_ids:vec![group_id.to_string()]
                     let boxed_node = Some(Box::new(new_node));
                     *target_node_left = boxed_node;
                 }
@@ -639,7 +632,7 @@ impl Node {
             match target_node_right {
                 &mut Some(ref mut subnode) => {
                     println!("Inner traversing right");
-                    subnode.enable_tps_for_group(group_id,trace_ids, groups, req_type_now);
+                    subnode.enable_tps_for_group(group_id,trace_ids, groups);
                 },
                 
                 //panic!("Has a child Right :/"),
@@ -656,7 +649,7 @@ impl Node {
                     let mut owned_string: String = "NO - ".to_owned();
                     owned_string.push_str(group_id);
 
-                    let new_node = Node { val: owned_string, trace_ids:tps, group_ids:gids, l: None, r: None,ssq_condition:0_f64 };
+                    let new_node = Node { val: owned_string, trace_ids:tps, group_ids:gids, l: None, r: None, ssq_condition:0.0 };
                     let boxed_node = Some(Box::new(new_node));
                     *target_node_right = boxed_node;
                     // // sibling relationship
@@ -672,7 +665,7 @@ impl Node {
         match target_node_left {
             &mut Some(ref mut subnode) => {
                 println!("traversing left");
-                subnode.enable_tps_for_group(group_id,trace_ids, groups, req_type_now)
+                subnode.enable_tps_for_group(group_id,trace_ids, groups)
             },
             &mut None => {
                 println!("none Left ended");
@@ -683,7 +676,7 @@ impl Node {
         match target_node_right {
             &mut Some(ref mut subnode) => {
                 println!("traversing right");
-                subnode.enable_tps_for_group( group_id,trace_ids, groups, req_type_now)
+                subnode.enable_tps_for_group( group_id,trace_ids, groups)
             },
             &mut None => {
                 println!("none right ended");
