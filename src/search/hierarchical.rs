@@ -44,7 +44,13 @@ impl SearchStrategy for HierarchicalSearch {
         }
         println!("Common context for the search: {:?}", common_context);
         let matches = self.manifest.find_matches(group);
-        let mut result = self.search_context(&matches, common_context);
+        let mut result = self.search_context(
+            &matches,
+            common_context,
+            group.g[source].tracepoint_id,
+            group.g[target].tracepoint_id,
+            budget,
+        );
         result = result
             .into_iter()
             .filter(|&x| !self.controller.is_enabled(&(x, Some(group.request_type))))
@@ -66,6 +72,9 @@ impl HierarchicalSearch {
         &self,
         matches: &Vec<&HierarchicalCriticalPath>,
         context: Vec<TracepointID>,
+        source_tracepoint: TracepointID,
+        target_tracepoint: TracepointID,
+        budget: usize,
     ) -> Vec<TracepointID> {
         // Really we're looking at possible new parents that are at the correct hierarchy
         // depth. Once we have them, we'll return THEIR children as the search result.
@@ -128,9 +137,44 @@ impl HierarchicalSearch {
         // We now have a list of all of the vanguard nodes, if you will, at the current deepest level of the hierarchy.
         // We now want to add all of their children to the results, which we get from child_nodes.
         let mut result = HashSet::new();
+        let budget_per_match = budget / matches.len();
         for (path, nidx) in possible_child_nodes {
-            for child in path.child_nodes(nidx) {
-                result.insert(path.g[child].tracepoint_id);
+            //  Get all of the child nodes
+            let all_children = path.child_nodes(nidx);
+            // We want to filter these to just those that happen between source and target (via happens-before)
+
+            // Question: must there exist at least one that happens directly after the source node?
+            // For now we can do just the dumber approach
+            let mut valid_child_tracepoints = Vec::new();
+
+            for child in all_children {
+                let child_tracepoint = path.g[child].tracepoint_id;
+                let child_happens_after_source =
+                    path.happens_before(source_tracepoint, child_tracepoint);
+                let child_happens_before_target =
+                    path.happens_before(child_tracepoint, target_tracepoint);
+                if child_happens_after_source && child_happens_before_target {
+                    valid_child_tracepoints.push(child_tracepoint);
+                }
+            }
+
+            // Now that we have all the valid nodes at the next level, we want to split them by our budget.
+            // For example, if budget is 1, pick the node in the middle.
+            // TODO(alex): Do we want to be greedy here? Allocate evenly across matches for now.
+            // TODO(alex): we can probably refactor out this functionality from flat.rs and share a helper.
+            // If we have enough for all of the tracepoints, just add them
+            if budget_per_match >= valid_child_tracepoints.len() {
+                for child in valid_child_tracepoints {
+                    result.insert(child);
+                }
+            } else {
+                // Calculate the spacing n between every node we want to turn on, then turn on every n'th.
+                let spacing = valid_child_tracepoints.len() / (budget_per_match + 1);
+                for i in 0..valid_child_tracepoints.len() {
+                    if i % spacing == 0 {
+                        result.insert(valid_child_tracepoints[i]);
+                    }
+                }
             }
         }
         result.drain().collect()
@@ -209,10 +253,15 @@ mod tests {
         println!(
             "{:?}",
             search.search_context(
-                &paths.iter().map(|x| x).collect(), vec![
-                TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
-                TracepointID::from_str("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action")
-                ])
+                /*matches=*/ &paths.iter().map(|x| x).collect(),
+                /*context=*/ vec![
+                    TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
+                    TracepointID::from_str("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action")
+                ],
+                /*source_tracepoint=*/ TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
+                /*target_tracepoint=*/ TracepointID::from_str("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action"),
+                /*budget=*/ 1
+            )
             );
     }
 }

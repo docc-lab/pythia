@@ -207,6 +207,56 @@ impl HierarchicalCriticalPath {
             prev_node = next_node;
         }
     }
+
+    // Helper function to tell whether before_node happens before (in the Lampert sense) after_node in this
+    // path. For example, if the path is A -> B -> C, happens_before(A, B) would be true, but happens_before(B, A) would
+    // return false.
+    // Looks through the whole path, so is O(n).
+    pub fn happens_before(&self, before_node: TracepointID, after_node: TracepointID) -> bool {
+        // First check for the same node, as one cannot happen before oneself
+        if before_node == after_node {
+            return false
+        }
+
+        // Initialize flag to tell if we've seen the before node already
+        let mut before_node_seen = false;
+        // Start with the root
+        let mut current_node = self.start_node;
+
+        loop {
+            // If we haven't seen the before node, check the current node to see if we've reached the before_node
+            // or if we've reached the after_node first.
+            if !before_node_seen {
+                // If the current node is the before node, we can mark that we've found it.
+                if self.g[current_node].tracepoint_id == before_node {
+                    before_node_seen = true;
+                }
+                // If we've reached the later node before finding the before node, we know it can't happen before it
+                if self.g[current_node].tracepoint_id == after_node {
+                    return false;
+                }
+            } else {
+                // If we saw the before_node in a previous node, that means we're down the happens-before path, and if
+                // we see the after_node, we know it must occur after.
+                if self.g[current_node].tracepoint_id == after_node {
+                    return true;
+                }
+                // If we've reached the last node without finding the after_node, that means we didn't find it in the
+                // path. This shouldn't happen, as all children will be in the path, but we can include a check for
+                // completion's sake.
+                if current_node == self.end_node {
+                    return false;
+                }
+            }
+            // We'll always want to get the next node while we can.
+            current_node = match self.next_node(current_node) {
+                Some(n) => n,
+                None => break,
+            };
+        }
+
+        return false;
+    }
 }
 
 /// Collection of all HierarchicalCriticalPaths
