@@ -122,8 +122,19 @@ impl HierarchicalCriticalPath {
     }
 
     fn add_hierarchical_edges(&mut self) {
+        // Right now, all nodes in the graph have a happens before relationship.
+
+        // Initialize stack to keep track of of hierarchical calls (like a call stack)
+        // Note that we're only keeping track of Entry events! This means that when we have
+        // an entry event as the most recent, any next ones we see before the corresponding Exit must be
+        // hierarchically "below" the last one.
         let mut context = Vec::new();
+        // Start with the first node.
         let mut prev_node = self.start_node;
+
+        // Go through nodes from the start_node until we find the first entry node.
+        // If we just find Annotations, there's nothing to do.
+        // If we find an exit before any entry events, there's an issue.
         loop {
             match self.g[prev_node].variant {
                 EventType::Entry => {
@@ -142,16 +153,26 @@ impl HierarchicalCriticalPath {
                 }
             }
         }
+        // Not sure if we need this assert since we're always finding an Entry, but OK
         assert!(self.g[prev_node].variant == EventType::Entry);
+
+        // We know this node is one of the ones at the top of the hierarchy.
         self.hierarchy_starts.insert(prev_node);
+
+        // Add first item to the stack, since it's an Entry event.
         context.push(prev_node);
+
         loop {
+            // Find the next node in the trace
             let next_node = match self.next_node(prev_node) {
                 Some(n) => n,
                 None => break,
             };
             match context.last() {
                 Some(&nidx) => {
+                    // If the most recent hierarchical node differs from the next node, add a
+                    // node -> next node hierarchical relationship.
+                    // This makes sense since anything following an Entry is "below" it in the hierarchy.
                     if self.g[nidx].tracepoint_id != self.g[next_node].tracepoint_id {
                         self.g.add_edge(
                             nidx,
@@ -162,18 +183,25 @@ impl HierarchicalCriticalPath {
                         );
                     }
                 }
+                // If there's nothing in the stack, this means that we just had an exit event that matched the original
+                // entry call and popped it, so we're back at the top of the hierarchy again.
                 None => {
                     self.hierarchy_starts.insert(next_node);
                 }
             }
             match self.g[next_node].variant {
                 EventType::Entry => {
+                    // If it's a new Entry, that means we're going one level deeper in the hierarchy and can check for its
+                    // child calls next.
                     context.push(next_node);
                 }
                 EventType::Exit => {
+                    // Reached the end of this call. Pop and make sure we have an Entry to match our Exit, otherwise
+                    // we have some imbalanced Exit/Entry graph.
                     let last = context.pop().unwrap();
                     assert!(self.g[last].variant == EventType::Entry);
                 }
+                // Annotations can't have children, so ignore here.
                 EventType::Annotation => {}
             }
             prev_node = next_node;
