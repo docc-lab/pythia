@@ -137,8 +137,13 @@ impl HierarchicalSearch {
         // We now have a list of all of the vanguard nodes, if you will, at the current deepest level of the hierarchy.
         // We now want to add all of their children to the results, which we get from child_nodes.
         let mut result = HashSet::new();
-        let budget_per_match = budget / matches.len();
+        // Let's start by being super greedy with the budget.
+        let mut budget_left = budget;
         for (path, nidx) in possible_child_nodes {
+            // If we're out of budget, we can just stop early.
+            if budget_left == 0 {
+                break;
+            }
             //  Get all of the child nodes
             let all_children = path.child_nodes(nidx);
             // We want to filter these to just those that happen between source and target (via happens-before)
@@ -147,6 +152,8 @@ impl HierarchicalSearch {
             // For now we can do just the dumber approach
             let mut valid_child_tracepoints = Vec::new();
 
+            // TODO(alex): path.happens_before is O(n) on the size of the trace, so if we're calling this for a ton of
+            // children, this could end up being expensive. We can definitely speed this up.
             for child in all_children {
                 let child_tracepoint = path.g[child].tracepoint_id;
                 let child_happens_after_source =
@@ -160,23 +167,34 @@ impl HierarchicalSearch {
 
             // Now that we have all the valid nodes at the next level, we want to split them by our budget.
             // For example, if budget is 1, pick the node in the middle.
-            // TODO(alex): Do we want to be greedy here? Allocate evenly across matches for now.
             // TODO(alex): we can probably refactor out this functionality from flat.rs and share a helper.
             // If we have enough for all of the tracepoints, just add them
-            if budget_per_match >= valid_child_tracepoints.len() {
+            let num_valid_child_tracepoints = valid_child_tracepoints.len();
+            if budget_left >= num_valid_child_tracepoints {
                 for child in valid_child_tracepoints {
                     result.insert(child);
                 }
+                budget_left = budget_left - num_valid_child_tracepoints;
             } else {
                 // Calculate the spacing n between every node we want to turn on, then turn on every n'th.
-                let spacing = valid_child_tracepoints.len() / (budget_per_match + 1);
+                // E.g. for [A, B, C, D, E] and budget 2, we want to turn on B and D. That means we want to turn on
+                // indices 1 and 3.
+                let spacing = valid_child_tracepoints.len() / (budget_left + 1);
                 for i in 0..valid_child_tracepoints.len() {
-                    if i % spacing == 0 {
-                        result.insert(valid_child_tracepoints[i]);
+                    // `+ 1` to each of these to help split roughly evenly and prefer center nodes over start/end of
+                    // vector. See https://replit.com/join/gzypktqi-lxls.
+                    if (i + 1) % (spacing + 1) == 0 {
+                        if budget_left > 0 {
+                            result.insert(valid_child_tracepoints[i]);
+                            budget_left = budget_left - 1;
+                        } else {
+                            break;
+                        }
                     }
                 }
             }
         }
+        println!("Total number of search results from search_context: {:?}", result.len());
         result.drain().collect()
     }
 
@@ -250,8 +268,7 @@ mod tests {
         for path in paths.iter_mut() {
             path.hierarchy_starts.insert(path.start_node);
         }
-        println!(
-            "{:?}",
+        let search_result =
             search.search_context(
                 /*matches=*/ &paths.iter().map(|x| x).collect(),
                 /*context=*/ vec![
@@ -261,7 +278,73 @@ mod tests {
                 /*source_tracepoint=*/ TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
                 /*target_tracepoint=*/ TracepointID::from_str("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action"),
                 /*budget=*/ 1
-            )
             );
+        println!("{:?}", search_result);
+        assert_eq!(
+            search_result,
+            [TracepointID::from_str("keystone/v3/auth/tokens:POST")]
+        )
+    }
+    #[test]
+    fn it_works_across_hierarchy_levels() {
+        CONTROLLER.disable_all();
+        let search = HierarchicalSearch::new(&SETTINGS, &MANIFEST, &CONTROLLER);
+        let mut manifest = MANIFEST.clone();
+        let mut paths: Vec<HierarchicalCriticalPath> = manifest
+            .per_request_type
+            .get_mut(&RequestType::ServerCreate)
+            .unwrap()
+            .paths
+            .values()
+            .cloned()
+            .collect();
+        for path in paths.iter_mut() {
+            path.hierarchy_starts.insert(path.start_node);
+        }
+        assert_eq!(
+            search.search_context(
+                /*matches=*/ &paths.iter().map(|x| x).collect(),
+                /*context=*/ vec![
+                    TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
+                ],
+                /*source_tracepoint=*/ TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
+                /*target_tracepoint=*/ TracepointID::from_str("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action"),
+                /*budget=*/ 1
+            ),
+            [TracepointID::from_str("keystone/v3/auth/tokens:POST")]);
+    }
+    #[test]
+    fn it_works_with_higher_budget() {
+        CONTROLLER.disable_all();
+        let search = HierarchicalSearch::new(&SETTINGS, &MANIFEST, &CONTROLLER);
+        let mut manifest = MANIFEST.clone();
+        let mut paths: Vec<HierarchicalCriticalPath> = manifest
+            .per_request_type
+            .get_mut(&RequestType::ServerCreate)
+            .unwrap()
+            .paths
+            .values()
+            .cloned()
+            .collect();
+        for path in paths.iter_mut() {
+            path.hierarchy_starts.insert(path.start_node);
+        }
+        // Sort both by strings so we can ignore order (since we're getting values from a set in search_context)
+        assert_eq!(
+            search.search_context(
+                /*matches=*/ &paths.iter().map(|x| x).collect(),
+                /*context=*/ vec![
+                    TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
+                ],
+                /*source_tracepoint=*/ TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
+                /*target_tracepoint=*/ TracepointID::from_str("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action"),
+                /*budget=*/ 3
+            ).sort_by(|a, b| a.to_string().cmp(&b.to_string())),
+            [
+                TracepointID::from_str("keystone/v3:GET"),
+                TracepointID::from_str("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:486:openstackclient.compute.v2.server.CreateServer.get_parser"),
+                TracepointID::from_str("keystone/v3/auth/tokens:POST"),
+            ].sort_by(|a, b| a.to_string().cmp(&b.to_string()))
+        );
     }
 }
