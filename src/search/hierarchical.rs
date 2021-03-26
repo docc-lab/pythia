@@ -147,55 +147,86 @@ impl HierarchicalSearch {
             //  Get all of the child nodes
             let all_children = path.child_nodes(nidx);
             // We want to filter these to just those that happen between source and target (via happens-before)
-
-            // Question: must there exist at least one that happens directly after the source node?
-            // For now we can do just the dumber approach
-            let mut valid_child_tracepoints = Vec::new();
-
-            // TODO(alex): path.happens_before is O(n) on the size of the trace, so if we're calling this for a ton of
-            // children, this could end up being expensive. We can definitely speed this up.
-            for child in all_children {
-                let child_tracepoint = path.g[child].tracepoint_id;
-                let child_happens_after_source =
-                    path.happens_before(source_tracepoint, child_tracepoint);
-                let child_happens_before_target =
-                    path.happens_before(child_tracepoint, target_tracepoint);
-                if child_happens_after_source && child_happens_before_target {
-                    valid_child_tracepoints.push(child_tracepoint);
-                }
-            }
-
+            let children_in_problematic_edge = self.get_child_nodes_in_problematic_edge(
+                path,
+                &all_children,
+                source_tracepoint,
+                target_tracepoint,
+            );
             // Now that we have all the valid nodes at the next level, we want to split them by our budget.
-            // For example, if budget is 1, pick the node in the middle.
-            // TODO(alex): we can probably refactor out this functionality from flat.rs and share a helper.
-            // If we have enough for all of the tracepoints, just add them
-            let num_valid_child_tracepoints = valid_child_tracepoints.len();
-            if budget_left >= num_valid_child_tracepoints {
-                for child in valid_child_tracepoints {
-                    result.insert(child);
-                }
-                budget_left = budget_left - num_valid_child_tracepoints;
-            } else {
-                // Calculate the spacing n between every node we want to turn on, then turn on every n'th.
-                // E.g. for [A, B, C, D, E] and budget 2, we want to turn on B and D. That means we want to turn on
-                // indices 1 and 3.
-                let spacing = valid_child_tracepoints.len() / (budget_left + 1);
-                for i in 0..valid_child_tracepoints.len() {
-                    // `+ 1` to each of these to help split roughly evenly and prefer center nodes over start/end of
-                    // vector. See https://replit.com/join/gzypktqi-lxls.
-                    if (i + 1) % (spacing + 1) == 0 {
-                        if budget_left > 0 {
-                            result.insert(valid_child_tracepoints[i]);
-                            budget_left = budget_left - 1;
-                        } else {
-                            break;
-                        }
+            let children_that_evenly_divide_edge =
+                self.split_children_evenly(&children_in_problematic_edge, budget_left);
+            // Update the budget
+            budget_left = budget_left - children_that_evenly_divide_edge.len();
+            // Add these results to the final results
+            result.extend(&children_that_evenly_divide_edge);
+        }
+        println!(
+            "Total number of search results from search_context: {:?}",
+            result.len()
+        );
+        result.drain().collect()
+    }
+
+    fn get_child_nodes_in_problematic_edge(
+        &self,
+        path: &HierarchicalCriticalPath,
+        children: &Vec<NodeIndex>,
+        source_tracepoint: TracepointID,
+        target_tracepoint: TracepointID,
+    ) -> Vec<TracepointID> {
+        // TODO: does there have to exist at least one that happens directly after the source node?
+        // For now we can do just the dumber approach of checking each child.
+        let mut valid_child_tracepoints = Vec::new();
+        // TODO: path.happens_before is O(n) on the size of the trace, so if we're calling this for a ton of
+        // children, this could end up being expensive. We can definitely speed this up.
+        for child in children {
+            let child_tracepoint = path.g[*child].tracepoint_id;
+            let child_happens_after_source =
+                path.happens_before(source_tracepoint, child_tracepoint);
+            let child_happens_before_target =
+                path.happens_before(child_tracepoint, target_tracepoint);
+            if child_happens_after_source && child_happens_before_target {
+                valid_child_tracepoints.push(child_tracepoint);
+            }
+        }
+        return valid_child_tracepoints;
+    }
+
+    fn split_children_evenly(
+        &self,
+        children: &Vec<TracepointID>,
+        budget: usize,
+    ) -> HashSet<TracepointID> {
+        let mut budget_left = budget;
+        let mut result = HashSet::new();
+        // For example, if budget is 1, pick the node in the middle.
+        // TODO: we can probably refactor out this functionality from flat.rs and share a helper.
+        // If we have enough for all of the tracepoints, just add them
+        let num_valid_child_tracepoints = children.len();
+        if budget_left >= num_valid_child_tracepoints {
+            for child in children {
+                result.insert(*child);
+            }
+        } else {
+            // Calculate the spacing n between every node we want to turn on, then turn on every n'th.
+            // E.g. for [A, B, C, D, E] and budget 2, we want to turn on B and D. That means we want to turn on
+            // indices 1 and 3.
+            let spacing = num_valid_child_tracepoints / (budget_left + 1);
+            for i in 0..num_valid_child_tracepoints {
+                // `+ 1` to each of these to help split roughly evenly and prefer center nodes over start/end of
+                // vector. See https://replit.com/join/gzypktqi-lxls.
+                if (i + 1) % (spacing + 1) == 0 {
+                    if budget_left > 0 {
+                        result.insert(children[i]);
+                        budget_left = budget_left - 1;
+                    } else {
+                        break;
                     }
                 }
             }
         }
-        println!("Total number of search results from search_context: {:?}", result.len());
-        result.drain().collect()
+        return result;
     }
 
     // get_context walks through the group's nodes and builds a list of the hierarchical tracepoints that come before the node.
