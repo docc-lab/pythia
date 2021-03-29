@@ -31,6 +31,9 @@ use crate::trace::Value::Str;
 use crate::trace::Value::UnsignedInt;
 use crate::trace::{DAGEdge, EdgeType};
 use crate::PythiaError;
+
+use pythia_common::RequestType;
+use pythia_common::REQUEST_TYPES;
 //use crate::trace::Value::float;
 
 pub struct HDFSReader {
@@ -223,6 +226,34 @@ impl HDFSReader {
         sort_event_list(&mut data.reports);
         for (_idx, event) in data.reports.iter().enumerate() {
             let mynode = Event::from_hdfs_node(event);
+
+            let req_type: String = String::from("Executing command");
+
+            println!("Request type check: {:?}", event.label.to_string());
+            if event.label.to_string().eq(&req_type){
+                let substring = mynode.key_value_pair.get("Command").unwrap();
+
+                // Str(foo.tag[0][1..number].to_string()))
+
+                println!("**** Ukucu {:?}", substring);
+                
+
+                
+
+                // Value::Str("-get")
+
+                let command = match mynode.key_value_pair.get("Command").unwrap() {
+                    Str(o) => o,
+                    _ => panic!("Got something weird from request "),
+                };
+
+                println!("**** Ukucu2 {:?}", command.to_string());
+
+                
+                // mydag.request_type = RequestType::ServerCreate
+
+            }
+            
             if self.should_skip_node(&event, &mynode) {
                 let mut parents = Vec::new();
                 let mut potential_parents = event.parent_event_id.clone();
