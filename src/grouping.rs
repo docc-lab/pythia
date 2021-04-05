@@ -463,7 +463,8 @@ impl GroupManager {
 
         println!("********+++++++++ ETALARIN Before ETASI {}", ssq_condition/SSQ_total);
 
-        self.trees.get_mut(&req_type_now.to_string()).unwrap().enable_tps_for_group(group_id, &vec, &self.groups);
+        let mut g_ids = self.trees.get_mut(&req_type_now.to_string()).unwrap().enable_tps_for_group(group_id, &vec, &self.groups);
+      
 
         
         // calculate ssq condition after branching
@@ -473,8 +474,12 @@ impl GroupManager {
         println!("********+++++++++ ETALARIN ETASI {}", ssq_condition/SSQ_total);
         
         
-        // mark group as used now
-        self.groups.get_mut(group_id).unwrap().used();
+        // mark group as used now -- we do it in the trees
+        // self.groups.get_mut(group_id).unwrap().used();
+          for g_id in g_ids {
+                println!("*-* Marking the group {:?}", g_id);
+                self.groups.get_mut(&g_id).unwrap().used();
+            }
 
         
 
@@ -667,7 +672,7 @@ impl Node {
 
     }
 
-    pub fn enable_tps_for_group(&mut self, group_id: &str, trace_ids: &Vec<TracepointID>, groups: &HashMap<String, Group>) {
+    pub fn enable_tps_for_group(&mut self, group_id: &str, trace_ids: &Vec<TracepointID>, groups: &HashMap<String, Group>) -> Vec<String>{
 
         // if we are at correct node --> add the child node (left with tracepoints contain rel., right with no tracepoints -- only parents tps for right)
         if self.group_ids.iter().any(|i| i==group_id) {
@@ -688,6 +693,13 @@ impl Node {
                     let new_node = Node { val: owned_string, trace_ids:tps, group_ids:Vec::new() , l: None, r: None, ssq_condition:0.0}; //group_ids:vec![group_id.to_string()]
                     let boxed_node = Some(Box::new(new_node));
                     *target_node_left = boxed_node;
+
+                    // mark parent groups as used!
+                    
+                    // for g_id in &self.group_ids {
+                    //     println!("*-* Marking the group {:?}", g_id);
+                    //     groups.get(g_id).unwrap().used();
+                    // }
                 }
             }
 
@@ -724,7 +736,7 @@ impl Node {
                 }
             }
 
-            return
+            return self.group_ids.clone();
         }
         let target_node_right =  &mut self.r;
         let target_node_left  = &mut self.l;
@@ -732,10 +744,11 @@ impl Node {
         match target_node_left {
             &mut Some(ref mut subnode) => {
                 println!("traversing left");
-                subnode.enable_tps_for_group(group_id,trace_ids, groups)
+                return subnode.enable_tps_for_group(group_id,trace_ids, groups)
             },
             &mut None => {
                 println!("none Left ended");
+                return Vec::new()
             }
         }
 
@@ -743,10 +756,11 @@ impl Node {
         match target_node_right {
             &mut Some(ref mut subnode) => {
                 println!("traversing right");
-                subnode.enable_tps_for_group( group_id,trace_ids, groups)
+                return subnode.enable_tps_for_group( group_id,trace_ids, groups)
             },
             &mut None => {
                 println!("none right ended");
+                return Vec::new()
             }
         }
 
