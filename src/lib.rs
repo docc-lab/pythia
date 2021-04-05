@@ -246,11 +246,14 @@ pub fn enable_skeleton() {
     let manifest_file = &settings.manifest_file;
     let manifest =
         Manifest::from_file(manifest_file.as_path()).expect("Couldn't read manifest from cache");
+    let to_enable = manifest.skeleton();
+    println!("Enabled following tracepoints: {:?}", to_enable);
+
     let controller = controller_from_settings(&settings);
     controller.disable_all();
-    let to_enable = manifest.skeleton();
+    
     controller.enable(&to_enable.iter().map(|&a| (a.clone(), None)).collect());
-    println!("Enabled following tracepoints: {:?}", to_enable);
+    
 }
 
 pub fn manifest_stats(manfile: &str) {

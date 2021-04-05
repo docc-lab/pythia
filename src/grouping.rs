@@ -714,7 +714,9 @@ impl Node {
                     let mut owned_string: String = "NO - ".to_owned();
                     owned_string.push_str(group_id);
 
-                    let new_node = Node { val: owned_string, trace_ids:tps, group_ids:gids, l: None, r: None, ssq_condition:0.0 };
+                    // let new_node = Node { val: owned_string, trace_ids:tps, group_ids:gids, l: None, r: None, ssq_condition:0.0 };
+                    // do not propagate parent group ids now
+                    let new_node = Node { val: owned_string, trace_ids:tps, group_ids:Vec::new(), l: None, r: None, ssq_condition:0.0 };
                     let boxed_node = Some(Box::new(new_node));
                     *target_node_right = boxed_node;
                     // // sibling relationship
