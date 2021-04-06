@@ -37,6 +37,8 @@ pub struct Group {
     pub request_type: RequestType,
     /// The raw critical paths that this group was constructed from
     pub traces: Vec<CriticalPath>,
+    // pub key_values: key_value pairs mapped with durations:
+
     pub variance: f64,
    // pub key_value_pairs: HashMap<String, Vec<Value>>,
    // tsl: Group means to calculate CVs
@@ -116,6 +118,7 @@ impl Group {
         let mut prev_dag_nidx = None;
         let mut start_node = None;
         let mut end_node;
+        
         loop {
             let dag_nidx = dag.add_node(TraceNode::from_event(&path.g.g[cur_node]));
             end_node = dag_nidx;
@@ -318,7 +321,8 @@ impl GroupManager {
          // calculate GM
         let mut groups_sil: Vec<&Group> = self.groups
             .values()
-            .filter(|&g| g.traces.len() != 0)
+             .filter(|&g| g.is_used != true)
+             .filter(|&g| g.traces.len()  != 0)
             .collect();
         
         for g in &groups_sil {
@@ -478,7 +482,7 @@ impl GroupManager {
         // self.groups.get_mut(group_id).unwrap().used();
           for g_id in g_ids {
                 println!("*-* Marking the group {:?}", g_id);
-                self.groups.get_mut(&g_id).unwrap().used();
+                self.groups.get(&g_id).unwrap().used();
             }
 
         
@@ -505,7 +509,7 @@ impl GroupManager {
             .filter(|&g| g.is_used != true) // TODO: what happens to used groups?
             .filter(|&g| g.variance != 0.0)
             .filter(|&g| (g.variance.sqrt()/g.mean) > cv_threshold) // tsl: g.CV > Threshold
-            .filter(|&g| g.traces.len() > 3)
+            .filter(|&g| g.traces.len() > 5)
             .collect();
         sorted_groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap());
         // println!("\n**Groups sorted in CV Analaysis: {}", sorted_groups);
