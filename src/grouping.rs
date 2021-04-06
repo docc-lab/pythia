@@ -482,7 +482,7 @@ impl GroupManager {
         // self.groups.get_mut(group_id).unwrap().used();
           for g_id in g_ids {
                 println!("*-* Marking the group {:?}", g_id);
-                self.groups.get(&g_id).unwrap().used();
+                self.groups.get_mut(&g_id).unwrap().used();
             }
 
         
