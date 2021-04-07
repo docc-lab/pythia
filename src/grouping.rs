@@ -63,11 +63,12 @@ impl Display for GroupEdge {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Edge({} elements, {:?} min, {:?} max, {:?} variance)",
+            "Edge({} elements, {:?} min, {:?} max, {:?} variance, {:?} mean)",
             self.duration.len(),
             self.duration.iter().min().unwrap(),
             self.duration.iter().max().unwrap(),
             variance(self.duration.iter().map(|&x| x.as_nanos())),
+            mean(self.duration.iter().map(|&x| x.as_nanos())),
         )
     }
 }
@@ -172,6 +173,7 @@ impl Group {
     /// Returns all edges sorted by variance.
     pub fn problem_edges(&self) -> Vec<EdgeIndex> {
         let mut edge_variances = HashMap::<EdgeIndex, f64>::new();
+        let mut edge_means = HashMap::<EdgeIndex, f64>::new();
         let mut cur_node = self.start_node;
         let mut prev_node = None;
         loop {
@@ -181,6 +183,11 @@ impl Group {
                         edge_variances.insert(
                             edge,
                             variance(self.g[edge].duration.iter().map(|d| d.as_secs_f64())),
+                        );
+
+                        edge_means.insert(
+                            edge,
+                            mean(self.g[edge].duration.iter().map(|d| d.as_secs_f64())),
                         );
                     }
                     None => panic!("No edge?"),
