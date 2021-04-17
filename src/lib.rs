@@ -502,7 +502,7 @@ fn group_traces(traces: Vec<Trace>) {
         "Trace count and variance of each group: {:?}",
         groups
             .iter()
-            .map(|x| (x.traces.len(), x.variance))
+            .map(|x| (x.request_type, x.traces.len(), x.variance.sqrt()/x.mean))
             .collect::<Vec<_>>()
     );
     println!("Top 5 variance groups");
@@ -518,6 +518,23 @@ fn group_traces(traces: Vec<Trace>) {
             i.traces.iter().map(|x| x.duration).collect::<Vec<_>>(),
             i
         );
+
+        println!("\n\nMert-Edges sorted by variance:\n");
+        let problem_edges = i.problem_edges();
+        let x = 0;   // type int
+        for edge in &problem_edges {
+            x = x +1;
+            let endpoints = i.g.edge_endpoints(*edge).unwrap();
+            println!(
+                "({} -> {}): {}",
+                i.g[endpoints.0], i.g[endpoints.1], i.g[*edge]
+            );
+            if x> 5{
+                break;
+            }
+        }
+
+
     }
     println!("Top 5 groups with longest traces");
     groups.sort_by(|a, b| b.g.node_count().partial_cmp(&a.g.node_count()).unwrap()); // descending order

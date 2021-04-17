@@ -69,7 +69,7 @@ impl Display for GroupEdge {
             self.duration.iter().max().unwrap(),
             variance(self.duration.iter().map(|&x| x.as_nanos())),
             mean(self.duration.iter().map(|&x| x.as_nanos())),
-            self.duration.iter().collect::<Vec<_>>()
+            self.duration.iter().map(|&x| x.as_nanos()).collect::<Vec<_>>()
         )
     }
 }
