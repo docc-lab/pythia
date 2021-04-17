@@ -45,6 +45,11 @@ fn main() {
     let mut groups = GroupManager::new();
     let mut last_decision = Instant::now();
     let mut last_gc = Instant::now();
+    
+    // MERT:
+    let mut tp_decisions = Vec::new();
+    let mut group_id = "mert".to_string();
+    let mut apply_to_tree = false;
 
     let mut quit_in = -1;
     let mut targets = HashSet::new();
@@ -107,6 +112,13 @@ fn main() {
         budget_manager.print_stats();
         budget_manager.write_stats(&mut output_file);
         let over_budget = budget_manager.overrun();
+
+        if apply_to_tree{
+            println!("+Applying to tree now!");
+            groups.enable_tps(&tp_decisions, &group_id);
+            apply_to_tree = false;
+        }
+
 
         // Collect traces, increment groups
         let critical_paths = rx.try_iter().collect::<Vec<_>>();
@@ -178,10 +190,10 @@ fn main() {
                 // writeln!(output_file, "Disabled {:?}", to_disable).ok();
             }
             // Disable tracepoints not observed in critical paths
-            let to_disable = budget_manager.old_tracepoints();
-            CONTROLLER.disable(&to_disable);
-            writeln!(output_file, "Disabled {}", to_disable.len()).ok();
-            writeln!(output_file, "Disabled {:?}", to_disable).ok();
+            // let to_disable = budget_manager.old_tracepoints();
+            // CONTROLLER.disable(&to_disable);
+            // writeln!(output_file, "Disabled {}", to_disable.len()).ok();
+            // writeln!(output_file, "Disabled {:?}", to_disable).ok();
 
             last_gc = Instant::now();
         }
@@ -208,13 +220,14 @@ fn main() {
             //tsl ; get problematic group types to disable tps for non-problematic ones
             let mut problematic_req_types = Vec::new();
             
-            println!("Making decision. Top 10 problem groups:");
-            for g in problem_groups.iter().take(10) {
+            println!("Making decision. Top 3 problem groups:");
+            for g in problem_groups.iter().take(3) {
                 println!("{}", g);
                 // for enabled in &g.enabled_tps{
                 //     println!("Enabled: {:?} ", enabled);
                 // }
             }
+            groups.ssq();
 
             //comment-in below line for consistently slow analysis
             // println!("Making decision. Top 10 slow problem groups:");
@@ -229,15 +242,15 @@ fn main() {
 
                 let problem_edges = g.problem_edges();
 
-                println!("Top 10 edges of group {}:", g);
-                for edge in problem_edges.iter().take(10) {
+                println!("Top 3 edges of group {}:", g);
+                for edge in problem_edges.iter().take(3) {
                     let endpoints = g.g.edge_endpoints(*edge).unwrap();
                     println!(
                         "({} -> {}): {}",
                         g.g[endpoints.0], g.g[endpoints.1], g.g[*edge]
                     );
                 }
-                for &edge in problem_edges.iter() {
+                for &edge in problem_edges.iter().take(1) {
                     if budget <= 0 {
                         break;
                     }
@@ -253,6 +266,12 @@ fn main() {
                         .map(|&t| (t, Some(g.request_type)))
                         .collect::<Vec<_>>();
                     budget -= decisions.len();
+
+                    tp_decisions = decisions.clone();
+                    group_id = g.get_hash().to_string();
+                    if tp_decisions.iter().count() > 0{
+                        apply_to_tree = true;
+                    }
                     for d in &decisions {
                         if !targets.get(&d.0).is_none() {
                             targets.remove(&d.0);
@@ -265,6 +284,7 @@ fn main() {
                         }
                     }
                     CONTROLLER.enable(&decisions);
+                    
                     writeln!(output_file, "Enabled {}", decisions.len()).ok();
                     writeln!(output_file, "Enabled {:?}", decisions).ok();
                     if decisions.len() > 0 {
@@ -277,13 +297,13 @@ fn main() {
                     break;
                 }
             }
-            println!("Problematic req types: ");
-            for item in problematic_req_types{
-                println!("{:?}, ", item)
-            }
-            for g in used_groups {
-                groups.used(&g);
-            }
+            // println!("Problematic req types: ");
+            // for item in problematic_req_types{
+            //     println!("{:?}, ", item)
+            // }
+            // for g in used_groups {
+            //     groups.used(&g);
+            // }
 
             //tsl : for groups that stopped being problematic; just disable tracepoints, which are enabled so far
             
