@@ -122,8 +122,19 @@ impl HierarchicalCriticalPath {
     }
 
     fn add_hierarchical_edges(&mut self) {
+        // Right now, all nodes in the graph have a happens before relationship.
+
+        // Initialize stack to keep track of of hierarchical calls (like a call stack)
+        // Note that we're only keeping track of Entry events! This means that when we have
+        // an entry event as the most recent, any next ones we see before the corresponding Exit must be
+        // hierarchically "below" the last one.
         let mut context = Vec::new();
+        // Start with the first node.
         let mut prev_node = self.start_node;
+
+        // Go through nodes from the start_node until we find the first entry node.
+        // If we just find Annotations, there's nothing to do.
+        // If we find an exit before any entry events, there's an issue.
         loop {
             match self.g[prev_node].variant {
                 EventType::Entry => {
@@ -142,16 +153,26 @@ impl HierarchicalCriticalPath {
                 }
             }
         }
+        // Not sure if we need this assert since we're always finding an Entry, but OK
         assert!(self.g[prev_node].variant == EventType::Entry);
+
+        // We know this node is one of the ones at the top of the hierarchy.
         self.hierarchy_starts.insert(prev_node);
+
+        // Add first item to the stack, since it's an Entry event.
         context.push(prev_node);
+
         loop {
+            // Find the next node in the trace
             let next_node = match self.next_node(prev_node) {
                 Some(n) => n,
                 None => break,
             };
             match context.last() {
                 Some(&nidx) => {
+                    // If the most recent hierarchical node differs from the next node, add a
+                    // node -> next node hierarchical relationship.
+                    // This makes sense since anything following an Entry is "below" it in the hierarchy.
                     if self.g[nidx].tracepoint_id != self.g[next_node].tracepoint_id {
                         self.g.add_edge(
                             nidx,
@@ -162,22 +183,79 @@ impl HierarchicalCriticalPath {
                         );
                     }
                 }
+                // If there's nothing in the stack, this means that we just had an exit event that matched the original
+                // entry call and popped it, so we're back at the top of the hierarchy again.
                 None => {
                     self.hierarchy_starts.insert(next_node);
                 }
             }
             match self.g[next_node].variant {
                 EventType::Entry => {
+                    // If it's a new Entry, that means we're going one level deeper in the hierarchy and can check for its
+                    // child calls next.
                     context.push(next_node);
                 }
                 EventType::Exit => {
+                    // Reached the end of this call. Pop and make sure we have an Entry to match our Exit, otherwise
+                    // we have some imbalanced Exit/Entry graph.
                     let last = context.pop().unwrap();
                     assert!(self.g[last].variant == EventType::Entry);
                 }
+                // Annotations can't have children, so ignore here.
                 EventType::Annotation => {}
             }
             prev_node = next_node;
         }
+    }
+
+    // Helper function to tell whether before_node happens before (in the Lampert sense) after_node in this
+    // path. For example, if the path is A -> B -> C, happens_before(A, B) would be true, but happens_before(B, A) would
+    // return false.
+    // Looks through the whole path, so is O(n).
+    pub fn happens_before(&self, before_node: TracepointID, after_node: TracepointID) -> bool {
+        // First check for the same node, as one cannot happen before oneself
+        if before_node == after_node {
+            return false
+        }
+
+        // Initialize flag to tell if we've seen the before node already
+        let mut before_node_seen = false;
+        // Start with the root
+        let mut current_node = self.start_node;
+
+        loop {
+            // If we haven't seen the before node, check the current node to see if we've reached the before_node
+            // or if we've reached the after_node first.
+            if !before_node_seen {
+                // If the current node is the before node, we can mark that we've found it.
+                if self.g[current_node].tracepoint_id == before_node {
+                    before_node_seen = true;
+                }
+                // If we've reached the later node before finding the before node, we know it can't happen before it
+                if self.g[current_node].tracepoint_id == after_node {
+                    return false;
+                }
+            } else {
+                // If we saw the before_node in a previous node, that means we're down the happens-before path, and if
+                // we see the after_node, we know it must occur after.
+                if self.g[current_node].tracepoint_id == after_node {
+                    return true;
+                }
+                // If we've reached the last node without finding the after_node, that means we didn't find it in the
+                // path. This shouldn't happen, as all children will be in the path, but we can include a check for
+                // completion's sake.
+                if current_node == self.end_node {
+                    return false;
+                }
+            }
+            // We'll always want to get the next node while we can.
+            current_node = match self.next_node(current_node) {
+                Some(n) => n,
+                None => break,
+            };
+        }
+
+        return false;
     }
 }
 
