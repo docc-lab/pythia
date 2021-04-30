@@ -1,3 +1,9 @@
+
+**Key-Value Pair Updates**
+Code does not compile yet. Need a way to parse key-value pairs values which have the type Value (an enum in Trace::Value) into f64 to do pearson correlation
+Correlation is calculated in key_value_analysis function in Grouping.rs
+In trace.rs extract key-value pairs, append tracepointID to key to make them unique. Stored in TraceNode structure (in trace.rs file)
+
 # Pythia rust project
 
 This repo contains the parts of Pythia written in Rust.
