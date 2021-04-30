@@ -1,11 +1,15 @@
 //! General trace implementation
 //!
 
+extern crate rgsl; 
+
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Display;
 use std::sync::Mutex;
 use std::time::Duration;
+use std::collections::HashSet;
+use std::convert::From; 
 
 use bimap::BiMap;
 use chrono::NaiveDateTime;
@@ -31,6 +35,16 @@ pub enum Value {
     SignedInt(i64),
     //float(f64),
 }
+/* 
+impl IntoResult<f64, ()> for Value {
+    fn into_result(self) -> Result<f64, ()> {
+        match self {
+            Value::UnsignedInt(i) => Ok(i as f64),
+            Value::Str(i) => Err(()),
+            Value::SignedInt(i) => Ok(i as f64),
+        }
+    }
+} */ 
 
 /// A general-purpose trace which does not contain application-specific things
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -43,6 +57,7 @@ pub struct Trace {
     pub duration: Duration,
     /// used by osprofiler to find keys to delete from redis
     pub keys: Vec<String>,
+    //pub key_value_pair: HashMap<String, Vec<Value>>, 
 }
 
 impl Trace {
@@ -55,6 +70,7 @@ impl Trace {
             request_type: RequestType::Unknown,
             duration: Duration::new(0, 0),
             keys: Vec::new(),
+           // key_value_pair: HashMap::new(), 
         }
     }
 
@@ -173,6 +189,35 @@ impl Trace {
             self.g[node].print_key_values();
         }
     }
+
+   /* pub fn find_unique_pairs(&mut self) {
+        //append tracepoint names to key-value pairs
+        let mut pair_map = HashMap::new();
+        let mut vec_trace = HashSet::new();
+        for nodes in self.g.node_indices(){
+            for (key, value) in TraceNode::get_key_values(&self) 
+            {
+                if value.len()!=0 {
+                let mut new_key : String = key.to_owned();
+                let mut trace_key1 = &self.g[nodes].tracepoint_id.id.to_string().clone();
+                let mut trace_key: &str =&self.g[nodes].tracepoint_id.id.to_string().as_str().to_owned();
+                if !vec_trace.contains(&trace_key1.clone())
+                {
+                    let mut trace_string = trace_key1.clone();
+                vec_trace.insert(trace_string);
+                new_key.push_str(trace_key);
+                   // println!("Inside function: {:?}, {:?}", new_key, value);
+                pair_map.insert(new_key, value);
+                }
+                }
+               // println!("Inside function: {:?},{:?}",key.clone(),value.clone());
+            }
+        //println!("{:?}",self.g[nodes].key_value_pair);
+
+       }
+        self.key_value_pair= pair_map;
+        println!("{:?}", self.key_value_pair);
+    } */ 
 }
 impl Event {
     pub fn print_key_values(&self) {
@@ -253,6 +298,7 @@ pub struct TraceNode {
     pub tracepoint_id: TracepointID,
     pub variant: EventType,
     pub key_value_pair: HashMap<String, Vec<Value>>,
+    pub new_key_value_pair: HashMap<String, Value>,
    // pub variance: f64,
 }
 
@@ -269,6 +315,7 @@ impl TraceNode {
     //of Value
     pub fn from_event(event: &Event) -> Self {
         let mut map = HashMap::new();
+        let mut new_map = HashMap::new();
         let mut vec_value: Vec<Value> = Vec::new();
         let mut vec_host: Vec<Value> = Vec::new();
         let mut vec_agent: Vec<Value> = Vec::new();
@@ -278,6 +325,7 @@ impl TraceNode {
         let mut vec_thread_id: Vec<Value> = Vec::new();
         let mut vec_thread_name: Vec<Value> = Vec::new();
         for (key, value) in event.key_value_pair.clone() {
+            new_map.insert(key.to_string(),value.clone()); 
             if key == "lock_queue".to_string() {
                 vec_value.push(value);
             } else if key == "host".to_string() {
@@ -310,22 +358,44 @@ impl TraceNode {
             tracepoint_id: event.tracepoint_id,
             variant: event.variant,
             key_value_pair: map,
+            new_key_value_pair: new_map
+            //unique_pairs: map 
            // variance: event.pairs_variance(),
         }
     }
-/*
-    pub fn pairs_variance(event: &Event) -> f64 {
-        let mut varian;
-        for (key, value) in event.key_value_pair.clone() {
-            varian = variance(event.value.iter().map(|x| x.duration.as_nanos()));
-        }
-          varian = variance(event.key_value_pair.iter().map(|x| x.duration.as_nanos()));
-        return varian;
-    }*/
-/*
-    pub fn get_key_values() -> HashMap<String, Vec<Value>> {
-        return Self{key_value_pair};
-    } */
+
+
+    pub fn get_key_values(self) -> HashMap<String, Vec<Value>> {
+        return self.key_value_pair; 
+    } 
+
+    pub fn find_unique_pairs(&mut self) {
+        //append tracepoint names to key-value pairs
+        let mut pair_map = HashMap::new();
+        let mut vec_trace = HashSet::new();
+        for (key, value) in self.new_key_value_pair.clone() 
+            {
+                //if value.len()!=0 {
+                let mut new_key : String = key.to_owned();
+                let trace_key1 = &self.tracepoint_id.id.to_string().clone();
+                let trace_key: &str =&self.tracepoint_id.id.to_string().as_str().to_owned();
+                if !vec_trace.contains(&trace_key1.clone())
+                {
+                    let trace_string = trace_key1.clone();
+                vec_trace.insert(trace_string);
+                new_key.push_str(trace_key);
+                   // println!("Inside function: {:?}, {:?}", new_key, value);
+                pair_map.insert(new_key, value);
+                }
+                //}
+               // println!("Inside function: {:?},{:?}",key.clone(),value.clone());
+            }
+        //println!("{:?}",self.g[nodes].key_value_pair);
+
+        self.new_key_value_pair= pair_map;
+       // println!("{:?}", self.key_value_pair);
+    } 
+
 }
 
 impl Display for TraceNode {

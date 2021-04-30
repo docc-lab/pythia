@@ -4,7 +4,10 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
+//use std::convert::From;
 use std::time::Duration;
+
+use rgsl::statistics::correlation;
 
 use petgraph::dot::Dot;
 use petgraph::graph::EdgeIndex;
@@ -15,6 +18,7 @@ use stats::variance;
 use stats::mean;
 
 use pythia_common::RequestType;
+use std::mem; 
 
 use crate::critical::CriticalPath;
 use crate::critical::Path;
@@ -37,7 +41,7 @@ pub struct Group {
     /// The raw critical paths that this group was constructed from
     pub traces: Vec<CriticalPath>,
     pub variance: f64,
-    pub key_value_pairs: HashMap<String, Vec<Value>>,
+    //pub key_value_pairs: HashMap<String, Vec<Value>>,
    // tsl: Group means to calculate CVs
    pub mean: f64,
 
@@ -95,6 +99,7 @@ impl Group {
         for (_, group) in hash_map.iter_mut() {
             group.calculate_variance();
             group.calculate_mean();
+            //add group.find_unique_value_pairs 
             if group.variance == 0.0 {
                 zeros += 1;
             }
@@ -110,8 +115,12 @@ impl Group {
         let mut prev_dag_nidx = None;
         let mut start_node = None;
         let mut end_node;
+        
         loop {
-            let dag_nidx = dag.add_node(TraceNode::from_event(&path.g.g[cur_node]));
+            let new_node = TraceNode::from_event(&path.g.g[cur_node]); 
+            let dag_nidx = dag.add_node(new_node.clone());
+            //let key_value_pair = new_node.key_value_pair;
+            //let duration = path.g.duration;
             end_node = dag_nidx;
             if prev_node.is_none() {
                 start_node = Some(dag_nidx);
@@ -147,7 +156,7 @@ impl Group {
             mean: 0.0,
             // enabled_tps: Vec<(TracepointID, Option<RequestType>)> = Vec::new(),
             //cv: 0.0,
-            key_value_pairs: HashMap::<String, Vec<Value>>::new(),
+            //key_value_pairs: HashMap::<String, Vec<Value>>::new(),
         }
     }
 
@@ -195,6 +204,8 @@ impl Group {
         let mut cur_dag_nidx = self.start_node;
         let mut prev_dag_nidx = None;
         loop {
+            //let key_value_pair = 
+            //let duration = path.g.duration;
             if !prev_dag_nidx.is_none() {
                 match path.g.g.find_edge(prev_node.unwrap(), cur_node) {
                     Some(edge) => {
@@ -218,7 +229,7 @@ impl Group {
     }
     // tsl: calculate mean of the group
     fn calculate_mean(&mut self) {
-        // change below variance to mean
+        // change below variance to meanerror: cannot find macro `inner` in this scope
         self.mean = mean(self.traces.iter().map(|x| x.duration.as_secs()));
         if self.mean != 0.0 {
             println!("Set mean of {:?} - {} to {}", self.request_type, self.hash, self.mean);
@@ -230,7 +241,7 @@ impl Group {
             println!("Set variance of {:?} - {} to {}", self.request_type, self.hash, self.variance);
         }
     }
-   pub fn find_unique_pairs(&mut self) {
+   /*pub fn find_unique_pairs(&mut self) -> HashMap<String, Vec<Value>> {
         //append tracepoint names to key-value pairs
         let mut pair_map = HashMap::new();
         let mut vec_trace = HashSet::new();
@@ -255,9 +266,9 @@ impl Group {
         //println!("{:?}",self.g[nodes].key_value_pair);
 
        }
-        self.key_value_pairs = pair_map;
-        println!("{:?}", self.key_value_pairs);
-    }
+        return pair_map;
+        //println!("{:?}", self.key_value_pairs);
+    }*/ 
 }
 
 impl Path for Group {
@@ -308,6 +319,77 @@ impl GroupManager {
             groups: HashMap::new(),
         }
     }
+    pub fn key_value_analysis(&mut self) {
+        let mut groups_now: Vec<&Group> = self.groups
+            .values()
+             .filter(|&g| g.traces.len()  != 0)
+            .collect();
+        
+
+        for group_traces in groups_now.iter() {
+            let mut map : HashMap<String, Vec<&Value>> = HashMap::new();
+            //let mut group_pairs_vectors : Vec<HashMap<String, Value>> = Vec::new();    
+            //let mut group_durations: Vec<Duration> = Vec::new(); 
+            let duration_array: [f64;1000];
+            let mut i=0; 
+            for individual_traces in group_traces.traces.iter() {
+                //iterate through all nodes 
+                let mut cur_node = individual_traces.start_node;
+                loop {
+                    let new_node = TraceNode::from_event(&individual_traces.g.g[cur_node]); 
+                    let key_pairs = new_node.new_key_value_pair;
+                    let duration = individual_traces.g.duration.as_nanos();
+                    duration_array[i]=duration as f64; 
+                    i=i+1; 
+                    //group_pairs_vectors.push(key_pairs);
+                    for (key,value) in key_pairs {
+                        if map.contains_key(&key) {
+                            //add to vector 
+                            //let mut copy_key = key.clone().to_string(); 
+                            let mut vec_value: Vec<&Value> = Vec::new(); 
+                           // vec_value = map[&(key)].clone(); 
+                            let pair_value = key_pairs.get("Command").unwrap(); 
+                            vec_value.push(pair_value); 
+                            // vec_value.push(value); 
+                            map.insert(key, vec_value); 
+                        }
+                        else 
+                        {
+                            //not already in hashmap 
+                            let mut vec_value: Vec<&Value> = Vec::new(); 
+                            //vec_value.push(value);
+                            let pair_value = key_pairs.get("Command").unwrap(); 
+                            vec_value.push(pair_value); 
+                            map.insert(key, vec_value); 
+                        }
+                    } 
+ 
+                
+                    cur_node = match individual_traces.next_node(cur_node) {
+                        Some(node) => node,
+                        None => break,
+                    }; 
+                }
+            }
+
+            let duration_len = duration_array.len(); 
+            //let duration_array: [Duration;1000] = group_pairs_vectors.clone(); //duration_len
+            //should I now collect a structure for every key, and how? 
+               for (key,value) in map {
+                    let len_vec_value = value.len(); 
+                    let array_values: [f64;1000]; //len_vec_value];
+                    let mut j=0; 
+                    for element in value.iter() {
+                        array_values[j]= (element).Unwrap() as f64; //<f64 as Trait>::From::from(element);  //element From Value::UnsignedInt as f64;
+                        j=j+1;  
+                    }
+                
+                    let calc_correlation = correlation(&array_values, mem::size_of_val(&array_values[0]), &duration_array, mem::size_of_val(&duration_array[0]),  duration_len); 
+                    //println!("For key ", key, "correlation is ", calc_correlation); 
+               }
+        }
+    }
+
 
     /// Add new paths to the appropriate groups
     pub fn update(&mut self, paths: &Vec<CriticalPath>) {
@@ -325,6 +407,7 @@ impl GroupManager {
         for h in updated_groups {
             self.groups.get_mut(h).unwrap().calculate_variance();
             self.groups.get_mut(h).unwrap().calculate_mean();
+            //add key value pairs with appended tracepoint names? 
         }
     }
 

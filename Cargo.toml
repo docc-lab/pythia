@@ -16,6 +16,7 @@ chrono = { version = "*", features = ["serde"] }
 petgraph = { version = "*", features = ["serde-1"] }
 clap = "*"
 hex = "*"
+GSL = "2.0"
 rust-crypto = "*"
 streaming-stats = "*"
 histogram = "0.6.9"
