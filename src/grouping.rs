@@ -541,18 +541,40 @@ impl GroupManager {
         sorted_groups
     }
 
-    pub fn problem_groups_tree(&self, cv_threshold: f64) {
+    pub fn problem_groups_tree(&self, cv_threshold: f64) -> Vec<&Group>{
         let mut trees_now: Vec<&Node> = self
             .trees
             .values()
             .collect();
 
-        
+        let mut prob_groups: Vec<&Group> = Vec::new();
         for node in trees_now.iter() {
             // let mut gids = Vec::new();
-            println!("Mert Problem group ids{:?}", node.get_group(&self.groups,cv_threshold));
+            
+            let mut res= Vec::new();
+            res = node.get_group(&self.groups,cv_threshold);
+            println!("Mert Problem group ids for {:?}, {:?}",node.val, res);
+            // prob_groups.extend(
+            // self
+            // .groups
+            // .values()
+            // .filter(|&g| res.contains(&g.get_hash().to_string()))
+            // .collect()
+        
+            // );
+
+
+
+            let mut sorted_groups: Vec<&Group> = self
+            .groups
+            .values()
+           .filter(|&g| res.contains(&g.get_hash().to_string()))
+            .collect();
+
+            prob_groups.extend(sorted_groups.clone());
             
         }
+        return prob_groups;
         
     }
 
