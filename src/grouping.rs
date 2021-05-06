@@ -550,6 +550,7 @@ impl GroupManager {
         let mut prob_groups: Vec<&Group> = Vec::new();
         for node in trees_now.iter() {
             // let mut gids = Vec::new();
+            println!("Mert node now: {:?}",node);
             
             let mut res= Vec::new();
             res = node.get_group(&self.groups,cv_threshold);
@@ -574,6 +575,7 @@ impl GroupManager {
             prob_groups.extend(sorted_groups.clone());
             
         }
+        println!("Mert all prob groups : {:?} ",prob_groups);
         return prob_groups;
         
     }
@@ -868,6 +870,7 @@ impl Node {
                 let mut res = Vec::new();
                 let mut sorted_groups: Vec<&Group> = groups
                             .values()
+                            .filter(|&g| self.group_ids.contains(&g.get_hash().to_string()))
                             .filter(|&g| g.is_used != true) // TODO: what happens to used groups?
                             .filter(|&g| g.variance != 0.0)
                             .filter(|&g| (g.variance.sqrt()/g.mean) > cv_threshold) // tsl: g.CV > Threshold
