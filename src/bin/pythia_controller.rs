@@ -286,7 +286,7 @@ fn main() {
                 //     println!("Enabled: {:?} ", enabled);
                 // }
             }
-            groups.ssq();
+            // groups.ssq();
 
             //comment-in below line for consistently slow analysis
             // println!("Making decision. Top 10 slow problem groups:");

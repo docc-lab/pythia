@@ -550,7 +550,8 @@ impl GroupManager {
         
         for node in trees_now.iter() {
             // let mut gids = Vec::new();
-            println!("Mert Problem group ids{:?}", node.get_group());
+            println!("Mert Problem group ids{:?}", node.get_group(&self.groups,cv_threshold));
+            
         }
         
     }
@@ -826,7 +827,7 @@ impl Node {
 
 
     }
-    pub fn get_group(&self) ->  Vec<String>{
+    pub fn get_group(&self, groups: &HashMap<String, Group>,cv_threshold: f64) ->  Vec<String>{
 
         println!("Mert Iterating : {:?}", self.val);
         let target_node_left =  &self.l;
@@ -836,12 +837,25 @@ impl Node {
             & Some(ref  subnode) =>  {
                 println!("traversing childrend");
                 let mut gids = Vec::new();
-                gids.extend(subnode.get_group());
-                gids.extend(target_node_right.as_ref().unwrap().get_group());
+                gids.extend(subnode.get_group(&groups,cv_threshold));
+                gids.extend(target_node_right.as_ref().unwrap().get_group(&groups,cv_threshold));
                 return gids;
             },
             & None => {
-                return self.group_ids.clone();
+                // get the most problematic group
+                let mut res = Vec::new();
+                let mut sorted_groups: Vec<&Group> = groups
+                            .values()
+                            .filter(|&g| g.is_used != true) // TODO: what happens to used groups?
+                            .filter(|&g| g.variance != 0.0)
+                            .filter(|&g| (g.variance.sqrt()/g.mean) > cv_threshold) // tsl: g.CV > Threshold
+                            .filter(|&g| g.traces.len() > 5)
+                            .collect();
+                        sorted_groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap());
+                        // println!("\n**Groups sorted in CV Analaysis: {}", sorted_groups);
+                        
+                res.push(sorted_groups[0].get_hash().to_string());
+                return res;
             }
         }
         
