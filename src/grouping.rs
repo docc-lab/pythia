@@ -208,6 +208,43 @@ impl Group {
        
     }
 
+    /// Returns all edges sorted by mean.
+    pub fn problem_edges_slow(&self) -> Vec<EdgeIndex> {
+        let mut edge_variances = HashMap::<EdgeIndex, f64>::new();
+        // let mut edge_means = HashMap::<EdgeIndex, f64>::new();
+        let mut cur_node = self.start_node;
+        let mut prev_node = None;
+        loop {
+            if !prev_node.is_none() {
+                match self.g.find_edge(prev_node.unwrap(), cur_node) {
+                    Some(edge) => {
+                        edge_variances.insert(
+                            edge,
+                            mean(self.g[edge].duration.iter().map(|d| d.as_secs_f64())),
+                        );
+                    }
+                    None => panic!("No edge?"),
+                }
+            }
+            prev_node = Some(cur_node);
+            cur_node = match self.next_node(cur_node) {
+                Some(node) => node,
+                None => break,
+            };
+        }
+        // tsl : edge variances are here; so maybe; sum them up and divide them by the total variance
+        let mut result = edge_variances
+            .into_iter()
+            .collect::<Vec<(EdgeIndex, f64)>>();
+        result.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+         //tsl: let's see
+        let sum: f64 = result.iter().map(|a| a.1).sum();
+        println!("*New Metric: hash {:?}, reqtype {:?}, total var {:?}, edge_total: {:?}", self.hash, self.request_type, self.variance, sum);
+        result.iter().map(|a| a.0).collect()
+
+       
+    }
+
     fn add_trace(&mut self, path: &CriticalPath) {
         println!("**** A trace {:?} added to group{:?}",path.g.base_id, self.hash);
         self.traces.push(path.clone());
@@ -503,6 +540,22 @@ impl GroupManager {
         sorted_groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap());
         sorted_groups
     }
+
+    pub fn problem_groups_tree(&self, cv_threshold: f64) {
+        let mut trees_now: Vec<&Node> = self
+            .trees
+            .values()
+            .collect();
+
+        
+        for node in trees_now.iter() {
+            // let mut gids = Vec::new();
+            println!("Mert Problem group ids{:?}", node.get_group());
+        }
+        
+    }
+
+
     /// tsl: Return groups filtered based on coefficient of variance
     pub fn problem_groups_cv(&self, cv_threshold: f64) -> Vec<&Group> {
         // println!("Groups in CV Analaysis: {}", groups);
@@ -773,7 +826,36 @@ impl Node {
 
 
     }
+    pub fn get_group(&self) ->  Vec<String>{
 
+        println!("Mert Iterating : {:?}", self.val);
+        let target_node_left =  &self.l;
+        let target_node_right =  &self.r;
+
+        match target_node_left {
+            & Some(ref  subnode) =>  {
+                println!("traversing childrend");
+                let mut gids = Vec::new();
+                gids.extend(subnode.get_group());
+                gids.extend(target_node_right.as_ref().unwrap().get_group());
+                return gids;
+            },
+            & None => {
+                return self.group_ids.clone();
+            }
+        }
+        
+        // match target_node_right {
+        //     &mut Some(ref mut subnode) =>  {
+        //         println!("traversing right");
+        //         return group_ids.extend(subnode.get_group( group_ids));
+        //     },
+        //     &mut None => {
+        //         return self.group_ids;
+        //     }
+        // }
+
+    }
     // Add new group to correct node.
     pub fn add_group(&mut self,   group: &Group) {// group_id: &'a str) {
         println!("Iterating : {:?}", self.val);

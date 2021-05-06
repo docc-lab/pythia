@@ -512,17 +512,34 @@ fn group_traces(traces: Vec<Trace>) {
             break;
         }
         println!(
-            "Group length {}, variance {}, each trace duration {:?}\nsample trace: {}",
+            "Group length {}, variance {}, cv {:?},  each trace duration {:?}, trace ids {:?} \nsample trace: {}",
             i.traces.len(),
             i.variance,
+            i.variance.sqrt()/i.mean,
             i.traces.iter().map(|x| x.duration).collect::<Vec<_>>(),
+            i.traces.iter().map(|x| x.g.base_id).collect::<Vec<_>>(),
             i
         );
 
         println!("\n\nMert-Edges sorted by variance:\n");
         let problem_edges = i.problem_edges();
-        let x = 0;   // type int
+        let mut x = 0;   // type int
         for edge in &problem_edges {
+            x = x +1;
+            let endpoints = i.g.edge_endpoints(*edge).unwrap();
+            println!(
+                "({} -> {}): {}",
+                i.g[endpoints.0], i.g[endpoints.1], i.g[*edge]
+            );
+            if x> 5{
+                break;
+            }
+        }
+
+        println!("\n\nMert-Edges sorted by mean:\n");
+        let problem_edges_slow = i.problem_edges_slow();
+        let mut x = 0;   // type int
+        for edge in &problem_edges_slow {
             x = x +1;
             let endpoints = i.g.edge_endpoints(*edge).unwrap();
             println!(

@@ -51,6 +51,8 @@ fn main() {
     let mut group_id = "mert".to_string();
     let mut apply_to_tree = false;
 
+    let mut rt_congestion_signal = 0; // 0= go on, 1= CV increment, 2= prune
+
     let mut quit_in = -1;
     let mut targets = HashSet::new();
     // The targets are set here. Any typos, and Pythia won't stop.
@@ -113,6 +115,7 @@ fn main() {
         budget_manager.write_stats(&mut output_file);
         let over_budget = budget_manager.overrun();
 
+
         if apply_to_tree{
             println!("+Applying to tree now!");
             groups.enable_tps(&tp_decisions, &group_id);
@@ -144,6 +147,38 @@ fn main() {
                 .sum::<usize>()
         )
         .ok();
+
+
+        let mut cv_threshold = 0.05;
+
+        let contents = fs::read_to_string("/users/emreates/signal").expect("NO!");
+        println!("****+++**** RT signal {:?}",contents);
+
+        if contents.unwrap() == "0"{
+            println!("****+++****it worked0!");
+            cv_threshold= 0.05;
+        }
+
+        if contents.unwrap() == "1"{
+            println!("****+++****it worked1!");
+            cv_threshold= cv_threshold + 0.05;
+        }
+        if contents.unwrap() == "2"{
+            println!("****+++****it worked!");
+            // cv_threshold= cv_threshold + 0.05;
+            // disable last ones 
+            
+
+            // let enabled_tracepoints: HashSet<_> =
+            let mut to_disable = Vec::new();
+            to_disable = CONTROLLER.enabled_tracepoints().drain(..).collect().iter().rev().take(3);
+
+            CONTROLLER.disable(&to_disable);
+            println!("MErt disabled {:?}",to_disable)
+        }
+
+
+
 
         if over_budget || last_gc.elapsed() > SETTINGS.gc_epoch {
             // Run garbage collection
@@ -207,8 +242,10 @@ fn main() {
             // Make decision
             let mut budget = SETTINGS.tracepoints_per_epoch;
             // let problem_groups = groups.problem_groups();
+
+            let res = groups.problem_groups_tree(cv_threshold);
+            let problem_groups = groups.problem_groups_cv(cv_threshold); // tsl: problem groups takes now 
             
-            let problem_groups = groups.problem_groups_cv(0.05); // tsl: problem groups takes now 
             // println!("*CV Groups: {:?}", problem_groups);
 
             //comment-in below line for consistently slow analysis
@@ -221,8 +258,8 @@ fn main() {
             let mut problematic_req_types = Vec::new();
             
             println!("Making decision. Top 3 problem groups:");
-            for g in problem_groups.iter().take(3) {
-                println!("{}", g);
+            for g in problem_groups.iter() {
+                println!("***Mert problematic groups{}", g);
                 // for enabled in &g.enabled_tps{
                 //     println!("Enabled: {:?} ", enabled);
                 // }
@@ -251,9 +288,9 @@ fn main() {
                     );
                 }
                 for &edge in problem_edges.iter().take(1) {
-                    if budget <= 0 {
-                        break;
-                    }
+                    // if budget <= 0 {
+                    //     break;
+                    // }
                     let endpoints = g.g.edge_endpoints(edge).unwrap();
                     println!(
                         "Searching ({} -> {}): {}",
@@ -293,9 +330,9 @@ fn main() {
                     // // tsl: record enabled tracepoints per group
                     // g.update_enabled_tracepoints(&decisions);
                 }
-                if budget <= 0 {
-                    break;
-                }
+                // if budget <= 0 {
+                //     break;
+                // }
             }
             // println!("Problematic req types: ");
             // for item in problematic_req_types{
