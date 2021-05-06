@@ -111,6 +111,7 @@ fn main() {
 
     // Main pythia loop
     let mut jiffy_no = 0;
+    let mut cv_threshold = 0.05;
     loop {
         writeln!(output_file, "Jiffy {}, {:?}", jiffy_no, Instant::now()).ok();
         budget_manager.read_stats();
@@ -152,7 +153,7 @@ fn main() {
         .ok();
 
 
-        let mut cv_threshold = 0.05;
+        
 
         let contents = fs::read_to_string("/users/emreates/signal").expect("NO!");
         println!("****+++**** RT signal {:?}",contents);

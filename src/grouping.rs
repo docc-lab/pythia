@@ -422,12 +422,7 @@ impl GroupManager {
                     
                     let mut req_type_now = group_now.request_type;
                     println!("+req_type_now now: {:?}", req_type_now);
-                    if req_type_now == RequestType::Unknown{
-                        println!("skipping null req type");
-                        // continue;
-                    }
-                    else{
-                        match self.trees.get_mut(&group_now.request_type.to_string()) {
+                    match self.trees.get_mut(&group_now.request_type.to_string()) {
                             // if there exists a tree by that req type -> add group to that
                             Some(v) => v.add_group(group_now),
                             None => { // if not, create new tree
@@ -437,7 +432,13 @@ impl GroupManager {
                                 
                             } 
                         }
-                    }
+                    // if req_type_now == RequestType::Unknown{
+                    //     println!("skipping null req type");
+                    //     // continue;
+                    // }
+                    // else{
+                        
+                    // }
 
                 }
             }
