@@ -157,26 +157,45 @@ fn main() {
         let contents = fs::read_to_string("/users/emreates/signal").expect("NO!");
         println!("****+++**** RT signal {:?}",contents);
 
-        if contents== "0"{
+        if contents.contains("0"){
             println!("****+++****it worked0!");
             cv_threshold= 0.05;
+            println!("*Mert CV thresholds :{:?}", cv_threshold);
         }
 
-        if contents == "1"{
+        if contents.contains("1"){
             println!("****+++****it worked1!");
             cv_threshold= cv_threshold + 0.05;
+             println!("*Mert CV thresholds :{:?}", cv_threshold);
         }
-        if contents == "2"{
+        if contents.contains("2"){
             println!("****+++****it worked!");
+            cv_threshold= 1.0;
+             println!("*Mert CV thresholds :{:?}", cv_threshold);
             // cv_threshold= cv_threshold + 0.05;
             // disable last ones 
             
 
-            // let enabled_tracepoints: HashSet<_> =
-            // let mut to_disable = Vec::new();
-            // to_disable = CONTROLLER.enabled_tracepoints().drain(..).collect().iter().rev().take(3);
+            let enabled_tracepoints: HashSet<_> =
+                    CONTROLLER.enabled_tracepoints().drain(..).collect();        
 
-            // CONTROLLER.disable(&to_disable);
+            let mut counter = 0;
+            let mut to_disable = Vec::new();
+            let t = enabled_tracepoints.len() as i32;
+            for tp in enabled_tracepoints {
+                counter = counter +1;
+                if counter + 3 > t{
+                    println!("Mert Disable {:?}, ", tp.1);
+                    to_disable.push(tp);
+                    
+                }
+                
+            }
+            CONTROLLER.disable(&to_disable);
+            
+            // to_disable = CONTROLLER.enabled_tracepoints().drain(..).collect::<B>().iter().rev().take(3);
+
+            
             // println!("MErt disabled {:?}",to_disable)
         }
 
