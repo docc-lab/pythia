@@ -853,8 +853,18 @@ impl Node {
                             .collect();
                         sorted_groups.sort_by(|a, b| b.variance.partial_cmp(&a.variance).unwrap());
                         // println!("\n**Groups sorted in CV Analaysis: {}", sorted_groups);
-                        
-                res.push(sorted_groups[0].get_hash().to_string());
+                let gids =  sorted_groups.get(0);
+                match gids{
+                     Some(ref  s) =>  {
+                         res.push(s.get_hash().to_string());
+                        },
+                        None => {
+                                res.push("".to_string());
+                            
+                        }
+                 }
+
+                
                 return res;
             }
         }
