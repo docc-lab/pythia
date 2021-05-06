@@ -265,7 +265,7 @@ fn main() {
             let mut budget = SETTINGS.tracepoints_per_epoch;
             // let problem_groups = groups.problem_groups();
 
-            let res = groups.problem_groups_tree(cv_threshold);
+            let problem_groups = groups.problem_groups_tree(cv_threshold);
             // let problem_groups = groups.problem_groups_cv(cv_threshold); // tsl: problem groups takes now 
             
             // println!("*CV Groups: {:?}", problem_groups);
