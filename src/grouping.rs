@@ -579,7 +579,7 @@ impl GroupManager {
             prob_groups.extend(sorted_groups.clone());
             
         }
-        println!("Mert all prob groups : {:?} ",prob_groups);
+        // println!("Mert all prob groups : {:?} ",prob_groups);
         return prob_groups;
         
     }
