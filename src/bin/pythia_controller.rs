@@ -1,8 +1,11 @@
 #[macro_use]
 extern crate lazy_static;
+// use std::fs;
 
 // use std::collections::HashSet;
 use std::collections::HashSet;
+use std::fs;
+
 use std::fs::File;
 use std::io::prelude::*;
 use std::sync::mpsc::channel;
@@ -154,27 +157,27 @@ fn main() {
         let contents = fs::read_to_string("/users/emreates/signal").expect("NO!");
         println!("****+++**** RT signal {:?}",contents);
 
-        if contents.unwrap() == "0"{
+        if contents== "0"{
             println!("****+++****it worked0!");
             cv_threshold= 0.05;
         }
 
-        if contents.unwrap() == "1"{
+        if contents == "1"{
             println!("****+++****it worked1!");
             cv_threshold= cv_threshold + 0.05;
         }
-        if contents.unwrap() == "2"{
+        if contents == "2"{
             println!("****+++****it worked!");
             // cv_threshold= cv_threshold + 0.05;
             // disable last ones 
             
 
             // let enabled_tracepoints: HashSet<_> =
-            let mut to_disable = Vec::new();
-            to_disable = CONTROLLER.enabled_tracepoints().drain(..).collect().iter().rev().take(3);
+            // let mut to_disable = Vec::new();
+            // to_disable = CONTROLLER.enabled_tracepoints().drain(..).collect().iter().rev().take(3);
 
-            CONTROLLER.disable(&to_disable);
-            println!("MErt disabled {:?}",to_disable)
+            // CONTROLLER.disable(&to_disable);
+            // println!("MErt disabled {:?}",to_disable)
         }
 
 
