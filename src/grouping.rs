@@ -451,6 +451,7 @@ impl GroupManager {
 
     // enable tps on behalf of group id
     pub fn enable_tps(&mut self, points: &Vec<(TracepointID, Option<RequestType>)>, group_id: &String) {
+        // if points.len
         println!("Mertiko Enabling SSQ {:?} for group: {:?}", points, group_id);
         // let mut enabled_tracepoints = self.enabled_tracepoints.lock().unwrap();
         let mut vec = Vec::new();
@@ -461,6 +462,9 @@ impl GroupManager {
             req_type_now = p.1.unwrap();
         }
         println!("+ type: {:?} points:{:?}",req_type_now, vec);
+        if vec.is_empty(){
+            return;
+        }
 
 
 
