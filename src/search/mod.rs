@@ -20,7 +20,7 @@ use crate::trace::TracepointID;
 pub trait SearchStrategy {
     /// Simply return a list of tracepoints to enable. The number of trace points should be <= the
     /// budget
-    fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> Vec<TracepointID>;
+    fn search(&self, group: &Group, edge: EdgeIndex, budget: usize, output_file: &mut std::fs::File) -> Vec<TracepointID>;
 }
 
 #[derive(Debug)]

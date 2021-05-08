@@ -212,10 +212,10 @@ impl HierarchicalCriticalPath {
     // path. For example, if the path is A -> B -> C, happens_before(A, B) would be true, but happens_before(B, A) would
     // return false.
     // Looks through the whole path, so is O(n).
-    pub fn happens_before(&self, before_node: TracepointID, after_node: TracepointID) -> bool {
+    pub fn happens_before(&self, before_node: &TraceNode, after_node: &TraceNode) -> bool {
         // First check for the same node, as one cannot happen before oneself
         if before_node == after_node {
-            return false
+            return false;
         }
 
         // Initialize flag to tell if we've seen the before node already
@@ -228,17 +228,17 @@ impl HierarchicalCriticalPath {
             // or if we've reached the after_node first.
             if !before_node_seen {
                 // If the current node is the before node, we can mark that we've found it.
-                if self.g[current_node].tracepoint_id == before_node {
+                if self.g[current_node] == *before_node {
                     before_node_seen = true;
                 }
                 // If we've reached the later node before finding the before node, we know it can't happen before it
-                if self.g[current_node].tracepoint_id == after_node {
+                if self.g[current_node] == *after_node {
                     return false;
                 }
             } else {
                 // If we saw the before_node in a previous node, that means we're down the happens-before path, and if
                 // we see the after_node, we know it must occur after.
-                if self.g[current_node].tracepoint_id == after_node {
+                if self.g[current_node] == *after_node {
                     return true;
                 }
                 // If we've reached the last node without finding the after_node, that means we didn't find it in the

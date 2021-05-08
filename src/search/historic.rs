@@ -20,7 +20,7 @@ pub struct HistoricSearch {
 }
 
 impl SearchStrategy for HistoricSearch {
-    fn search(&self, group: &Group, _edge: EdgeIndex, budget: usize) -> Vec<TracepointID> {
+    fn search(&self, group: &Group, _edge: EdgeIndex, budget: usize, output_file: &mut std::fs::File) -> Vec<TracepointID> {
         let mut rng = rand::thread_rng();
         self.per_request_types
             .get(&group.request_type)

@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use rand::seq::SliceRandom;
+use std::io::Write;
 
 use crate::controller::Controller;
 use crate::critical::Path;
@@ -11,6 +12,7 @@ use crate::manifest::Manifest;
 use crate::search::SearchStrategy;
 use crate::settings::Settings;
 use crate::trace::EventType;
+use crate::trace::TraceNode;
 use crate::trace::TracepointID;
 
 pub struct HierarchicalSearch {
@@ -19,7 +21,13 @@ pub struct HierarchicalSearch {
 }
 
 impl SearchStrategy for HierarchicalSearch {
-    fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> Vec<TracepointID> {
+    fn search(
+        &self,
+        group: &Group,
+        edge: EdgeIndex,
+        budget: usize,
+        output_file: &mut std::fs::File,
+    ) -> Vec<TracepointID> {
         let mut rng = &mut rand::thread_rng();
         let (source, target) = group.g.edge_endpoints(edge).unwrap();
         // Get context for source and target, aka the hierarchical nodes that come before them.
@@ -47,9 +55,10 @@ impl SearchStrategy for HierarchicalSearch {
         let mut result = self.search_context(
             &matches,
             common_context,
-            group.g[source].tracepoint_id,
-            group.g[target].tracepoint_id,
+            &group.g[source],
+            &group.g[target],
             budget,
+            output_file,
         );
         result = result
             .into_iter()
@@ -72,9 +81,10 @@ impl HierarchicalSearch {
         &self,
         matches: &Vec<&HierarchicalCriticalPath>,
         context: Vec<TracepointID>,
-        source_tracepoint: TracepointID,
-        target_tracepoint: TracepointID,
+        source_tracenode: &TraceNode,
+        target_tracenode: &TraceNode,
         budget: usize,
+        output_file: &mut std::fs::File,
     ) -> Vec<TracepointID> {
         // Really we're looking at possible new parents that are at the correct hierarchy
         // depth. Once we have them, we'll return THEIR children as the search result.
@@ -150,21 +160,24 @@ impl HierarchicalSearch {
             let children_in_problematic_edge = self.get_child_nodes_in_problematic_edge(
                 path,
                 &all_children,
-                source_tracepoint,
-                target_tracepoint,
+                source_tracenode,
+                target_tracenode,
+                output_file,
             );
             // Now that we have all the valid nodes at the next level, we want to split them by our budget.
             let children_that_evenly_divide_edge =
-                self.split_children_evenly(&children_in_problematic_edge, budget_left);
+                self.split_children_evenly(&children_in_problematic_edge, budget_left, output_file);
             // Update the budget
             budget_left = budget_left - children_that_evenly_divide_edge.len();
             // Add these results to the final results
             result.extend(&children_that_evenly_divide_edge);
         }
-        println!(
+        writeln!(
+            output_file,
             "Total number of search results from search_context: {:?}",
             result.len()
-        );
+        )
+        .ok();
         result.drain().collect()
     }
 
@@ -172,24 +185,62 @@ impl HierarchicalSearch {
         &self,
         path: &HierarchicalCriticalPath,
         children: &Vec<NodeIndex>,
-        source_tracepoint: TracepointID,
-        target_tracepoint: TracepointID,
+        source_tracenode: &TraceNode,
+        target_tracenode: &TraceNode,
+        output_file: &mut std::fs::File,
     ) -> Vec<TracepointID> {
+        writeln!(
+            output_file,
+            "alexellis: finding child nodes in problematic edge"
+        )
+        .ok();
+        writeln!(
+            output_file,
+            "alexellis: problematic edge start: {:?}, finish: {:?}",
+            source_tracenode, target_tracenode
+        )
+        .ok();
+        writeln!(output_file, "alexellis: path: {:?}", path).ok();
+        writeln!(output_file, "alexellis: all children: {:?}", children).ok();
         // TODO: does there have to exist at least one that happens directly after the source node?
         // For now we can do just the dumber approach of checking each child.
         let mut valid_child_tracepoints = Vec::new();
         // TODO: path.happens_before is O(n) on the size of the trace, so if we're calling this for a ton of
         // children, this could end up being expensive. We can definitely speed this up.
         for child in children {
-            let child_tracepoint = path.g[*child].tracepoint_id;
+            let child_tracenode = &path.g[*child];
+            writeln!(
+                output_file,
+                "alexellis: child_tracenode: {:?}",
+                child_tracenode
+            )
+            .ok();
             let child_happens_after_source =
-                path.happens_before(source_tracepoint, child_tracepoint);
+                path.happens_before(source_tracenode, child_tracenode);
+            writeln!(
+                output_file,
+                "alexellis: child_happens_after_source: {:?}",
+                child_happens_after_source
+            )
+            .ok();
             let child_happens_before_target =
-                path.happens_before(child_tracepoint, target_tracepoint);
+                path.happens_before(child_tracenode, target_tracenode);
+            writeln!(
+                output_file,
+                "alexellis: child_happens_before_target: {:?}",
+                child_happens_before_target
+            )
+            .ok();
             if child_happens_after_source && child_happens_before_target {
-                valid_child_tracepoints.push(child_tracepoint);
+                valid_child_tracepoints.push(child_tracenode.tracepoint_id);
             }
         }
+        writeln!(
+            output_file,
+            "alexellis: valid_child_tracepoints: {:?}",
+            valid_child_tracepoints
+        )
+        .ok();
         return valid_child_tracepoints;
     }
 
@@ -197,7 +248,14 @@ impl HierarchicalSearch {
         &self,
         children: &Vec<TracepointID>,
         budget: usize,
+        output_file: &mut std::fs::File,
     ) -> HashSet<TracepointID> {
+        writeln!(
+            output_file,
+            "alexellis: split_children_evenly with budget {:?} for the following children {:?}",
+            budget, children
+        )
+        .ok();
         let mut budget_left = budget;
         let mut result = HashSet::new();
         // For example, if budget is 1, pick the node in the middle.
@@ -226,6 +284,7 @@ impl HierarchicalSearch {
                 }
             }
         }
+        writeln!(output_file, "alexellis: result: {:?}", result).ok();
         return result;
     }
 
@@ -306,8 +365,8 @@ mod tests {
                     TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
                     TracepointID::from_str("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action")
                 ],
-                /*source_tracepoint=*/ TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
-                /*target_tracepoint=*/ TracepointID::from_str("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action"),
+                /*source_tracenode=*/ TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
+                /*target_tracenode=*/ TracepointID::from_str("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action"),
                 /*budget=*/ 1
             );
         println!("{:?}", search_result);
@@ -338,8 +397,8 @@ mod tests {
                 /*context=*/ vec![
                     TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
                 ],
-                /*source_tracepoint=*/ TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
-                /*target_tracepoint=*/ TracepointID::from_str("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action"),
+                /*source_tracenode=*/ TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
+                /*target_tracenode=*/ TracepointID::from_str("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action"),
                 /*budget=*/ 1
             ),
             [TracepointID::from_str("keystone/v3/auth/tokens:POST")]);
@@ -367,8 +426,8 @@ mod tests {
                 /*context=*/ vec![
                     TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
                 ],
-                /*source_tracepoint=*/ TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
-                /*target_tracepoint=*/ TracepointID::from_str("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action"),
+                /*source_tracenode=*/ TracepointID::from_str("emreates/usr/lib/python3/dist-packages/cliff/app.py:363:openstackclient.shell.App.run_subcommand"),
+                /*target_tracenode=*/ TracepointID::from_str("emreates/usr/local/lib/python3.6/dist-packages/openstackclient/compute/v2/server.py:662:openstackclient.compute.v2.server.CreateServer.take_action"),
                 /*budget=*/ 3
             ).sort_by(|a, b| a.to_string().cmp(&b.to_string())),
             [

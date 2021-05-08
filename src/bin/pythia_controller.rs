@@ -45,7 +45,7 @@ fn main() {
     let mut groups = GroupManager::new();
     let mut last_decision = Instant::now();
     let mut last_gc = Instant::now();
-    
+
     // MERT:
     let mut tp_decisions = Vec::new();
     let mut group_id = "mert".to_string();
@@ -203,23 +203,23 @@ fn main() {
             let enabled_tracepoints: HashSet<_> =
                     CONTROLLER.enabled_tracepoints().drain(..).collect();
 
-            
+
             // Make decision
             let mut budget = SETTINGS.tracepoints_per_epoch;
             // let problem_groups = groups.problem_groups();
-            
-            let problem_groups = groups.problem_groups_cv(0.05); // tsl: problem groups takes now 
+
+            let problem_groups = groups.problem_groups_cv(0.05); // tsl: problem groups takes now
             // println!("*CV Groups: {:?}", problem_groups);
 
             //comment-in below line for consistently slow analysis
-            // let problem_groups_slow = groups.problem_groups_slow(95.0); // tsl: problem groups takes now 
+            // let problem_groups_slow = groups.problem_groups_slow(95.0); // tsl: problem groups takes now
             // println!("*SLOW Groups: {:?}", problem_groups_slow);
 
             let mut used_groups = Vec::new();
 
             //tsl ; get problematic group types to disable tps for non-problematic ones
             let mut problematic_req_types = Vec::new();
-            
+
             println!("Making decision. Top 3 problem groups:");
             for g in problem_groups.iter().take(3) {
                 println!("{}", g);
@@ -260,7 +260,7 @@ fn main() {
                         g.g[endpoints.0], g.g[endpoints.1], g.g[edge]
                     );
                     let decisions = strategy
-                        .search(g, edge, budget)
+                        .search(g, edge, budget, &mut output_file)
                         .iter()
                         .take(budget)
                         .map(|&t| (t, Some(g.request_type)))
@@ -284,7 +284,7 @@ fn main() {
                         }
                     }
                     CONTROLLER.enable(&decisions);
-                    
+
                     writeln!(output_file, "Enabled {}", decisions.len()).ok();
                     writeln!(output_file, "Enabled {:?}", decisions).ok();
                     if decisions.len() > 0 {
@@ -306,7 +306,7 @@ fn main() {
             // }
 
             //tsl : for groups that stopped being problematic; just disable tracepoints, which are enabled so far
-            
+
             // let mut to_disable = Vec::new();
             for tp in enabled_tracepoints {
                 println!("{:?}, ", tp.1);
@@ -314,11 +314,11 @@ fn main() {
                 // if g.request_type == tp. && to_keep.get(&tp).is_none() {
                 //     to_disable.push(tp);
                 // }
-    
+
             }
             // CONTROLLER.disable(&to_disable);
 
-             
+
 
             last_decision = Instant::now();
         }

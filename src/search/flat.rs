@@ -18,7 +18,7 @@ pub struct FlatSearch {
 }
 
 impl SearchStrategy for FlatSearch {
-    fn search(&self, group: &Group, edge: EdgeIndex, budget: usize) -> Vec<TracepointID> {
+    fn search(&self, group: &Group, edge: EdgeIndex, budget: usize, output_file: &mut std::fs::File) -> Vec<TracepointID> {
         // Get all of the HierarchicalCriticalPaths that contain this group
         let matches = self.manifest.find_matches(group);
         let mut result = HashSet::new();
