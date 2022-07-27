@@ -63,7 +63,8 @@ impl OSProfilerReader {
         while to_parse.is_none() && trials < 2 {
             to_parse = match self
                 .connection
-                .get("osprofiler:".to_string() + &span_id.to_hyphenated().to_string())
+                // .get("osprofiler:".to_string() + &span_id.to_hyphenated().to_string())
+                .get("osprofiler:".to_string() + &span_id.hyphenated().to_string())
             {
                 Ok(to_parse) => match &to_parse {
                     Value::Nil => {

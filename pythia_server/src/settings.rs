@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::convert::TryInto;
 
 use config::{Config, File, FileFormat};
 
