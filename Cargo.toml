@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Emre Ates <ates@bu.edu>"]
 edition = "2018"
 default-run = "pythia"
+license = "BSD-2-Clause"
 
 [dependencies]
 pythia_common = { path = "./pythia_common" }
