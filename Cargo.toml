@@ -1,8 +1,8 @@
 [package]
 name = "pythia"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["Emre Ates <ates@bu.edu>"]
-edition = "2018"
+edition = "2022"
 default-run = "pythia"
 license = "BSD-2-Clause"
 
