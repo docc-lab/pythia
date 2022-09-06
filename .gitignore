@@ -18,3 +18,5 @@ pythia_common/Cargo.lock
 pythia_common/target/
 pythia_server/target/
 .DS_Store
+
+./idea
