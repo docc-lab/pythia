@@ -19,4 +19,4 @@ pythia_common/target/
 pythia_server/target/
 .DS_Store
 
-./idea
+./.idea
