@@ -1,9 +1,10 @@
 [package]
 name = "pythia"
-version = "0.1.0"
-authors = ["Emre Ates <ates@bu.edu>"]
-edition = "2018"
+version = "1.0.0"
+authors = ["Emre Ates", "Mert Toslali", "Alex Ellis", "Zhaoqi Zhang", "Darby Huye", "Lan Liu", "Samantha Puterman", "Ayse K. Coskun", "Raja R. Sambasivan"]
+edition = "2022"
 default-run = "pythia"
+license = "BSD-2-Clause"
 
 [dependencies]
 pythia_common = { path = "./pythia_common" }

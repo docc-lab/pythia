@@ -1,3 +1,11 @@
+/*
+This source code is licensed under the BSD-style license found in the
+LICENSE file in the root directory of this source tree.
+
+Copyright (c) 2022, Diagnosis and Control of Clouds Laboratory
+All rights reserved.
+*/
+
 //! Controller has an API for sending control signals. OSProfilerController sends the orders to
 //! agents while HDFSController writes the control signals to a local file. TestController does nothing.
 

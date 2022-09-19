@@ -1,3 +1,11 @@
+/*
+This source code is licensed under the BSD-style license found in the
+LICENSE file in the root directory of this source tree.
+
+Copyright (c) 2022, Diagnosis and Control of Clouds Laboratory
+All rights reserved.
+*/
+
 //! Budget decides how many trace points to enable/disable per cycle.
 //!
 //! # Usage
