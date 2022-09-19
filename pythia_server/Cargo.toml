@@ -2,7 +2,7 @@
 name = "pythia_server"
 version = "1.0.0"
 authors = ["Emre Ates", "Mert Toslali", "Alex Ellis", "Zhaoqi Zhang", "Darby Huye", "Lan Liu", "Samantha Puterman", "Ayse K. Coskun", "Raja R. Sambasivan"]
-edition = "2022"
+edition = "2018"
 license = "BSD-2-Clause"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
