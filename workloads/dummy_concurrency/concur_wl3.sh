@@ -1,0 +1,2 @@
+echo HELLO WORLD
+echo GOODBYE WORLD

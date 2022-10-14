@@ -1,0 +1,42 @@
+#!/bin/bash
+
+outdir=$HOME/trace-results/
+mkdir -p $outdir
+
+if [[ "$#" -ne 2 ]]
+then
+    echo "Dumps osprofiler traces into $outdir."
+    echo "Usage: $1 trace_id command_name"
+    exit
+fi
+
+trace_id=$1
+operation=$2
+
+trace_file=$outdir/$operation-$trace_id
+
+old_linecount=-1
+while :
+do
+    osprofiler trace show --json --connection-string redis://localhost:6379 $trace_id > $trace_file.json
+    linecount=`wc -l $trace_file.json | awk '{print $1}'`
+    if [[ $linecount -eq $old_linecount ]]
+    then
+        break
+    else
+        old_linecount=$linecount
+        sleep 1
+    fi
+done
+
+if [[ $linecount -eq 1 ]]
+then
+    rm $trace_file.json
+else
+    osprofiler trace show --html --connection-string redis://localhost:6379 $trace_id > $trace_file.html
+
+    for trace_id in $(grep child_id $trace_file.json | cut -d'"' -f4)
+    do
+        $HOME/tracing-pythia/workloads/dump-trace $trace_id $operation
+    done
+fi

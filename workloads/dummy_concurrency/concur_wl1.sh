@@ -1,0 +1,2 @@
+echo PING
+echo PONG
