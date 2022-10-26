@@ -1,0 +1,3 @@
+./concur_wl1.sh 
+./concur_wl2.sh 
+./concur_wl3.sh
