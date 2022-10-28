@@ -7,12 +7,12 @@ do
     echo 1 > $i
 done
 
-$HOME/tracing-pythia/workloads/create_delete_vm.sh ~/offline_traces.txt 40
+~/pythia/workloads/create_delete_vm.sh ~/offline_traces.txt 40
 
 pids=()
 for i in `seq 40`
 do
-	$HOME/tracing-pythia/workloads/create_delete_vm.sh ~/offline_traces.txt 1 &
+	~/pythia/workloads/create_delete_vm.sh ~/offline_traces.txt 1 &
         pids+=($!)
 done
 

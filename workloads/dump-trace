@@ -37,6 +37,6 @@ else
 
     for trace_id in $(grep child_id $trace_file.json | cut -d'"' -f4)
     do
-        $HOME/tracing-pythia/workloads/dump-trace $trace_id $operation
+        ~/pythia/workloads/dump-trace $trace_id $operation
     done
 fi

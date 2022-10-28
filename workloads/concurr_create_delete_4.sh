@@ -11,7 +11,7 @@ fi
 pids=()
 for i in `seq 10`
 do
-	$HOME/tracing-pythia/workloads/create_delete_vm.sh $1 1 &
+	~/pythia/workloads/create_delete_vm.sh $1 1 &
         pids+=($!)
 done
 

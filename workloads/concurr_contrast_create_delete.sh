@@ -8,11 +8,11 @@
 # we do 5 here for a control group - not more because this takes so long
 for i in `seq 5`
 do
-	$HOME/tracing-pythia/workloads/create_delete_workload.sh 1
+	~/pythia/workloads/create_delete_workload.sh 1
 done
 
 # we do 10 concurrent because any less does not seem to produce slow-down
 for i in `seq 10`
 do
-	$HOME/tracing-pythia/workloads/create_delete_workload.sh 1 &
+	~/pythia/workloads/create_delete_workload.sh 1 &
 done

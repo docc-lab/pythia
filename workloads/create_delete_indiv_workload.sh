@@ -75,7 +75,7 @@ do
     # dump create trace
     sleep 30
     echo "Dumping 'create' for trace $count: "${create_traces[$i]}""
-    $HOME/tracing-pythia/workloads/dump-trace ${create_traces[$i]} server_create
+    ~/pythia/workloads/dump-trace ${create_traces[$i]} server_create
 
     # delete VM
     echo "Deleting "${server}...""
@@ -84,7 +84,7 @@ do
     # dump delete trace
     sleep 30
     echo "Dumping 'delete' for trace $count "${create_traces[$i]}""
-    $HOME/tracing-pythia/workloads/dump-trace ${delete_traces[$i]} server_delete
+    ~/pythia/workloads/dump-trace ${delete_traces[$i]} server_delete
 
     count=$((count+1))
 done
