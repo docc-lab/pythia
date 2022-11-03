@@ -1,50 +1,51 @@
 # Pythia rust project
 
-This repo contains the parts of Pythia written in Rust.
+## About
 
-# Pythia repositories
-* [This repo](https://github.com/docc-lab/reconstruction): Pythia agent and
-  controller.
-* [openstack-build-ubuntu](https://github.com/docc-lab/openstack-build-ubuntu):
-  Cloudlab profile for setting up openstack. Has to be public.
-* [tracing-pythia](https://github.com/docc-lab/tracing-pythia): Random stuff,
-  there's a table of contents in the repo.
-* [ORE](https://github.com/docc-lab/ORE): scripts to get openstack running on
-  MOC.
-* [pythia_client](https://github.com/docc-lab/pythia_client): failed experiment
-  that tried to automatically instrument every python statement/function.
-## Forks of openstack projects
-* [osprofiler](https://github.com/docc-lab/osprofiler): Many changes, we have to
-  run this version for the rust code to work.
-* [nova](https://github.com/docc-lab/nova): Includes more instrumentation and
-  instrumentation fixes.
-* [python-novaclient](https://github.com/docc-lab/python-novaclient):
-  instrumentation for request types.
-* [python-openstackclient](https://github.com/docc-lab/python-openstackclient):
-  instrumentation for request types.
-* [oslo.log](https://github.com/docc-lab/oslo.log): support to add log
-  statements into traces.
-* [osc_lib](https://github.com/docc-lab/osc_lib): instrumentation on the client
-  side.
-* [oslo.messaging](https://github.com/docc-lab/oslo.messaging): split
-  asynchronous requests to capture concurrency correctly.
-* [neutron](https://github.com/docc-lab/neutron): more instrumentation.
-* [python-blazarclient](https://github.com/docc-lab/python-blazarclient):
-  support for request types.
-## Other repos
-* [nova-old](https://github.com/docc-lab/nova-old): seems like an old fork of
-  nova. I forgot what this was for, currently unused.
-* [dagreconstruction](https://github.com/docc-lab/dagreconstruction): seems like
-  it's a fork of reconstruction that was used at one point.
+This is the opensourced code base of **[DOCC Lab at Tufts University](https://docclab.cs.tufts.edu/)**'s full paper **[VAIF](https://dl.acm.org/doi/abs/10.1145/3544497.3544504?casa_token=rjolR5C9q9wAAAAA:7iVtHXCABI3JMd7OZ4OOqrs4U1EptpCHWNyqrLUDfUoVfYYHe65WLGeEBd2csmYe_p3eWqoIR2VJ3w) on SoCC21** (pervious short paper **[Pythia](https://dl.acm.org/doi/abs/10.1145/3357223.3362704) on SoCC19**)
 
-# Installation instructions
+VAIF is the final name in paper, but we used old name, Pythia, in code base.
 
-Installing rust:
-```
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
+This repo is under BSD 2-clause license.
 
-## Getting Documentation
+## Code base
+
+- This repo contains the parts of Pythia written in Rust, including ***pythia controller*** and ***pythia server*** in the `pythia_server` foleder.
+- Currently, Pythia can work in OpenStack.
+- We also opensource Pytyhia instrumentation agent for OpenStack enviornment. Please refer to [the repos list at the botoom](#pythia-repositories).
+
+
+
+## Installation instructions
+
+One may compile & install Pythia code base using Rust tools, but it's not recommended. Instead, we recommend to use the following two methods.
+
+- Create a CloudLab experiment with Pythia & Openstack enviornment installed automatically
+
+  - Accessable using [this CloudLab profile](https://www.cloudlab.us/p/Tracing-Pythia/pythia-openstack-opensource)
+
+- Pull a Docker container that contains Pythia
+
+  - WIP
+  - No user guide for docker user since Pythia requires OpenStack enviornment
+
+## Usage
+
+### In CloudLab, using pythia with Openstack
+
+Please follow [this user guide](https://docs.google.com/document/d/1h0qHo1VSJWcStmhBOY_UqypxgSanhWeEuOTkSJosF8c/edit?usp=sharing) for
+
+- How to create an experiment with shared profile
+- How to setup initial search space for Pythia
+- How to execute Pythia
+- How to injection different problems to OpenStack
+- How to grab result of Pythia's analysis
+- How to do troubleshooting
+
+### Getting Documentation of Pythia code base
+
+***(If you plan to contribute, and needs documentation)***
+
 After pulling the code, use `cargo doc --open --document-private-items`.
 Documentation there includes how to install, documentation on the codebase,
 etc.
@@ -52,60 +53,35 @@ etc.
 The `pythia_server` folder contains an independent rust project, whose documentation
 should be built separately, in the same way.
 
-# Notes/How To for Various Things
+## Contribution
 
-## What is pythia server/controller/agent/client/etc.?
-Renaming things without extensive testing is difficult at this moment. The
-`pythia_server` folder in this repository contains pythia agents that run on
-each application node and collect traces. The main `src` folder inside this repo
-contains the pythia controller. There should be one pythia controller running
-that makes all of the instrumentation decisions.
+Contribution is welcomed in general.
 
-## Using Pythia server manually:
-```
-curl --data-binary '{"jsonrpc":"2.0","id":"curltext","method":"$METHOD_NAME","params":["$PARAM1","$PARAM2",...]}' -H 'content-type:application/json' http://127.0.0.1:3030/
-```
+- Pythia is opensource under BSD 2-Clause License
+- WIP
 
-## How to create cloudlab image
-Follow the cloudlab guide [probably
-here](https://docs.cloudlab.us/cloudlab-manual.html#%28part._disk-images%29).
-You have to start a single-node project and edit the image using that project,
-and take a snapshot after that. To avoid doing this frequently, I added deploy
-ssh keys to the cloudlab image for each repo, and the pythia install scripts
-pull the most recent versions of each repo before installing anything.
+## Pythia repositories
 
-## How to fork a new openstack project
-You should make any changes to openstack persistent by forking the project and
-adding it to the relevant install scripts.
-0. Start an openstack project, make sure your changes are not breaking anything
-   for a running openstack instance.
-1. Fork the project on github.
-2. Make any required changes and then push to github. Remember which branch you
-   push to.
-3. (similar to how to create cloudlab image point above)
-    * Create a single-node project using our disk image.
-    * Clone the repo into `/local/`. The branch should match the branch you want
-      to be installed (the branch you made changes to).
-    * Create a deploy key, put the deploy key inside `/local/.ssh/` (as far as I remember).
-    * Add the deploy key to github.
-    * Take a snapshot.
-    * Modify the pythia install scripts inside
-      [openstack-build-ubuntu](https://github.com/docc-lab/openstack-build-ubuntu)
-      to pull and install your new repo.
+- [This repo](https://github.com/docc-lab/reconstruction): Pythia agent and controller.
+- [openstack-build-ubuntu](https://github.com/docc-lab/openstack-build-ubuntu) :
+  Cloudlab profile for setting up openstack.
+- [ORE](https://github.com/docc-lab/ORE): scripts to get openstack running on MOC. (Not active and not maintained)
 
-## How to change sampling rate
-Inside the `osprofiler` repository, change `sampling_rate` in the file
-`osprofiler/opts.py`. Set to 0.3 for 30% sampling. After this, re-install
-osprofiler and restart openstack (see the osprofiler repo for instructions on
-how to do this).
+## Forks of openstack projects
 
-An alternative method is to manually sample your traces in your workload scripts
-(e.g., run 3 out of 10 requests with profiling enabled for 30% sampling).
-
-## How to introduce problems to openstack
-Change the variable `PROBLEM_TRACEPOINT` inside `osprofiler/profiler.py` in the
-`osprofiler` repository. Any tracepoint that matches that name would randomly
-sleep, imitating a performance problem. To change sleep amount, check where the
-variable `PROBLEM_TRACEPOINT` is used in that file. After changing the file,
-re-install osprofiler and restart openstack according to the instructions in the
-"how to change sampling rate" bullet.
+- [osprofiler](https://github.com/docc-lab/osprofiler): Many changes, we have to
+  run this version for the rust code to work.
+- [nova](https://github.com/docc-lab/nova): Includes more instrumentation and
+  instrumentation fixes.
+- [python-novaclient](https://github.com/docc-lab/python-novaclient):
+  instrumentation for request types.
+- [python-openstackclient](https://github.com/docc-lab/python-openstackclient):
+  instrumentation for request types.
+- [oslo.log](https://github.com/docc-lab/oslo.log): support to add log
+  statements into traces.
+- [osc_lib](https://github.com/docc-lab/osc_lib): instrumentation on the client
+  side.
+- [oslo.messaging](https://github.com/docc-lab/oslo.messaging): split
+  asynchronous requests to capture concurrency correctly.
+- [neutron](https://github.com/docc-lab/neutron): more instrumentation.
+- [python-blazarclient](https://github.com/docc-lab/python-blazarclient): support for request types.
