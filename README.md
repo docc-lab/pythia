@@ -10,8 +10,8 @@ This repo is under BSD 2-clause license.
 
 ## Code base
 
-- This repo contains the parts of Pythia written in Rust, including ***pythia controller*** and ***pythia server*** in the `pythia_server` foleder.
-- Currently, Pythia can work in OpenStack.
+- This repo contains the parts of Pythia written in Rust, including ***pythia controller*** and ***pythia server*** in the `pythia_server` folder.
+- Currently, Pythia can work in OpenStack, HDFS (extra setup needed, not included here) enviornment etc.
 - We also opensource Pytyhia instrumentation agent for OpenStack enviornment. Please refer to [the repos list at the botoom](#pythia-repositories).
 
 
@@ -20,27 +20,30 @@ This repo is under BSD 2-clause license.
 
 One may compile & install Pythia code base using Rust tools, but it's not recommended. Instead, we recommend to use the following two methods.
 
-- Create a CloudLab experiment with Pythia & Openstack enviornment installed automatically
+- Create an CloudLab experiment with Pythia & experiment enviornment(OpenStack) installed automatically
 
   - Accessable using [this CloudLab profile](https://www.cloudlab.us/p/Tracing-Pythia/pythia-openstack-opensource)
 
 - Pull a Docker container that contains Pythia
 
   - WiP
-  - No user guide for docker user since Pythia requires OpenStack enviornment
 
 ## Usage
 
 ### In CloudLab, using pythia with Openstack
 
-Please follow [this user guide](https://docs.google.com/document/d/1h0qHo1VSJWcStmhBOY_UqypxgSanhWeEuOTkSJosF8c/edit?usp=sharing) for
+Please follow [this user guide](https://github.com/docc-lab/pythia/blob/master/user-guide.md) for
 
-- How to create an experiment with shared profile
-- How to setup initial search space for Pythia
-- How to execute Pythia
-- How to injection different problems to OpenStack
-- How to grab result of Pythia's analysis
-- How to do troubleshooting
+  - How to create an experiment with shared profile
+  - How to setup initial search space for Pythia
+  - How to execute Pythia
+  - How to injection different problems to OpenStack
+  - How to grab result of Pythia's analysis
+  - How to do troubleshooting
+
+### In docker image
+No user guide for docker image for now since it's already compiled and it requires OpenStack enviornment to run experiment.
+- But we might add some in the future.
 
 ### Getting Documentation of Pythia code base
 
@@ -53,18 +56,10 @@ etc.
 The `pythia_server` folder contains an independent rust project, whose documentation
 should be built separately, in the same way.
 
-## Contribution
-
-Contribution is welcomed in general.
-
-- Pythia is opensource under BSD 2-Clause License
-- WIP
-
 ## Pythia repositories
 
 - [This repo](https://github.com/docc-lab/reconstruction): Pythia agent and controller.
 - [openstack-build-ubuntu](https://github.com/docc-lab/openstack-build-ubuntu): Cloudlab profile for setting up openstack.
-- [ORE](https://github.com/docc-lab/ORE): scripts to get openstack running on MOC. (Not active and not maintained)
 
 ## Forks of openstack projects
 
