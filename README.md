@@ -1,6 +1,18 @@
 # Pythia rust project
 
-## About
+- [Pythia rust project](#pythia-rust-project)
+  - [About \& License](#about--license)
+  - [Code base](#code-base)
+  - [Installation instructions](#installation-instructions)
+  - [Usage](#usage)
+    - [In CloudLab, using pythia with Openstack](#in-cloudlab-using-pythia-with-openstack)
+    - [In docker image](#in-docker-image)
+    - [Getting Documentation of Pythia code base](#getting-documentation-of-pythia-code-base)
+  - [Pythia repositories](#pythia-repositories)
+  - [Forks of openstack projects](#forks-of-openstack-projects)
+
+
+## About & License
 
 This is the opensourced code base of **[DOCC Lab at Tufts University](https://docclab.cs.tufts.edu/)** and **[Peac Lab at Boston University](https://www.bu.edu/peaclab/)**'s full paper **[VAIF](https://dl.acm.org/doi/abs/10.1145/3544497.3544504?casa_token=rjolR5C9q9wAAAAA:7iVtHXCABI3JMd7OZ4OOqrs4U1EptpCHWNyqrLUDfUoVfYYHe65WLGeEBd2csmYe_p3eWqoIR2VJ3w) on SoCC21** (pervious short paper **[Pythia](https://dl.acm.org/doi/abs/10.1145/3357223.3362704) on SoCC19**)
 
@@ -37,8 +49,8 @@ Please follow [this user guide](https://github.com/docc-lab/pythia/blob/master/u
   - How to create an experiment with shared profile
   - How to setup initial search space for Pythia
   - How to execute Pythia
-  - How to injection different problems to OpenStack
-  - How to grab result of Pythia's analysis
+  - How to injection problem to OpenStack
+  - How to use Pythia to analyze injected problems
   - How to do troubleshooting
 
 ### In docker image
