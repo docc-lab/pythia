@@ -141,7 +141,7 @@ fn main() {
         )
         .ok();
 
-        if over_budget || last_gc.elapsed() > SETTINGS.gc_epoch {
+        // if over_budget || last_gc.elapsed() > SETTINGS.gc_epoch {
             // Run garbage collection
             // if over_budget {
                 // eprintln!("Over budget, would disable but it's not implemented");
@@ -186,13 +186,13 @@ fn main() {
                 // writeln!(output_file, "Disabled {:?}", to_disable).ok();
             // }
             // Disable tracepoints not observed in critical paths
-            let to_disable = budget_manager.old_tracepoints();
-            CONTROLLER.disable(&to_disable);
-            writeln!(output_file, "Disabled {}", to_disable.len()).ok();
-            writeln!(output_file, "Disabled {:?}", to_disable).ok();
+        //     let to_disable = budget_manager.old_tracepoints();
+        //     CONTROLLER.disable(&to_disable);
+        //     writeln!(output_file, "Disabled {}", to_disable.len()).ok();
+        //     writeln!(output_file, "Disabled {:?}", to_disable).ok();
 
-            last_gc = Instant::now();
-        }
+        //     last_gc = Instant::now();
+        // }
 
         if !over_budget && last_decision.elapsed() > SETTINGS.decision_epoch {
 
